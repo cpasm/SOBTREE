@@ -133,7 +133,10 @@ Probar siempre a 1440×900, 1280×800, 1024×768, 768×1024 y 375×812, sin scro
 
 ## 9. Contenido y artículos
 
-- Cada artículo responde a una pregunta de un **CIO**: cómo ahorra dinero, cómo gana más o cómo ayuda a su gente.
+- Cada artículo responde a una pregunta de un **CIO, CMO o responsable de CRM**: cómo ahorra dinero, cómo gana más o cómo ayuda a su gente.
+- Lenguaje natural y directo, sin pelos en la lengua. Entrada con el número o el problema que duele, nunca con definiciones.
+- Cada análisis lleva una sección **«Qué hacer según tu silla»** (CIO, CMO, responsable de CRM); cada noticia del Radar, un **«Qué haríamos»**.
+- **Cuña comercial con contexto:** un bloque `ComoLoHacemos` por artículo como máximo, a mitad del texto y ligado al tema, y un `cta` propio en el frontmatter (qué resolvemos en 25 minutos). Nunca cifras de ahorro de clientes.
 - Tres líneas (`linea` en el frontmatter): **Salesforce**, **IA**, **Salesforce + IA**.
 - Portada: `imagen` (con licencia de uso, en `public/img/`) y `imagenAlt`. Sin imagen, se dibuja una **ilustración de marca** según el tema (`src/components/Cover.astro`): **ahorro** (columnas que bajan y flecha), **radar** (barrido con señales), **IA** (burbujas de conversación y agente) y **datos** (fuentes que convergen en un perfil y ventas que suben). Solo azul marino, `--panel-2`, blanco y acento; sin texto dentro.
 - Fotos reales, si se usan: escenas de trabajo reales y sobrias (equipos, pantallas, oficinas), retocadas a tonos fríos para casar con el marino. Nada de robots, cerebros brillantes ni manos humanas tocando circuitos.
