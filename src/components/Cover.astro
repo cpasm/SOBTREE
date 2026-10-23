@@ -1,0 +1,25 @@
+---
+// Portada de artículo: la imagen del frontmatter o, si no hay, una composición abstracta
+// en la paleta de la marca generada a partir del título (siempre la misma para el mismo título).
+interface Props { title: string; src?: string; alt?: string }
+const { title, src, alt = "" } = Astro.props;
+
+let h = 2166136261;
+for (const ch of title) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+const rnd = () => { h ^= h << 13; h >>>= 0; h ^= h >> 17; h ^= h << 5; h >>>= 0; return (h % 1000) / 1000; };
+const cx = 220 + rnd() * 360, cy = 90 + rnd() * 180;
+const rings = [70, 120, 175, 235, 300].map((r) => r * (0.85 + rnd() * 0.3));
+const bars = Array.from({ length: 7 }, (_, i) => ({ x: 40 + i * 22, h: 30 + rnd() * 110 }));
+const dots = Array.from({ length: 5 }, () => ({ x: 40 + rnd() * 720, y: 30 + rnd() * 390, r: 3 + rnd() * 5 }));
+---
+{src
+  ? <img src={src} alt={alt} loading="lazy" />
+  : <svg viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Ilustración abstracta">
+      <rect width="800" height="450" fill="#050F2C"></rect>
+      <rect x="0" y="300" width="800" height="150" fill="#0A1A42"></rect>
+      {rings.map((r, i) => <circle cx={cx} cy={cy} r={r} fill="none" stroke={i === 2 ? "#6AA2FF" : "#1A3F8C"} stroke-width={i === 2 ? 3 : 1.5}></circle>)}
+      {bars.map((b) => <rect x={b.x} y={420 - b.h} width="12" height={b.h} rx="6" fill="#1A3F8C"></rect>)}
+      <rect x={bars[4].x} y={420 - bars[4].h} width="12" height={bars[4].h} rx="6" fill="#6AA2FF"></rect>
+      {dots.map((d) => <circle cx={d.x} cy={d.y} r={d.r} fill="#9CC2FF"></circle>)}
+      <circle cx={cx} cy={cy} r="10" fill="#FFFFFF"></circle>
+    </svg>}

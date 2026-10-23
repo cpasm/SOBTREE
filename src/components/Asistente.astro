@@ -1,0 +1,41 @@
+---
+// Asistente de IA (DESIGN.md §6): burbuja fija con captación de nombre y diálogo de conversación.
+// El nombre se queda en el navegador: saluda y rellena el formulario de contacto, no se envía al modelo.
+const SUGERENCIAS = [
+  "¿Me están cobrando de más por Salesforce?",
+  "¿Cuánto cuesta un agente de Agentforce?",
+  "¿Necesito Data 360 para empezar?"
+];
+---
+<div class="assist" id="assist">
+  <div class="assist-card" id="assist-card" hidden>
+    <p class="assist-k">Asistente de IA de Sobtree</p>
+    <p class="assist-title">Deja tu nombre y comienza a ahorrar<span class="dot-accent">.</span></p>
+    <form class="assist-form" id="assist-form">
+      <label class="sr-only" for="assist-name">Tu nombre</label>
+      <input id="assist-name" name="nombre" type="text" maxlength="80" autocomplete="given-name" placeholder="Tu nombre" required>
+      <button type="submit" aria-label="Empezar a ahorrar">→</button>
+    </form>
+    <p class="assist-note">Hablas con una IA. Tu nombre no sale de tu navegador. <a href="/privacidad/">Privacidad</a></p>
+  </div>
+  <button type="button" class="assist-fab" id="assist-fab" aria-expanded="false" aria-controls="assist-card" aria-label="Abrir el asistente de IA">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"></path></svg>
+  </button>
+</div>
+
+<dialog class="chat" id="chat" aria-labelledby="chat-title">
+  <div class="chat-head">
+    <p id="chat-title"><span class="dot-accent" aria-hidden="true">●</span> Asistente de Sobtree <span class="chat-tag">IA</span></p>
+    <button type="button" class="chat-close" id="chat-close" aria-label="Cerrar el asistente">×</button>
+  </div>
+  <div class="chat-log" id="chat-log" aria-live="polite"></div>
+  <ul class="ask-chips chat-chips" id="chat-chips" aria-label="Preguntas sugeridas">
+    {SUGERENCIAS.map((q) => <li><button type="button" data-ask={q}>{q}</button></li>)}
+  </ul>
+  <form class="ask-box chat-form" id="chat-form">
+    <label class="sr-only" for="chat-q">Tu pregunta</label>
+    <input id="chat-q" type="text" maxlength="600" autocomplete="off" placeholder="Pregunta lo que quieras">
+    <button class="btn btn-ink btn-sm" type="submit">Enviar</button>
+  </form>
+  <p class="chat-foot">Respuestas generadas por IA a partir del contenido de sobtree.com. Pueden contener errores: comprueba las fuentes. No incluyas datos personales. <a href="/privacidad/">Privacidad</a></p>
+</dialog>

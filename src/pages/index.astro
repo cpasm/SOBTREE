@@ -1,6 +1,8 @@
 ---
 import Base from "../layouts/Base.astro";
-import Bento from "../components/Bento.astro";
+import Foco from "../components/Foco.astro";
+import Articulos from "../components/Articulos.astro";
+import Asistente from "../components/Asistente.astro";
 import { FAQ } from "../data/faq";
 import { BUILD_VERSION } from "../data/site";
 import CASOS from "../data/casos.json";
@@ -11,16 +13,19 @@ const jsonld = graph(organization(), website(), person(), faqPage());
 <Base jsonld={jsonld}>
 <main id="main">
 
-<!-- ============ BENTO ============ -->
-<Bento />
+<!-- ============ PORTADA ============ -->
+<Foco />
+
+<!-- ============ ARTÍCULOS ============ -->
+<Articulos />
 
 <!-- ============ PROBLEMA ============ -->
 <section class="section section-alt" id="reto">
   <div class="wrap">
     <div class="section-head">
       <p class="eyebrow">El reto</p>
-      <h2>La mayoría de las empresas paga por IA que todavía no usa</h2>
-      <p class="section-sub">Las licencias llegan antes que el valor. Estos son los tres frenos que encontramos en casi todos los clientes y los que resolvemos primero.</p>
+      <h2>Estás pagando por IA que todavía no usas</h2>
+      <p class="section-sub">Primero te venden las licencias y luego ya se verá el valor. Estos son los tres agujeros por los que se escapa el dinero, y los que tapamos primero.</p>
     </div>
     <div class="grid-3">
       <article class="card">
@@ -39,64 +44,6 @@ const jsonld = graph(organization(), website(), person(), faqPage());
         <p>Se mide adopción y número de licencias, no ingresos ni coste. Sin un KPI de negocio, cada renovación es un acto de fe.</p>
       </article>
     </div>
-  </div>
-</section>
-
-<!-- ============ ARQUITECTURA ============ -->
-<section class="section" id="arquitectura">
-  <div class="wrap arch-grid">
-    <div class="section-head">
-      <p class="eyebrow">Arquitectura objetivo</p>
-      <h2>Dato unificado, agentes y personas sobre la misma plataforma</h2>
-      <p class="section-sub">Los agentes aciertan cuando tienen contexto. Por eso empezamos por el dato y terminamos con supervisión humana, gobierno y trazabilidad.</p>
-    </div>
-  <figure class="arch" aria-labelledby="arch-cap">
-    <figcaption id="arch-cap">Arquitectura objetivo: dato unificado, agentes y personas trabajando sobre la misma plataforma</figcaption>
-    <svg viewBox="0 0 520 470" role="img" aria-label="Diagrama: fuentes de datos alimentan Data 360, que da contexto a Agentforce, que actúa en ventas, servicio, marketing y fidelización con supervisión humana">
-      <defs>
-        <linearGradient id="g-core" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b6f9e"/><stop offset="1" stop-color="#1a4a6e"/></linearGradient>
-      </defs>
-      <!-- fuentes -->
-      <g class="a-src">
-        <rect x="10" y="20" width="110" height="40" rx="8"/><text x="65" y="45">ERP</text>
-        <rect x="140" y="20" width="110" height="40" rx="8"/><text x="195" y="45">E-commerce</text>
-        <rect x="270" y="20" width="110" height="40" rx="8"/><text x="325" y="45">App y web</text>
-        <rect x="400" y="20" width="110" height="40" rx="8"/><text x="455" y="45">Contact center</text>
-      </g>
-      <g class="a-lines">
-        <path d="M65 60V100H260"/><path d="M195 60V100"/><path d="M325 60V100"/><path d="M455 60V100H260"/><path d="M260 100V122"/>
-      </g>
-      <!-- data 360 -->
-      <g class="a-core">
-        <rect x="60" y="122" width="400" height="74" rx="12" fill="url(#g-core)"/>
-        <text class="t-title" x="260" y="153">Data 360</text>
-        <text class="t-sub" x="260" y="177">Perfil único de cliente, consentimiento y señales en tiempo real</text>
-      </g>
-      <g class="a-lines"><path d="M260 196V226"/></g>
-      <!-- agentforce -->
-      <g class="a-agent">
-        <rect x="60" y="226" width="400" height="74" rx="12"/>
-        <text class="t-title" x="260" y="257">Agentforce</text>
-        <text class="t-sub" x="260" y="281">Agentes que razonan, actúan y escalan a personas con reglas claras</text>
-      </g>
-      <g class="a-lines">
-        <path d="M260 300V326H80V352"/><path d="M260 326H200V352"/><path d="M260 326H320V352"/><path d="M260 326H440V352"/>
-      </g>
-      <g class="a-ch">
-        <rect x="22" y="352" width="116" height="44" rx="8"/><text x="80" y="379">Ventas</text>
-        <rect x="142" y="352" width="116" height="44" rx="8"/><text x="200" y="379">Servicio</text>
-        <rect x="262" y="352" width="116" height="44" rx="8"/><text x="320" y="379">Marketing</text>
-        <rect x="382" y="352" width="116" height="44" rx="8"/><text x="440" y="379">Fidelización</text>
-      </g>
-      <g class="a-human">
-        <rect x="60" y="418" width="400" height="38" rx="19"/>
-        <text x="260" y="442">Supervisión humana · Gobierno · Trazabilidad</text>
-      </g>
-      <circle class="a-flow" r="4"><animateMotion dur="5s" repeatCount="indefinite" path="M65 60V100H260V122M260 196V226M260 300V326H80V352"/></circle>
-      <circle class="a-flow" r="4"><animateMotion dur="5s" begin="-1.6s" repeatCount="indefinite" path="M455 60V100H260V122M260 196V226M260 300V326H440V352"/></circle>
-      <circle class="a-flow" r="4"><animateMotion dur="5s" begin="-3.2s" repeatCount="indefinite" path="M325 60V100H260V122M260 196V226M260 300V326H200V352"/></circle>
-    </svg>
-  </figure>
   </div>
 </section>
 
@@ -178,45 +125,6 @@ const jsonld = graph(organization(), website(), person(), faqPage());
   </div>
 </section>
 
-<!-- ============ ROI ============ -->
-<section class="section" id="roi">
-  <div class="wrap roi-grid">
-    <div class="section-head">
-      <p class="eyebrow">Calculadora de ahorro</p>
-      <h2>¿Cuánto vale un agente en tu servicio de atención?</h2>
-      <p class="section-sub">Ajusta los valores con tus datos. Es una estimación orientativa del ahorro operativo, antes de contar el impacto en satisfacción y ventas.</p>
-    </div>
-    <form class="roi-card" id="roi-form" aria-label="Calculadora de ahorro">
-      <div class="field-range">
-        <label for="r-cases">Casos de cliente al mes</label>
-        <output id="o-cases" for="r-cases"></output>
-        <input type="range" id="r-cases" min="1000" max="100000" step="1000" value="10000">
-      </div>
-      <div class="field-range">
-        <label for="r-min">Minutos de gestión por caso</label>
-        <output id="o-min" for="r-min"></output>
-        <input type="range" id="r-min" min="2" max="45" step="1" value="12">
-      </div>
-      <div class="field-range">
-        <label for="r-cost">Coste por hora de agente (€)</label>
-        <output id="o-cost" for="r-cost"></output>
-        <input type="range" id="r-cost" min="15" max="70" step="1" value="28">
-      </div>
-      <div class="field-range">
-        <label for="r-auto">Casos que puede resolver un agente de IA</label>
-        <output id="o-auto" for="r-auto"></output>
-        <input type="range" id="r-auto" min="10" max="70" step="5" value="35">
-      </div>
-      <div class="roi-out">
-        <div><span class="roi-k">Ahorro anual estimado</span><span class="roi-v" id="roi-eur">—</span></div>
-        <div><span class="roi-k">Horas liberadas al año</span><span class="roi-v sm" id="roi-hours">—</span></div>
-        <div><span class="roi-k">Equivalente a jornadas completas</span><span class="roi-v sm" id="roi-fte">—</span></div>
-      </div>
-      <a class="btn btn-primary btn-block" href="#contacto" id="roi-cta">Validar este cálculo con mis datos</a>
-    </form>
-  </div>
-</section>
-
 <!-- ============ MÉTODO ============ -->
 <section class="section section-alt" id="metodo">
   <div class="wrap">
@@ -239,7 +147,7 @@ const jsonld = graph(organization(), website(), person(), faqPage());
   <div class="wrap">
     <div class="section-head">
       <p class="eyebrow">Por qué Sobtree</p>
-      <h2>La experiencia de una gran consultora, sin sus incentivos</h2>
+      <h2>La experiencia de una gran consultora. Sin su factura.</h2>
       <p class="section-sub">Hemos trabajado del lado de quien propone, de quien construye y de quien defiende el retorno ante dirección.</p>
     </div>
     <div class="cmp-wrap">
@@ -313,7 +221,7 @@ const jsonld = graph(organization(), website(), person(), faqPage());
   <div class="wrap contact-grid">
     <div>
       <p class="eyebrow">Hablemos</p>
-      <h2>Reserva una conversación de 30 minutos</h2>
+      <h2>30 minutos. Si no vemos ahorro, te lo decimos.</h2>
       <p class="section-sub">Cuéntanos tu situación. Te respondemos en menos de 24 horas laborables con una propuesta de siguiente paso. Si no vemos un retorno claro, te lo diremos.</p>
       <ul class="contact-points">
         <li>Sin compromiso y sin presentaciones comerciales genéricas</li>
@@ -363,7 +271,9 @@ const jsonld = graph(organization(), website(), person(), faqPage());
 </section>
 
 </main>
+<Asistente />
 <script type="application/json" id="casos-data" set:html={JSON.stringify(CASOS)} />
 <script is:inline src={`/assets/main.js?v=${BUILD_VERSION}`} defer></script>
+<script is:inline src={`/assets/foco.js?v=${BUILD_VERSION}`} defer></script>
 <script is:inline src={`/assets/asistente.js?v=${BUILD_VERSION}`} defer></script>
 </Base>

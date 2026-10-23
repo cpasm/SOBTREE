@@ -1,0 +1,48 @@
+---
+import Base from "../../layouts/Base.astro";
+import { BUILD_VERSION } from "../../data/site";
+import { graph, organization, website } from "../../data/schema";
+---
+<Base title="Calculadora de ahorro con IA en Salesforce | Sobtree" description="Calcula cuánto puede ahorrar un agente de IA en tu servicio de atención al cliente: casos, minutos por caso, coste por hora y porcentaje automatizable." jsonld={graph(organization(), website())}>
+<main id="main">
+<section class="section" id="roi">
+  <div class="wrap roi-grid">
+    <div class="section-head">
+      <p class="eyebrow">Calculadora de ahorro</p>
+      <h1 class="page-title">¿Cuánto dinero estás dejando en la mesa?</h1>
+      <p class="section-sub">Mueve los valores con los datos de tu servicio de atención. Es una estimación del ahorro operativo de un agente de IA, antes de contar el impacto en satisfacción y ventas, y sin el coste de la plataforma: para eso está el <a href="/analisis/cuanto-cuesta-un-agente-de-agentforce/">análisis de costes de Agentforce</a>.</p>
+    </div>
+    <form class="roi-card" id="roi-form" aria-label="Calculadora de ahorro">
+      <div class="field-range">
+        <label for="r-cases">Casos de cliente al mes</label>
+        <output id="o-cases" for="r-cases"></output>
+        <input type="range" id="r-cases" min="1000" max="100000" step="1000" value="10000">
+      </div>
+      <div class="field-range">
+        <label for="r-min">Minutos de gestión por caso</label>
+        <output id="o-min" for="r-min"></output>
+        <input type="range" id="r-min" min="2" max="45" step="1" value="12">
+      </div>
+      <div class="field-range">
+        <label for="r-cost">Coste por hora de agente (€)</label>
+        <output id="o-cost" for="r-cost"></output>
+        <input type="range" id="r-cost" min="15" max="70" step="1" value="28">
+      </div>
+      <div class="field-range">
+        <label for="r-auto">Casos que puede resolver un agente de IA</label>
+        <output id="o-auto" for="r-auto"></output>
+        <input type="range" id="r-auto" min="10" max="70" step="5" value="35">
+      </div>
+      <div class="roi-out">
+        <div><span class="roi-k">Ahorro anual estimado</span><span class="roi-v" id="roi-eur">—</span></div>
+        <div><span class="roi-k">Horas liberadas al año</span><span class="roi-v sm" id="roi-hours">—</span></div>
+        <div><span class="roi-k">Equivalente a jornadas completas</span><span class="roi-v sm" id="roi-fte">—</span></div>
+      </div>
+      <a class="btn btn-primary btn-block" href="/#contacto" id="roi-cta">Validar este cálculo con mis datos</a>
+    </form>
+  </div>
+</section>
+
+</main>
+<script is:inline src={`/assets/roi.js?v=${BUILD_VERSION}`} defer></script>
+</Base>

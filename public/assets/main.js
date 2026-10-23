@@ -39,54 +39,11 @@
   renderCases("seguros");
   $$("[data-goto-sector]").forEach((a) => a.addEventListener("click", () => renderCases(a.dataset.gotoSector)));
 
-  /* ---------- Calculadora ROI ---------- */
-  const nf = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0 });
-  const eur = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
-  const R = {
-    cases: [$("#r-cases"), $("#o-cases"), (v) => nf.format(v)],
-    min: [$("#r-min"), $("#o-min"), (v) => `${v} min`],
-    cost: [$("#r-cost"), $("#o-cost"), (v) => `${v} €`],
-    auto: [$("#r-auto"), $("#o-auto"), (v) => `${v} %`]
-  };
-  const HOURS_PER_FTE = 1720; // horas efectivas por jornada completa al año
-  let lastRoi = null;
-  function calcRoi() {
-    Object.values(R).forEach(([inp, out, fmt]) => {
-      out.textContent = fmt(Number(inp.value));
-      const p = ((inp.value - inp.min) / (inp.max - inp.min)) * 100;
-      inp.style.setProperty("--p", `${p}%`);
-    });
-    const cases = +R.cases[0].value, min = +R.min[0].value, cost = +R.cost[0].value, auto = +R.auto[0].value / 100;
-    const hours = cases * 12 * (min / 60) * auto;
-    const savings = hours * cost;
-    $("#roi-eur").textContent = eur.format(savings);
-    $("#roi-hours").textContent = nf.format(hours);
-    $("#roi-fte").textContent = nf.format(hours / HOURS_PER_FTE);
-    lastRoi = { cases, min, cost, auto: auto * 100, savings };
-    syncMini();
-  }
-
-  /* Calculadora mini del bento: controla los mismos valores que la completa. */
-  const M = { cases: [$("#m-cases"), $("#mo-cases"), "cases"], auto: [$("#m-auto"), $("#mo-auto"), "auto"] };
-  function syncMini() {
-    if (!M.cases[0]) return;
-    Object.values(M).forEach(([inp, out, key]) => {
-      const [full, , fmt] = R[key];
-      inp.value = full.value;
-      out.textContent = fmt(Number(full.value));
-      inp.style.setProperty("--p", `${((inp.value - inp.min) / (inp.max - inp.min)) * 100}%`);
-    });
-    $("#m-eur").textContent = $("#roi-eur").textContent;
-    $("#m-assume").textContent = `Con ${R.min[0].value} min por caso y ${R.cost[0].value} €/h.`;
-  }
-  Object.values(M).forEach(([inp, , key]) => inp && inp.addEventListener("input", () => { R[key][0].value = inp.value; calcRoi(); }));
-  Object.values(R).forEach(([inp]) => inp.addEventListener("input", calcRoi));
-  calcRoi();
-  $("#roi-cta").addEventListener("click", () => {
-    if (!lastRoi) return;
-    prefill("Agentforce a producción",
-      `He usado la calculadora: ${nf.format(lastRoi.cases)} casos al mes, ${lastRoi.min} min por caso, ${lastRoi.cost} €/h y un ${lastRoi.auto} % automatizable. Ahorro estimado: ${eur.format(lastRoi.savings)} al año. Me gustaría validarlo con nuestros datos.`);
-  });
+  /* ---------- Datos que llegan de otra página (calculadora) ---------- */
+  try {
+    const pending = JSON.parse(sessionStorage.getItem("sobtree_prefill") || "null");
+    if (pending) { prefill(pending.interes, pending.mensaje); sessionStorage.removeItem("sobtree_prefill"); }
+  } catch (e) {}
 
   /* ---------- Autodiagnóstico (una pregunta cada vez) ---------- */
   const QUESTIONS = [

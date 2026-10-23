@@ -60,9 +60,9 @@ export const GET: APIRoute = async () => {
 
   docs.push({
     title: "Calculadora de ahorro de un agente de IA",
-    url: `${SITE.url}/#roi`,
+    url: `${SITE.url}/calculadora/`,
     text: lines(
-      "La calculadora de la web estima el ahorro operativo anual de un agente de IA en atención al cliente.",
+      "La calculadora de la web (sobtree.com/calculadora) estima el ahorro operativo anual de un agente de IA en atención al cliente.",
       "Fórmula: horas liberadas al año = casos al mes × 12 × (minutos por caso / 60) × % de casos que resuelve el agente. Ahorro = horas × coste por hora. Jornadas completas equivalentes = horas / 1.720.",
       "Valores por defecto: 10.000 casos al mes, 12 minutos por caso, 28 € por hora y un 35 % resuelto por el agente, que dan unos 235.200 € al año.",
       "Es una estimación orientativa del ahorro operativo, antes de contar el impacto en satisfacción y ventas, y no incluye el coste de la plataforma ni de la implantación."

@@ -1,0 +1,69 @@
+---
+// Portada «Foco» (DESIGN.md §5): todo lo importante en la primera pantalla.
+// El foco que sigue al ratón y el diagrama los anima public/assets/foco.js.
+import { LOGOS, PLATAFORMAS } from "../data/confianza";
+
+const NODOS = [
+  { k: "01", name: "Fuentes", text: "ERP, e-commerce, app y contact center. Conectamos lo que ya pagas antes de comprar nada nuevo." },
+  { k: "02", name: "Data 360", text: "Perfil único de cliente y señales en tiempo real: sin dato limpio, la IA solo acierta en la demo." },
+  { k: "03", name: "Agentforce", text: "Agentes que resuelven casos reales en ventas, servicio y marketing, con el coste por acción medido." },
+  { k: "04", name: "Personas", text: "Tu equipo deja lo repetitivo y decide lo importante. Supervisión humana, RGPD y Ley de IA." }
+];
+const COMO = [
+  { n: "3 sem", dot: true, b: "Diagnóstico", t: "A precio cerrado, sin sorpresas" },
+  { n: "90 días", dot: false, b: "Primer agente", t: "En producción, no en un PowerPoint" },
+  { n: "0 €", dot: false, b: "En comisiones", t: "No ganamos si compras de más" }
+];
+// La cinta se duplica para que el desplazamiento sea continuo.
+const cinta = LOGOS.length ? LOGOS : PLATAFORMAS.map((p) => ({ src: "", alt: p }));
+---
+<section class="foco" id="foco" aria-labelledby="foco-title">
+  <div class="foco-spot" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="foco-copy">
+      <p class="kicker">Para CIOs hartos de pagar de más</p>
+      <h1 id="foco-title">¿Cansado de consultoras que <span class="hl">cobran pastizales<svg viewBox="0 0 300 20" preserveAspectRatio="none" aria-hidden="true"><path d="M3 14 C 60 4, 120 4, 180 10 S 270 16, 297 6"></path></svg></span>?</h1>
+      <p class="foco-sub">Nosotros no. En 3 semanas y a precio cerrado te decimos qué licencias estás tirando, qué IA te hace ganar dinero y qué es puro humo.</p>
+      <div class="foco-actions">
+        <a class="btn btn-primary" href="#contacto" data-interest="Diagnóstico de valor">Reservar diagnóstico</a>
+        <a class="btn btn-ghost" href="/calculadora/">Calcular mi ahorro</a>
+      </div>
+    </div>
+
+    <div class="flow" aria-label="Cómo encaja todo: del dato al agente">
+      <ul class="flow-nodes">
+        {NODOS.map((n, i) => (
+          <li class={i === 1 ? "on" : undefined}>
+            <button type="button" class="flow-node" aria-expanded={i === 1 ? "true" : "false"}>
+              <span class="flow-k">{n.k}</span>
+              <span class="flow-name">{n.name}</span>
+              <span class="flow-text">{n.text}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div class="flow-wire" aria-hidden="true"></div>
+    </div>
+
+    <div class="how-grid">
+      {COMO.map((c) => (
+        <a class="how" href="#contacto" data-interest="Diagnóstico de valor">
+          <span class="how-n">{c.n}{c.dot && <span class="dot-accent">.</span>}</span>
+          <span class="how-t"><b>{c.b}</b>{c.t}</span>
+          <span class="how-go">Reservar</span>
+        </a>
+      ))}
+    </div>
+
+    <div class="trust">
+      <p class="trust-label">{LOGOS.length ? "Confían en nosotros" : "Especialistas en"}</p>
+      <div class="trust-track">
+        <ul class="trust-list">
+          {[...cinta, ...cinta].map((l, i) => (
+            <li aria-hidden={i >= cinta.length ? "true" : undefined}>{l.src ? <img src={l.src} alt={l.alt} loading="lazy" /> : l.alt}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>

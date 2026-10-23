@@ -11,6 +11,10 @@ const analisis = defineCollection({
     date: z.coerce.date(),
     updated: z.coerce.date().optional(),
     tags: z.array(z.string()).default([]),
+    // Línea editorial (DESIGN.md §9) y portada opcional en public/img/.
+    linea: z.enum(["Salesforce", "IA", "Salesforce + IA"]).default("Salesforce + IA"),
+    imagen: z.string().optional(),
+    imagenAlt: z.string().optional(),
     draft: z.boolean().default(false)
   })
 });
@@ -24,6 +28,8 @@ const radar = defineCollection({
     description: z.string().max(200),
     date: z.coerce.date(),
     puntos: z.array(z.string()).min(1).max(4),
+    imagen: z.string().optional(),
+    imagenAlt: z.string().optional(),
     draft: z.boolean().default(false)
   })
 });

@@ -24,7 +24,7 @@ const v = BUILD_VERSION;
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
 <meta name="description" content={description}>
-<meta name="theme-color" content="#112d44">
+<meta name="theme-color" content="#050F2C">
 {noindex ? <meta name="robots" content="noindex"> : <link rel="canonical" href={canonical}>}
 <meta property="og:type" content={ogType}>
 <meta property="og:site_name" content={SITE.name}>
@@ -38,7 +38,7 @@ const v = BUILD_VERSION;
 <link rel="alternate" type="text/plain" title="llms.txt" href="/llms.txt">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href={`/assets/styles.css?v=${v}`}>
 <slot name="head" />
 {jsonld && <script type="application/ld+json" set:html={jsonld} />}

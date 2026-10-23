@@ -1,12 +1,17 @@
 # Sobtree — web de servicios IA × Salesforce
 
-Sitio estático generado con [Astro](https://astro.build). El contenido se escribe en Markdown/MDX y cada push a `main` compila la web y la sube a Hostinger.
+Sitio estático generado con [Astro](https://astro.build). **Diseño y maquetación: [DESIGN.md](DESIGN.md)** (colores, tipografía, componentes, movimiento, responsive y línea editorial). El contenido se escribe en Markdown/MDX y cada push a `main` compila la web y la sube a Hostinger.
 
 ## Estructura
 
 ```
-src/pages/index.astro          Home: bento + secciones (servicios, casos, ROI, método, autodiagnóstico, FAQ, contacto)
-src/components/Bento.astro     Bloques de la home: propuesta, calculadora mini, Radar, análisis, método, reservar
+src/pages/index.astro          Portada: Foco + artículos + secciones (servicios, casos, método, autodiagnóstico, FAQ, contacto)
+src/components/Foco.astro      Primera pantalla: titular, diagrama interactivo, «cómo lo hacemos» y franja de confianza
+src/components/Articulos.astro Artículo destacado con portada y resumen + lista
+src/components/Asistente.astro Burbuja «Deja tu nombre y comienza a ahorrar» y diálogo del asistente
+src/components/Cover.astro     Portada de artículo (imagen o ilustración generada)
+src/pages/calculadora/         Calculadora de ahorro
+src/data/confianza.ts          Logos de la franja de confianza (solo con permiso)
 src/pages/analisis/            Listado y página de cada análisis
 src/pages/radar/               Listado y página de cada entrega del Radar
 src/pages/privacidad.astro     Privacidad y aviso legal

@@ -29,7 +29,8 @@ export async function buildLlms(full: boolean) {
   out.push("");
 
   out.push("## Páginas", "");
-  out.push(`- [Inicio](${SITE.url}/): servicios, casos de uso por sector, calculadora de ahorro, método de trabajo, autodiagnóstico, FAQ y contacto.`);
+  out.push(`- [Inicio](${SITE.url}/): servicios, casos de uso por sector, método de trabajo, autodiagnóstico, FAQ y contacto.`);
+  out.push(`- [Calculadora de ahorro](${SITE.url}/calculadora/): ahorro operativo estimado de un agente de IA en atención al cliente.`);
   if (posts.length) out.push(`- [Análisis](${SITE.url}/analisis/): artículos sobre IA y Salesforce.`);
   if (radar.length) out.push(`- [Radar](${SITE.url}/radar/): entrega semanal con las noticias de Salesforce e IA que importan y su lectura.`);
   out.push("");
