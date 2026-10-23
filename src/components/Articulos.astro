@@ -1,16 +1,8 @@
 ---
 // Artículos en portada (DESIGN.md §9): uno destacado con portada y resumen, y una lista con miniaturas.
 import Cover from "./Cover.astro";
-import { getAnalisis, getRadar, fmtShort } from "../data/content";
+import { getAnalisis, getRadar, fmtShort, temaDe } from "../data/content";
 
-// Tema de la portada ilustrada (Cover.astro) según línea y etiquetas.
-const temaDe = (linea: string, tags: string[] = []) => {
-  const t = tags.join(" ").toLowerCase();
-  if (/precio|coste|ahorro|licenc|business case/.test(t)) return "ahorro";
-  if (linea === "IA") return "ia";
-  if (linea === "Salesforce") return "ahorro";
-  return "datos";
-};
 
 const [analisis, radar] = await Promise.all([getAnalisis(), getRadar()]);
 const todos = [

@@ -9,7 +9,7 @@ Todo lo que se añada a la web sigue esta guía. Los valores viven en `public/as
 ## 1. Marca
 
 ### Logotipo
-- **Monograma:** «S.»: S blanca en Open Sans 800 y punto en `--accent`, sobre un cuadrado marino con radio 16/64 y borde blanco al 28 %. Se usa **solo como favicon**; en pantalla nunca.
+- **Monograma:** «S.»: S blanca en Open Sans 800 y punto en `--accent`, sobre un cuadrado marino con radio 16/64 y borde blanco al 28 %. Se usa **solo como favicon**; en pantalla nunca. Juego de iconos: `favicon.svg`, `/favicon.ico` (16/32/48), `favicon-32.png`, `apple-touch-icon.png` (180, fondo marino) e `icon-192/512.png` en `site.webmanifest`.
 - **Wordmark:** `Sobtree.` en Open Sans 800, blanco sobre marino (o marino sobre blanco), con el **punto en el color de acento** (`--accent`).
 - **Lockup en cabecera:** `Sobtree.` · barra vertical fina (1 px, 26 px de alto, blanco al 30 %) · logo de Salesforce en PNG (`public/img/logos/salesforce.png`, 46 px de alto; 40 px en móvil) · `× IA` en versalitas, 13 px, 600, tracking 0,06 em. Sin el PNG, el texto es `IA × SALESFORCE`. Se ve igual en móvil, algo más pequeño.
 - **Logo de Salesforce:** solo si Sobtree es partner oficial y con el distintivo que Salesforce entregue a partners. Mientras no lo sea, el nombre «Salesforce» va solo en texto (uso nominativo) y el pie mantiene el aviso de no afiliación.
@@ -137,6 +137,8 @@ Probar siempre a 1440×900, 1280×800, 1024×768, 768×1024 y 375×812, sin scro
 - Cada artículo responde a una pregunta de un **CIO**: cómo ahorra dinero, cómo gana más o cómo ayuda a su gente.
 - Tres líneas (`linea` en el frontmatter): **Salesforce**, **IA**, **Salesforce + IA**.
 - Portada: `imagen` (con licencia de uso, en `public/img/`) y `imagenAlt`. Sin imagen, se dibuja una **ilustración de marca** según el tema (`src/components/Cover.astro`): **ahorro** (columnas que bajan y flecha), **radar** (barrido con señales), **IA** (burbujas de conversación y agente) y **datos** (fuentes que convergen en un perfil y ventas que suben). Solo azul marino, `--panel-2`, blanco y acento; sin texto dentro.
+- La **misma portada** sale en la portada de la web, en los listados de Artículos y Radar (tarjetas con imagen, tema, fecha, título y resumen) y dentro de cada pieza, bajo el título. El tema se calcula en un solo sitio (`temaDe` en `src/data/content.ts`).
+- Las páginas de listados y de artículo usan poco espacio superior (`.page-tight`).
 - Fotos reales, si se usan: escenas de trabajo reales y sobrias (equipos, pantallas, oficinas), retocadas a tonos fríos para casar con el marino. Nada de robots, cerebros brillantes ni manos humanas tocando circuitos.
 - El `description` es el resumen de la portada: 2–3 frases, con una cifra si la hay.
 - El Radar es semanal; cada noticia se convierte en una pregunta concreta de empresa («¿Tengo que renegociar Marketing Cloud tras la compra de Braze?»).

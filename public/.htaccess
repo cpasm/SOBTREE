@@ -46,3 +46,7 @@ AddCharset utf-8 .txt
 # No servir ficheros del repositorio
 RedirectMatch 404 /\.git
 RedirectMatch 404 /README\.md$
+
+# Iconos y manifiesto
+AddType image/x-icon .ico
+AddType application/manifest+json .webmanifest

@@ -1,12 +1,13 @@
 ---
 import Base from "../../layouts/Base.astro";
-import { getAnalisis, fmtDate } from "../../data/content";
+import Cover from "../../components/Cover.astro";
+import { getAnalisis, fmtDate, temaDe } from "../../data/content";
 import { graph, organization, website } from "../../data/schema";
 
 const items = await getAnalisis();
 ---
 <Base title="Análisis de IA y Salesforce | Sobtree" description="Análisis independientes sobre Agentforce, Data 360 y cómo sacar retorno de la IA en Salesforce." jsonld={graph(organization(), website())}>
-  <main id="main" class="section">
+  <main id="main" class="section page-tight">
     <div class="wrap">
       <div class="section-head">
         <p class="eyebrow">Análisis</p>
@@ -14,12 +15,17 @@ const items = await getAnalisis();
       </div>
       {items.length === 0
         ? <p class="section-sub">Pronto publicaremos los primeros análisis.</p>
-        : <ul class="post-list">
+        : <ul class="post-grid">
             {items.map((e) => (
-              <li class="card">
-                <a href={`/analisis/${e.id}/`}><h2>{e.data.title}</h2></a>
-                <p>{e.data.description}</p>
-                <p class="prose-meta"><time datetime={e.data.date.toISOString()}>{fmtDate(e.data.date)}</time></p>
+              <li>
+                <a class="post-card" href={`/analisis/${e.id}/`}>
+                  <span class="cover"><Cover title={e.data.title} src={e.data.imagen} alt={e.data.imagenAlt} tema={temaDe(e.data.linea, e.data.tags)} /></span>
+                  <span class="post-card-body">
+                    <span class="line-tag">{e.data.linea} · <time datetime={e.data.date.toISOString()}>{fmtDate(e.data.date)}</time></span>
+                    <span class="post-card-title">{e.data.title}</span>
+                    <span class="post-card-sum">{e.data.description}</span>
+                  </span>
+                </a>
               </li>
             ))}
           </ul>}

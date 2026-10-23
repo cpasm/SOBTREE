@@ -1,12 +1,13 @@
 ---
 import Base from "../../layouts/Base.astro";
+import Cover from "../../components/Cover.astro";
 import { getRadar, fmtDate } from "../../data/content";
 import { graph, organization, website } from "../../data/schema";
 
 const items = await getRadar();
 ---
 <Base title="Radar de Salesforce e IA | Sobtree" description="Cada semana, lo que importa en Salesforce, Agentforce y Data 360, y qué significa para tu empresa." jsonld={graph(organization(), website())}>
-  <main id="main" class="section">
+  <main id="main" class="section page-tight">
     <div class="wrap">
       <div class="section-head">
         <p class="eyebrow">Radar</p>
@@ -15,12 +16,17 @@ const items = await getRadar();
       </div>
       {items.length === 0
         ? <p class="section-sub">La primera entrega está en camino.</p>
-        : <ul class="post-list">
+        : <ul class="post-grid">
             {items.map((e) => (
-              <li class="card">
-                <p class="prose-meta"><time datetime={e.data.date.toISOString()}>{fmtDate(e.data.date)}</time></p>
-                <a href={`/radar/${e.id}/`}><h2>{e.data.title}</h2></a>
-                <ol class="radar-points">{e.data.puntos.map((p) => <li>{p}</li>)}</ol>
+              <li>
+                <a class="post-card" href={`/radar/${e.id}/`}>
+                  <span class="cover"><Cover title={e.data.title} src={e.data.imagen} alt={e.data.imagenAlt} tema="radar" /></span>
+                  <span class="post-card-body">
+                    <span class="line-tag">Radar · <time datetime={e.data.date.toISOString()}>{fmtDate(e.data.date)}</time></span>
+                    <span class="post-card-title">{e.data.title}</span>
+                    <span class="post-card-sum">{e.data.description}</span>
+                  </span>
+                </a>
               </li>
             ))}
           </ul>}

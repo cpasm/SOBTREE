@@ -537,3 +537,22 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .nl-status.ok { color: var(--ok); }
 .nl-status.err { color: #ffb4ab; }
 @media (max-width: 640px) { .nl-row .btn { flex: 1 1 100%; } }
+
+/* ---------- Listados de Artículos y Radar, y portada dentro del artículo ---------- */
+.section.page-tight { padding-top: clamp(20px, 3vw, 36px); }
+.page-tight .page-title { margin-top: 8px; }
+.page-tight .section-sub { margin-top: 10px; }
+.post-grid { list-style: none; margin: 28px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.post-card { height: 100%; display: flex; flex-direction: column; text-decoration: none; color: var(--white); background: var(--panel); border: 1px solid #18306B; border-radius: var(--r-lg); overflow: hidden; transition: transform .3s var(--ease), border-color .3s ease; }
+.post-card .cover { border-radius: 0; display: block; }
+.post-card:hover { transform: translateY(-6px); border-color: var(--accent); }
+.post-card:hover .cover svg, .post-card:hover .cover img { transform: scale(1.05); }
+.post-card-body { padding: 20px 22px 24px; display: flex; flex-direction: column; gap: 8px; }
+.post-card .line-tag { color: var(--accent-2); }
+.post-card-title { font-size: 20px; font-weight: 800; line-height: 1.2; letter-spacing: -0.02em; }
+.post-card-sum { font-size: 15px; line-height: 1.5; color: var(--text-2); }
+.post-cover { margin-top: 22px; }
+.prose .back { margin-bottom: 18px; }
+.prose h1 { margin-top: 10px; }
+@media (max-width: 960px) { .post-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .post-grid { grid-template-columns: 1fr; } .post-cover { margin-top: 16px; border-radius: var(--r); } }

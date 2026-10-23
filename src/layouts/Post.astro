@@ -2,6 +2,8 @@
 // Página de un artículo (análisis o Radar).
 import Base from "./Base.astro";
 import Newsletter from "../components/Newsletter.astro";
+import Cover from "../components/Cover.astro";
+import type { Tema } from "../data/content";
 import { SITE, BUILD_VERSION } from "../data/site";
 import { fmtDate } from "../data/content";
 import { graph, organization, website, person, article } from "../data/schema";
@@ -14,18 +16,22 @@ interface Props {
   tags: string[];
   path: string; // p. ej. /analisis/mi-articulo/
   back: { href: string; label: string };
+  tema?: Tema;
+  imagen?: string;
+  imagenAlt?: string;
 }
-const { title, description, date, updated, tags, path, back } = Astro.props;
+const { title, description, date, updated, tags, path, back, tema = "datos", imagen, imagenAlt } = Astro.props;
 const url = new URL(path, SITE.url).href;
 const jsonld = graph(organization(), website(), person(), article({ title, description, url, date, updated, tags }));
 ---
 <Base title={`${title} | Sobtree`} description={description} ogType="article" jsonld={jsonld}>
-  <main id="main" class="section">
+  <main id="main" class="section page-tight">
     <article class="wrap prose">
       <a class="back" href={back.href}>{back.label}</a>
       {tags.length > 0 && <p class="eyebrow">{tags.join(" · ")}</p>}
       <h1>{title}</h1>
       <p class="prose-meta"><time datetime={date.toISOString()}>{fmtDate(date)}</time>{updated && <> · Actualizado el <time datetime={updated.toISOString()}>{fmtDate(updated)}</time></>}</p>
+      <div class="cover post-cover"><Cover title={title} src={imagen} alt={imagenAlt} tema={tema} /></div>
       <p class="lede">{description}</p>
       <slot name="intro" />
       <div class="prose-body"><slot /></div>
