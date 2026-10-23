@@ -1,25 +1,61 @@
 ---
-// Portada de artículo: la imagen del frontmatter o, si no hay, una composición abstracta
-// en la paleta de la marca generada a partir del título (siempre la misma para el mismo título).
-interface Props { title: string; src?: string; alt?: string }
-const { title, src, alt = "" } = Astro.props;
+// Portada de artículo (DESIGN.md §9): la imagen del frontmatter o, si no hay, una ilustración
+// de marca según el tema: ahorro, radar, agentes de IA o dato unificado (Salesforce + IA).
+interface Props { title: string; src?: string; alt?: string; tema?: "ahorro" | "radar" | "ia" | "datos" }
+const { title, src, alt = "", tema = "datos" } = Astro.props;
 
+// Pequeñas variaciones por título para que dos portadas del mismo tema no sean idénticas.
 let h = 2166136261;
 for (const ch of title) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
-const rnd = () => { h ^= h << 13; h >>>= 0; h ^= h >> 17; h ^= h << 5; h >>>= 0; return (h % 1000) / 1000; };
-const cx = 220 + rnd() * 360, cy = 90 + rnd() * 180;
-const rings = [70, 120, 175, 235, 300].map((r) => r * (0.85 + rnd() * 0.3));
-const bars = Array.from({ length: 7 }, (_, i) => ({ x: 40 + i * 22, h: 30 + rnd() * 110 }));
-const dots = Array.from({ length: 5 }, () => ({ x: 40 + rnd() * 720, y: 30 + rnd() * 390, r: 3 + rnd() * 5 }));
+const shift = (h % 60) - 30;
 ---
-{src
-  ? <img src={src} alt={alt} loading="lazy" />
-  : <svg viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Ilustración abstracta">
-      <rect width="800" height="450" fill="#050F2C"></rect>
-      <rect x="0" y="300" width="800" height="150" fill="#0A1A42"></rect>
-      {rings.map((r, i) => <circle cx={cx} cy={cy} r={r} fill="none" stroke={i === 2 ? "#6AA2FF" : "#1A3F8C"} stroke-width={i === 2 ? 3 : 1.5}></circle>)}
-      {bars.map((b) => <rect x={b.x} y={420 - b.h} width="12" height={b.h} rx="6" fill="#1A3F8C"></rect>)}
-      <rect x={bars[4].x} y={420 - bars[4].h} width="12" height={bars[4].h} rx="6" fill="#6AA2FF"></rect>
-      {dots.map((d) => <circle cx={d.x} cy={d.y} r={d.r} fill="#9CC2FF"></circle>)}
-      <circle cx={cx} cy={cy} r="10" fill="#FFFFFF"></circle>
-    </svg>}
+{src ? <img src={src} alt={alt} loading="lazy" /> : (
+  <svg viewBox="0 0 600 338" preserveAspectRatio="xMidYMid slice" role="img" aria-label={`Ilustración: ${title}`}>
+    <rect width="600" height="338" fill="#050F2C"></rect>
+    {tema === "ahorro" && (
+      <g>
+        <rect y="240" width="600" height="98" fill="#0A1A42"></rect>
+        <g fill="#1A3F8C"><rect x="110" y="90" width="68" height="200" rx="12"></rect><rect x="206" y="130" width="68" height="160" rx="12"></rect><rect x="302" y="170" width="68" height="120" rx="12"></rect></g>
+        <rect x="398" y="210" width="68" height="80" rx="12" fill="#6AA2FF"></rect>
+        <g fill="none" stroke="#9CC2FF" stroke-width="3"><ellipse cx="144" cy="90" rx="34" ry="10"></ellipse><ellipse cx="240" cy="130" rx="34" ry="10"></ellipse><ellipse cx="336" cy="170" rx="34" ry="10"></ellipse></g>
+        <path d="M120 56 C 240 66, 360 110, 484 176" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round"></path>
+        <path d="M471 151 L 486 177 L 456 180" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path>
+        <circle cx={520 + shift / 3} cy="60" r="10" fill="#6AA2FF"></circle>
+      </g>
+    )}
+    {tema === "radar" && (
+      <g>
+        <g fill="none" stroke="#1A3F8C" stroke-width="3"><circle cx="300" cy="169" r="56"></circle><circle cx="300" cy="169" r="104"></circle><circle cx="300" cy="169" r="152"></circle></g>
+        <path d={`M300 169 L 300 17 A 152 152 0 0 1 ${300 + 132} ${169 - 76} Z`} fill="#6AA2FF" opacity=".28"></path>
+        <line x1="300" y1="169" x2="432" y2="93" stroke="#6AA2FF" stroke-width="5"></line>
+        <circle cx="300" cy="169" r="12" fill="#FFFFFF"></circle>
+        <circle cx={376 + shift / 2} cy="85" r="10" fill="#FFFFFF"></circle>
+        <g fill="#9CC2FF"><circle cx="204" cy="238" r="8"></circle><circle cx="420" cy="242" r="8"></circle><circle cx={160 + shift} cy="118" r="6"></circle></g>
+      </g>
+    )}
+    {tema === "ia" && (
+      <g>
+        <rect x="70" y="60" width="240" height="80" rx="28" fill="#FFFFFF"></rect>
+        <path d="M100 140 L 92 168 L 128 140 Z" fill="#FFFFFF"></path>
+        <g fill="#C3D2EF"><rect x="98" y="88" width="140" height="10" rx="5"></rect><rect x="98" y="110" width="96" height="10" rx="5"></rect></g>
+        <rect x="290" y="176" width="240" height="80" rx="28" fill="#1A3F8C"></rect>
+        <path d="M502 256 L 514 284 L 474 256 Z" fill="#1A3F8C"></path>
+        <g fill="#9CC2FF"><rect x="318" y="204" width="156" height="10" rx="5"></rect><rect x="318" y="226" width="108" height="10" rx="5"></rect></g>
+        <g fill="none" stroke="#6AA2FF" stroke-width="3"><line x1="410" y1="100" x2="474" y2="100"></line><line x1="474" y1="100" x2="474" y2="166"></line></g>
+        <circle cx="410" cy="100" r="10" fill="#6AA2FF"></circle>
+        <circle cx={540 + shift / 3} cy="70" r="8" fill="#9CC2FF"></circle><circle cx="66" cy="280" r="8" fill="#9CC2FF"></circle>
+      </g>
+    )}
+    {tema === "datos" && (
+      <g>
+        <g fill="none" stroke="#1A3F8C" stroke-width="4"><path d="M44 44 C 160 60, 200 140, 276 169"></path><path d="M44 116 C 140 120, 200 150, 276 169"></path><path d="M44 222 C 140 218, 200 188, 276 169"></path><path d="M44 294 C 160 276, 200 198, 276 169"></path></g>
+        <g fill="#9CC2FF"><circle cx="44" cy="44" r="8"></circle><circle cx="44" cy="116" r="8"></circle><circle cx="44" cy="222" r="8"></circle><circle cx="44" cy="294" r="8"></circle></g>
+        <circle cx="320" cy="169" r="52" fill="#6AA2FF"></circle>
+        <circle cx="320" cy="152" r="16" fill="#050F2C"></circle>
+        <path d="M292 200 C 300 176, 340 176, 348 200" fill="#050F2C"></path>
+        <g fill="#1A3F8C"><rect x="420" y="208" width="28" height="80" rx="10"></rect><rect x="464" y="172" width="28" height="116" rx="10"></rect></g>
+        <rect x="508" y={124 + shift / 3} width="28" height={164 - shift / 3} rx="10" fill="#FFFFFF"></rect>
+      </g>
+    )}
+  </svg>
+)}

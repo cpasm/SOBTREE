@@ -3,10 +3,19 @@
 import Cover from "./Cover.astro";
 import { getAnalisis, getRadar, fmtShort } from "../data/content";
 
+// Tema de la portada ilustrada (Cover.astro) según línea y etiquetas.
+const temaDe = (linea: string, tags: string[] = []) => {
+  const t = tags.join(" ").toLowerCase();
+  if (/precio|coste|ahorro|licenc|business case/.test(t)) return "ahorro";
+  if (linea === "IA") return "ia";
+  if (linea === "Salesforce") return "ahorro";
+  return "datos";
+};
+
 const [analisis, radar] = await Promise.all([getAnalisis(), getRadar()]);
 const todos = [
-  ...analisis.map((e) => ({ url: `/analisis/${e.id}/`, tag: e.data.linea, title: e.data.title, sum: e.data.description, date: e.data.date, img: e.data.imagen, alt: e.data.imagenAlt })),
-  ...radar.map((e) => ({ url: `/radar/${e.id}/`, tag: "Radar", title: e.data.title, sum: e.data.description, date: e.data.date, img: e.data.imagen, alt: e.data.imagenAlt }))
+  ...analisis.map((e) => ({ url: `/analisis/${e.id}/`, tag: e.data.linea, tema: temaDe(e.data.linea, e.data.tags), title: e.data.title, sum: e.data.description, date: e.data.date, img: e.data.imagen, alt: e.data.imagenAlt })),
+  ...radar.map((e) => ({ url: `/radar/${e.id}/`, tag: "Radar", tema: "radar", title: e.data.title, sum: e.data.description, date: e.data.date, img: e.data.imagen, alt: e.data.imagenAlt }))
 ].sort((a, b) => b.date.getTime() - a.date.getTime());
 // El destacado es el último análisis (o lo último publicado si no hay análisis).
 const destacado = todos.find((t) => t.tag !== "Radar") ?? todos[0];
@@ -21,7 +30,7 @@ const resto = todos.filter((t) => t !== destacado).slice(0, 3);
       </div>
       <div class="reads-grid">
         <a class="feature" href={destacado.url}>
-          <div class="cover"><Cover title={destacado.title} src={destacado.img} alt={destacado.alt} /></div>
+          <div class="cover"><Cover title={destacado.title} src={destacado.img} alt={destacado.alt} tema={destacado.tema} /></div>
           <span class="line-tag">{destacado.tag} · {fmtShort(destacado.date)}</span>
           <span class="feature-title">{destacado.title}</span>
           <span class="feature-sum">{destacado.sum}</span>
@@ -31,7 +40,7 @@ const resto = todos.filter((t) => t !== destacado).slice(0, 3);
             <p>Más para el CIO</p>
             {resto.map((r) => (
               <a class="item" href={r.url}>
-                <span class="thumb"><Cover title={r.title} src={r.img} alt={r.alt} /></span>
+                <span class="thumb"><Cover title={r.title} src={r.img} alt={r.alt} tema={r.tema} /></span>
                 <span>
                   <span class="line-tag">{r.tag}</span>
                   <span class="item-title">{r.title}</span>

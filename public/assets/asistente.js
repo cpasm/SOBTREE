@@ -16,12 +16,10 @@
     .then((r) => (r.ok ? r.json() : { ok: false })).then((d) => { ready = !!d.ok; }).catch(() => {});
 
   const setCard = (open) => { card.hidden = !open; fab.setAttribute("aria-expanded", String(open)); if (open) $("#assist-name").focus({ preventScroll: true }); };
-  fab.addEventListener("click", () => {
-    const open = card.hidden;
-    setCard(open);
-    // Si el visitante la cierra, no vuelve a aparecer sola en esta sesión.
-    if (!open) try { sessionStorage.setItem("sobtree_assist_cerrado", "1"); } catch (e) {}
-  });
+  // Si el visitante la cierra, no vuelve a aparecer sola en esta sesión.
+  const dismiss = () => { setCard(false); try { sessionStorage.setItem("sobtree_assist_cerrado", "1"); } catch (e) {} };
+  fab.addEventListener("click", () => (card.hidden ? setCard(true) : dismiss()));
+  $("#assist-close").addEventListener("click", () => { dismiss(); fab.focus(); });
   // La tarjeta aparece sola a los pocos segundos, salvo que el visitante ya la cerrara.
   let closed = false;
   try { closed = sessionStorage.getItem("sobtree_assist_cerrado") === "1"; } catch (e) {}

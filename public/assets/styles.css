@@ -79,6 +79,7 @@ p { margin: 0; }
 .brand-word { font-size: 26px; font-weight: 800; letter-spacing: -0.035em; line-height: 1; }
 .brand-word .dot-accent { color: var(--accent); }
 .brand-bar { width: 1px; height: 26px; background: rgba(255, 255, 255, .3); }
+.brand-sf { height: 30px; width: auto; }
 .brand-tag { font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); white-space: nowrap; }
 .nav { display: flex; gap: 26px; margin-left: auto; font-size: 15px; font-weight: 600; }
 .nav a { text-decoration: none; color: var(--text-2); transition: color .15s; }
@@ -145,8 +146,8 @@ p { margin: 0; }
 .how-t b { display: block; font-size: 16px; color: var(--white); transition: color .3s ease; }
 .how:hover .how-t { color: var(--ink-2); }
 .how:hover .how-t b { color: var(--ink); }
-.how-go { font-size: 13px; font-weight: 700; padding: 9px 14px; border-radius: 999px; background: var(--white); color: var(--ink); white-space: nowrap; transition: background-color .2s ease, color .2s ease; }
-.how:hover .how-go { background: var(--ink); color: var(--white); }
+.how-go { font-size: 13.5px; font-weight: 700; color: var(--accent-2); white-space: nowrap; transition: color .2s ease, transform .2s ease; }
+.how:hover .how-go { color: var(--ink); transform: translateX(4px); }
 
 /* Confianza */
 .trust { margin-top: 22px; display: flex; align-items: center; gap: 20px; }
@@ -188,6 +189,10 @@ p { margin: 0; }
 .assist[hidden] { display: none; }
 .assist-card { width: 100%; padding: 22px; background: var(--paper); color: var(--ink); border-radius: 28px 28px 8px 28px; box-shadow: 0 40px 90px -24px rgba(0, 0, 0, .7); animation: pop .35s var(--ease) both; }
 .assist-card[hidden] { display: none; }
+.assist-card { position: relative; }
+.assist-close { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border: 0; border-radius: 50%; background: var(--paper-2); color: var(--ink); font: inherit; font-size: 20px; line-height: 1; cursor: pointer; display: grid; place-items: center; transition: background-color .2s ease; }
+.assist-close:hover { background: #DCE4F4; }
+.assist-k { padding-right: 36px; }
 @keyframes pop { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
 .assist-k { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #1F4FA8; }
 .assist-title { margin-top: 8px; font-size: 26px; line-height: 1.05; font-weight: 800; letter-spacing: -0.035em; }
@@ -444,7 +449,8 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 }
 @media (max-width: 640px) {
   body { font-size: 16px; }
-  .brand-bar, .brand-tag { display: none; }
+  .brand-bar, .brand-sf { height: 30px; width: auto; }
+.brand-tag { display: none; }
   .header-cta { display: none; }
   .menu-toggle { margin-left: auto; }
   .foco-copy { text-align: left; }

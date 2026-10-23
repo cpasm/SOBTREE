@@ -10,9 +10,9 @@ const NODOS = [
   { k: "04", name: "Personas", text: "Tu equipo deja lo repetitivo y decide lo importante. Supervisión humana, RGPD y Ley de IA." }
 ];
 const COMO = [
-  { n: "3 sem", dot: true, b: "Diagnóstico", t: "A precio cerrado, sin sorpresas" },
-  { n: "90 días", dot: false, b: "Primer agente", t: "En producción, no en un PowerPoint" },
-  { n: "0 €", dot: false, b: "En comisiones", t: "No ganamos si compras de más" }
+  { n: "3 sem", dot: true, b: "Diagnóstico", t: "A precio cerrado, sin sorpresas", href: "#servicios", go: "Qué incluye" },
+  { n: "90 días", dot: false, b: "Primer agente", t: "En producción, no en un PowerPoint", href: "#metodo", go: "Cómo" },
+  { n: "0 €", dot: false, b: "En comisiones", t: "No ganamos si compras de más", href: "#por-que", go: "Por qué" }
 ];
 // La cinta se duplica para que el desplazamiento sea continuo.
 const cinta = LOGOS.length ? LOGOS : PLATAFORMAS.map((p) => ({ src: "", alt: p }));
@@ -47,10 +47,10 @@ const cinta = LOGOS.length ? LOGOS : PLATAFORMAS.map((p) => ({ src: "", alt: p }
 
     <div class="how-grid">
       {COMO.map((c) => (
-        <a class="how" href="#contacto" data-interest="Diagnóstico de valor">
+        <a class="how" href={c.href}>
           <span class="how-n">{c.n}{c.dot && <span class="dot-accent">.</span>}</span>
           <span class="how-t"><b>{c.b}</b>{c.t}</span>
-          <span class="how-go">Reservar</span>
+          <span class="how-go">{c.go} <span aria-hidden="true">→</span></span>
         </a>
       ))}
     </div>

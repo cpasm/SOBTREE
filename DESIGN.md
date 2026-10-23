@@ -11,7 +11,7 @@ Todo lo que se añada a la web sigue esta guía. Los valores viven en `public/as
 ### Logotipo
 - **Monograma:** «S.»: S blanca en Open Sans 800 y punto en `--accent`, sobre un cuadrado marino con radio 16/64 y borde blanco al 28 %. Se usa **solo como favicon**; en pantalla nunca.
 - **Wordmark:** `Sobtree.` en Open Sans 800, blanco sobre marino (o marino sobre blanco), con el **punto en el color de acento** (`--accent`).
-- **Lockup en cabecera:** `Sobtree.` · barra vertical fina (1 px, 26 px de alto, blanco al 30 %) · `IA × SALESFORCE` en versalitas, 13 px, 600, tracking 0,06 em.
+- **Lockup en cabecera:** `Sobtree.` · barra vertical fina (1 px, 26 px de alto, blanco al 30 %) · [logo de Salesforce en PNG, si existe `public/img/logos/salesforce.png`] · `IA × SALESFORCE` en versalitas, 13 px, 600, tracking 0,06 em. En móvil solo `Sobtree.`.
 - **Logo de Salesforce:** solo si Sobtree es partner oficial y con el distintivo que Salesforce entregue a partners. Mientras no lo sea, el nombre «Salesforce» va solo en texto (uso nominativo) y el pie mantiene el aviso de no afiliación.
 - **Favicon:** monograma «S.» blanco con punto de acento sobre marino (`public/assets/favicon.svg`).
 - **El punto de acento** es un recurso de marca: puede cerrar titulares cortos («Gana más con IA.»). Uno por bloque como máximo.
@@ -96,13 +96,15 @@ Los artículos empiezan justo debajo, en una sección blanca con esquinas superi
 
 ## 6. Componentes
 
+**Llamadas a reservar:** como máximo **dos** en la primera pantalla: «Reservar 30 min» (cabecera) y «Reservar diagnóstico» (titular). El resto de tarjetas enlazan a su explicación con una flecha («Qué incluye →», «Cómo →», «Por qué →»). Más abajo: el formulario de contacto y la oferta del asistente.
+
 - **Botón primario:** píldora, blanco sobre marino, 700, 15–16 px, padding 15×26. Hover: sube 2 px.
 - **Botón fantasma:** píldora, borde `--line-strong`, texto blanco.
-- **Tarjeta «cómo lo hacemos»:** `--panel`, radio 26 px, cifra + texto + píldora «Reservar». Hover: se vuelve blanca, sube 8 px y gira −0,6°.
+- **Tarjeta «cómo lo hacemos»:** `--panel`, radio 26 px, cifra + texto + enlace con flecha a su sección. Hover: se vuelve blanca, sube 8 px y gira −0,6°.
 - **Diagrama:** cuatro nodos en fila; el activo crece (`flex-grow` 2,2) y muestra su explicación. Se activa con ratón, foco de teclado o toque. Una línea animada recorre la base. En móvil, columna con todas las explicaciones visibles.
 - **Artículo destacado:** portada 16:9 con radio 28 px, línea temática, titular 800 y resumen de 2–3 frases (el `description` del artículo).
 - **Lista de artículos:** miniatura 88×64, línea temática y titular.
-- **Asistente:** burbuja fija abajo a la derecha. Abierta muestra «Deja tu nombre y comienza a ahorrar.» con un campo y un botón. Indica siempre que es una IA. El nombre no se envía al modelo: solo saluda y rellena el formulario de contacto.
+- **Asistente:** burbuja fija abajo a la derecha. A los 3,5 s se abre una tarjeta con «Deja tu nombre y comienza a ahorrar.», un campo, un botón y una **cruz para cerrar** (cerrada, no vuelve a abrirse sola en la visita). Indica siempre que es una IA. El nombre no se envía al modelo: solo saluda y rellena el formulario de contacto.
 - **Franja de confianza:** logos reales (`src/data/confianza.ts`). Sin logos aprobados, muestra las plataformas en texto. Nunca logos de clientes sin permiso escrito ni de proyectos hechos para otra empresa.
 
 ---
@@ -133,9 +135,11 @@ Probar siempre a 1440×900, 1280×800, 1024×768, 768×1024 y 375×812, sin scro
 
 - Cada artículo responde a una pregunta de un **CIO**: cómo ahorra dinero, cómo gana más o cómo ayuda a su gente.
 - Tres líneas (`linea` en el frontmatter): **Salesforce**, **IA**, **Salesforce + IA**.
-- Portada: `imagen` (con licencia de uso, en `public/img/`) y `imagenAlt`. Sin imagen, se genera una portada abstracta en la paleta a partir del título.
+- Portada: `imagen` (con licencia de uso, en `public/img/`) y `imagenAlt`. Sin imagen, se dibuja una **ilustración de marca** según el tema (`src/components/Cover.astro`): **ahorro** (columnas que bajan y flecha), **radar** (barrido con señales), **IA** (burbujas de conversación y agente) y **datos** (fuentes que convergen en un perfil y ventas que suben). Solo azul marino, `--panel-2`, blanco y acento; sin texto dentro.
+- Fotos reales, si se usan: escenas de trabajo reales y sobrias (equipos, pantallas, oficinas), retocadas a tonos fríos para casar con el marino. Nada de robots, cerebros brillantes ni manos humanas tocando circuitos.
 - El `description` es el resumen de la portada: 2–3 frases, con una cifra si la hay.
 - El Radar es semanal; cada noticia se convierte en una pregunta concreta de empresa («¿Tengo que renegociar Marketing Cloud tras la compra de Braze?»).
+- **Publicación semanal:** cada lunes una rutina en la nube abre un pull request «¿Publicar? Radar semana NN + artículo» con el texto completo en la descripción. **Fusionar el PR = publicar; cerrarlo = descartar.** Nada se publica sin esa decisión.
 
 ---
 
