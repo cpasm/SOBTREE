@@ -26,11 +26,15 @@ jobs:
       - run: npm ci
       - run: npm run build
       - name: Subir por FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          local-dir: ./dist/
-          server-dir: ./public_html/
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          sudo apt-get install -y -qq lftp > /dev/null
+          lftp -u "$FTP_USERNAME","$FTP_PASSWORD" "$FTP_SERVER" -e "
+            set ftp:ssl-allow true; set ssl:verify-certificate no;
+            set ftp:passive-mode true; set net:max-retries 3; set net:timeout 30;
+            echo 'Carpetas en la raiz FTP:'; cls -1;
+            mirror --reverse --verbose --parallel=2 dist/ public_html/;
+            bye"
