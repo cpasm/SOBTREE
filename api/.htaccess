@@ -1,0 +1,4 @@
+# Solo los endpoints son accesibles desde fuera; vendor/ y corpus.json se leen desde PHP.
+RewriteEngine On
+RewriteRule ^(asistente|newsletter)\.php$ - [L]
+RewriteRule ^ - [F,L]

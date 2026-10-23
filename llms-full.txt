@@ -1,0 +1,160 @@
+# Sobtree
+
+> Consultoría independiente de IA y Salesforce para empresas. Llevamos Agentforce y Data 360 a producción con un business case medible: menos coste por caso, más conversión y más retención.
+
+Sobtree es una consultora independiente: no revende licencias ni cobra comisiones de Salesforce ni de otros fabricantes. Trabaja en español e inglés para empresas de España, Europa y Latinoamérica. Sede en Madrid. El punto de entrada es un diagnóstico de valor de 3 semanas a precio cerrado.
+
+## Servicios
+
+- **Diagnóstico de valor IA + Salesforce** (3 semanas): Auditoría de la org y del dato, mapa de casos de uso de IA priorizado, business case con KPIs y hoja de ruta a 90 días y 12 meses. Precio cerrado.
+- **Agentforce a producción** (6–10 semanas): Diseño, construcción y despliegue de agentes que resuelven casos reales en servicio, ventas o marketing, con guardrails y escalado a personas.
+- **Data 360** (8–12 semanas): Perfil único de cliente con identidad, consentimiento y segmentos activables. La base para que la IA acierte.
+- **Marketing y Loyalty** (Por fases): Marketing Cloud Next y Loyalty Management conectados al dato: journeys que reaccionan y programas que premian el valor real.
+- **Asesoría a dirección** (Cuota mensual): Criterio independiente para revisar ofertas de integradores, renovaciones de licencias y decisiones de arquitectura.
+
+## Páginas
+
+- [Inicio](https://sobtree.com/): servicios, casos de uso por sector, método de trabajo, autodiagnóstico, FAQ y contacto.
+- [Calculadora de ahorro](https://sobtree.com/calculadora/): ahorro operativo estimado de un agente de IA en atención al cliente.
+- [Análisis](https://sobtree.com/analisis/): artículos sobre IA y Salesforce.
+- [Radar](https://sobtree.com/radar/): entrega semanal con las noticias de Salesforce e IA que importan y su lectura.
+
+## Análisis
+
+- [Cuánto cuesta de verdad un agente de Agentforce](https://sobtree.com/analisis/cuanto-cuesta-un-agente-de-agentforce/): Flex Credits, precio por conversación o licencia por usuario: cómo se calcula el coste de un agente, dónde está el punto de equilibrio y qué preguntar antes de firmar.
+
+## Radar (últimas entregas)
+
+- [Radar · Semana 43: Salesforce compra Braze](https://sobtree.com/radar/2026-semana-43/): Salesforce compra Braze por unos 5.660 M$: el marketing en tiempo real entra en el corazón de Marketing Cloud. · 1.000 M$ en España en cinco años y Madrid como sede regional, con un equipo de ingenieros dedicado a implantar IA en clientes. · Loops se integrará en Tableau: analítica que vigila los KPIs y explica por qué cambian sin que nadie lo pida. · Desde el 2 de agosto, un chatbot de cara al cliente debe avisar de que es una IA. Lo de «alto riesgo» se retrasa a diciembre de 2027.
+
+## Cómo trabajamos
+
+1. Diagnóstico (semanas 1–3): entrevistas con negocio y auditoría de la org y del dato.
+2. Business case (semana 4): uno o dos casos priorizados con KPI de negocio, coste y plazo aprobados por dirección.
+3. Construcción (semanas 5–12): entregas cada dos semanas en entorno real con métricas visibles.
+4. Escala (mes 4 en adelante): lo que funciona se extiende y el equipo del cliente se queda con el conocimiento.
+
+## Preguntas frecuentes
+
+### ¿Trabajáis con nuestro integrador actual?
+
+Sí. A menudo nuestro papel es dar criterio a la empresa frente al integrador: revisar lo que se propone, validar estimaciones y asegurar que cada desarrollo responde a un objetivo de negocio.
+
+### ¿Necesitamos Data 360 para usar Agentforce?
+
+No siempre para empezar, pero sí para escalar. Un agente sin contexto unificado se queda corto cuando el caso se complica. En el diagnóstico te decimos si puedes arrancar sin él y cuándo lo vas a necesitar.
+
+### ¿Cómo se fija el precio?
+
+El diagnóstico tiene precio cerrado. Las fases siguientes se presupuestan con alcance, plazo y entregables definidos, para que cada una se justifique por sí sola.
+
+### ¿Recibís comisiones de Salesforce u otros fabricantes?
+
+No. No revendemos licencias ni cobramos por recomendar productos. Nuestro único incentivo es que tu inversión funcione.
+
+### ¿Qué pasa con la seguridad y el cumplimiento normativo?
+
+Diseñamos los agentes con permisos mínimos, límites explícitos, auditoría y supervisión humana en las decisiones sensibles, alineados con el RGPD y el Reglamento Europeo de IA.
+
+### ¿Trabajáis fuera de España?
+
+Sí. Trabajamos en español e inglés, en remoto y con presencia cuando el proyecto lo requiere, en Europa y Latinoamérica.
+
+## Radar · Semana 43: Salesforce compra Braze
+
+URL: https://sobtree.com/radar/2026-semana-43/
+Fecha: 2026-10-23
+
+## 1. Salesforce compra Braze
+
+**Qué ha pasado.** El 20 de octubre Salesforce firmó la compra de Braze, la plataforma de engagement que envía mensajes personalizados en tiempo real por app, web, email, SMS y WhatsApp. La operación valora la compañía en unos 5.660 millones de dólares (47,50 $ por acción en efectivo). Salesforce la presenta como un refuerzo de la personalización multicanal de Marketing Cloud, conectada con Data 360 y Agentforce. El cierre está previsto en su año fiscal 2028, pendiente de los accionistas de Braze y de los reguladores.
+Fuente: [nota de prensa de Salesforce](https://www.salesforce.com/news/press-releases/2026/10/20/salesforce-signs-definitive-agreement-to-acquire-braze/).
+
+**Nuestra lectura.** Si usas Marketing Cloud, no hay que tocar nada todavía: hasta el cierre son dos productos separados y, después, la integración llevará tiempo. Lo útil ahora es revisar tus próximas renovaciones. Si estabas evaluando Braze como alternativa, o ya lo tienes junto a Marketing Cloud, el escenario de negociación ha cambiado. Y si tu plan pasa por Marketing Cloud Next, pregunta a tu equipo de cuenta cómo encaja Braze en la hoja de ruta antes de comprometer un roadmap a dos años.
+
+## 2. 1.000 millones en España y Madrid como sede regional
+
+**Qué ha pasado.** El 19 de octubre Salesforce anunció una inversión de 1.000 millones de dólares en España en los próximos cinco años. Incluye una nueva sede en Madrid como centro de EMEA Sur, un equipo de *Forward Deployed Engineers* que trabajará con clientes españoles en implantaciones de IA y un programa de formación de un año para recién graduados de la región.
+Fuente: [nota de prensa de Salesforce](https://www.salesforce.com/news/press-releases/2026/10/19/1-billion-ai-leadership-investment-spain/).
+
+**Nuestra lectura.** Habrá más capacidad técnica de Salesforce cerca de los clientes españoles, y eso es bueno para acelerar pilotos. Pero los ingenieros del fabricante tienen un incentivo natural: que consumas más plataforma. Antes de que entren en tu proyecto, ten claro el business case y quién decide el alcance. El anuncio no menciona centros de datos ni residencia de datos en la UE, así que eso sigue siendo una pregunta que conviene hacer.
+
+## 3. Loops se integrará en Tableau
+
+**Qué ha pasado.** El 12 de octubre Salesforce acordó comprar Loops, una plataforma de analítica con IA que vigila los indicadores de negocio, detecta tendencias y anomalías, y explica qué está moviendo cada métrica, avisando por Slack o email. Su tecnología y su equipo se integrarán en Tableau. El cierre se espera a principios de noviembre.
+Fuente: [anuncio de Salesforce](https://www.salesforce.com/news/stories/salesforce-signs-definitive-agreement-to-acquire-loops/).
+
+**Nuestra lectura.** Es la pieza que le faltaba a la analítica «agéntica»: no esperar a que alguien abra un dashboard, sino que el sistema avise de lo que ha cambiado y por qué. Para que funcione hace falta lo de siempre: KPIs bien definidos y un dato fiable debajo. Si tus dashboards de Tableau no tienen dueño ni definiciones claras, ese es el primer trabajo.
+
+## 4. Reglamento Europeo de IA: qué ya se aplica y qué se retrasa
+
+**Qué ha pasado.** El llamado *Digital Omnibus* (Reglamento (UE) 2026/1744), en vigor desde el 27 de julio, retrasó las obligaciones de los sistemas de **alto riesgo** del Anexo III (empleo, solvencia, parte de los seguros, educación, acceso a servicios esenciales) del 2 de agosto de 2026 al **2 de diciembre de 2027**. Pero las obligaciones de **transparencia del artículo 50** siguen aplicándose desde el **2 de agosto de 2026**: quien interactúe con un sistema de IA debe saberlo, salvo que sea evidente.
+Fuentes: [Jones Walker, 16 de julio de 2026](https://www.joneswalker.com/en/insights/blogs/ai-law-blog/yes-august-2-still-matters-the-eu-approved-a-high-risk-ai-delay-but-most-trans.html) y [Usercentrics](https://usercentrics.com/knowledge-hub/eu-ai-act-high-risk-delay-article-50-transparency-consent/).
+
+**Nuestra lectura.** Si tienes un agente de Agentforce atendiendo clientes, revisa hoy mismo que se identifique como IA en el primer mensaje y en cada canal (chat, WhatsApp, voz). Es un cambio pequeño de configuración. Y si tu caso de uso toca seguros, crédito o selección de personal, el retraso a 2027 es tiempo para diseñar bien la supervisión humana y la trazabilidad, no para olvidarse del tema.
+
+## Cuánto cuesta de verdad un agente de Agentforce
+
+URL: https://sobtree.com/analisis/cuanto-cuesta-un-agente-de-agentforce/
+Fecha: 2026-10-23
+
+La pregunta que más nos hacen antes de un piloto de Agentforce no es técnica: es cuánto va a costar al mes cuando esté en producción. La respuesta depende menos del número de clientes que de **cómo esté diseñado el agente**. Lo explicamos con la lista de precios oficial y un ejemplo con números.
+
+> Precios de lista publicados por Salesforce, consultados el 23 de octubre de 2026. Salesforce indica que pueden cambiar, y los descuentos negociados alteran el resultado. Úsalo para entender la lógica, no como presupuesto.
+
+## Los tres modelos de precio
+
+**1. Flex Credits (pago por acción).** Se compran en bloques: 100.000 créditos cuestan 500 €. Cada acción estándar del agente consume 20 créditos y cada acción de voz, 30. Es decir, **0,10 € por acción estándar** y **0,15 € por acción de voz**. Una *acción* es cada cosa que hace el agente: consultar un pedido, actualizar un caso, buscar en la base de conocimiento.
+
+**2. Precio por conversación.** **2 € por conversación**, independientemente de cuántas acciones haga el agente dentro de ella.
+
+**3. Por usuario, para uso interno.** Para agentes que ayudan a tus empleados (no a tus clientes), los *add-ons* de Agentforce para Sales, Service o Field Service cuestan 125 $ por usuario y mes con uso de empleados sin medir. También hay una licencia de usuario de 5 $ al mes, pero su consumo se paga aparte con Flex Credits.
+
+Además, la edición **Max** (desde 550 $ por usuario y mes) incluye 2,75 millones de Flex Credits por org y año.
+
+Fuente: [página de precios de Agentforce](https://www.salesforce.com/agentforce/pricing/).
+
+## El punto de equilibrio: 20 acciones por conversación
+
+Si una conversación cuesta 2 € y una acción 0,10 €, los dos modelos cuestan lo mismo cuando el agente hace **20 acciones por conversación**:
+
+- Por debajo de 20 acciones (lo habitual en atención al cliente: consultar, responder, quizá actualizar algo), **Flex Credits sale más barato**.
+- Por encima de 20 (agentes que encadenan muchos pasos o se van por las ramas), **el precio por conversación protege tu presupuesto**.
+- Con voz, el equilibrio baja a unas **13 acciones**, porque cada acción cuesta 0,15 €.
+
+Por eso el número que hay que medir en el piloto no es «cuántas conversaciones», sino **cuántas acciones hace el agente por conversación**. Un agente mal diseñado, que consulta tres veces lo mismo o no sabe cuándo parar, puede duplicar el coste sin que nadie lo note.
+
+## Un ejemplo con números
+
+Partimos del mismo escenario que la [calculadora de ahorro](/calculadora/): un servicio de atención con **10.000 casos al mes**, 12 minutos por caso, 28 €/hora y un agente que resuelve solo el **35 %**. El ahorro operativo estimado es de unos **235.200 € al año**.
+
+Supongamos que todas las conversaciones pasan primero por el agente y que este hace **4 acciones de media** (es una hipótesis: hay que medirla en el piloto).
+
+| | Flex Credits | Por conversación |
+|---|---|---|
+| Unidades al mes | 40.000 acciones | 10.000 conversaciones |
+| Coste mensual | 4.000 € | 20.000 € |
+| Coste anual | **48.000 €** | **240.000 €** |
+
+Tres conclusiones:
+
+1. **El modelo de precio decide si hay business case.** Con Flex Credits, el ahorro supera con holgura el consumo. Con precio por conversación, en este escenario el consumo se come todo el ahorro.
+2. **Pagas por conversación atendida, no por caso resuelto.** El agente resuelve el 35 %, pero consume en el 100 % de las conversaciones que pasan por él. Mejorar la tasa de resolución es la palanca más rentable.
+3. **Los créditos incluidos no llegan muy lejos.** Los 2,75 millones de créditos de la edición Max equivalen a unas 137.500 acciones al año. En este ejemplo cubren menos de un tercio del consumo anual (480.000 acciones).
+
+Y faltan costes que no entran en esta tabla: la implantación, la integración con tus sistemas, el dato que necesita el agente para acertar y el equipo que lo mantiene.
+
+## Qué preguntar antes de firmar
+
+- **¿Cuántas acciones hace el agente por conversación?** Pide medirlo en el piloto, por tipo de caso.
+- **¿Qué modelo de precio me conviene con esa cifra?** Y si se puede cambiar de modelo más adelante.
+- **¿Cuántos créditos incluye lo que ya tengo contratado** y qué pasa cuando se acaban?
+- **¿Qué conversaciones no deberían llegar al agente?** Filtrarlas bien es ahorro directo.
+- **¿Cómo voy a ver el consumo cada semana?** Sin un panel de consumo, la primera señal de alarma será la factura.
+
+En el [diagnóstico de valor](/#servicios) hacemos este cálculo con tus volúmenes reales, antes de que se firme ninguna licencia.
+
+## Contacto
+
+- Email: info@sobtree.com
+- Reservar diagnóstico: https://sobtree.com/#contacto

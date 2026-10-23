@@ -1,0 +1,37 @@
+# Sobtree
+
+> Consultoría independiente de IA y Salesforce para empresas. Llevamos Agentforce y Data 360 a producción con un business case medible: menos coste por caso, más conversión y más retención.
+
+Sobtree es una consultora independiente: no revende licencias ni cobra comisiones de Salesforce ni de otros fabricantes. Trabaja en español e inglés para empresas de España, Europa y Latinoamérica. Sede en Madrid. El punto de entrada es un diagnóstico de valor de 3 semanas a precio cerrado.
+
+## Servicios
+
+- **Diagnóstico de valor IA + Salesforce** (3 semanas): Auditoría de la org y del dato, mapa de casos de uso de IA priorizado, business case con KPIs y hoja de ruta a 90 días y 12 meses. Precio cerrado.
+- **Agentforce a producción** (6–10 semanas): Diseño, construcción y despliegue de agentes que resuelven casos reales en servicio, ventas o marketing, con guardrails y escalado a personas.
+- **Data 360** (8–12 semanas): Perfil único de cliente con identidad, consentimiento y segmentos activables. La base para que la IA acierte.
+- **Marketing y Loyalty** (Por fases): Marketing Cloud Next y Loyalty Management conectados al dato: journeys que reaccionan y programas que premian el valor real.
+- **Asesoría a dirección** (Cuota mensual): Criterio independiente para revisar ofertas de integradores, renovaciones de licencias y decisiones de arquitectura.
+
+## Páginas
+
+- [Inicio](https://sobtree.com/): servicios, casos de uso por sector, método de trabajo, autodiagnóstico, FAQ y contacto.
+- [Calculadora de ahorro](https://sobtree.com/calculadora/): ahorro operativo estimado de un agente de IA en atención al cliente.
+- [Análisis](https://sobtree.com/analisis/): artículos sobre IA y Salesforce.
+- [Radar](https://sobtree.com/radar/): entrega semanal con las noticias de Salesforce e IA que importan y su lectura.
+
+## Análisis
+
+- [Cuánto cuesta de verdad un agente de Agentforce](https://sobtree.com/analisis/cuanto-cuesta-un-agente-de-agentforce/): Flex Credits, precio por conversación o licencia por usuario: cómo se calcula el coste de un agente, dónde está el punto de equilibrio y qué preguntar antes de firmar.
+
+## Radar (últimas entregas)
+
+- [Radar · Semana 43: Salesforce compra Braze](https://sobtree.com/radar/2026-semana-43/): Salesforce compra Braze por unos 5.660 M$: el marketing en tiempo real entra en el corazón de Marketing Cloud. · 1.000 M$ en España en cinco años y Madrid como sede regional, con un equipo de ingenieros dedicado a implantar IA en clientes. · Loops se integrará en Tableau: analítica que vigila los KPIs y explica por qué cambian sin que nadie lo pida. · Desde el 2 de agosto, un chatbot de cara al cliente debe avisar de que es una IA. Lo de «alto riesgo» se retrasa a diciembre de 2027.
+
+## Optional
+
+- [Contenido completo](https://sobtree.com/llms-full.txt): servicios, método, FAQ y texto íntegro del Radar y los análisis.
+
+## Contacto
+
+- Email: info@sobtree.com
+- Reservar diagnóstico: https://sobtree.com/#contacto
