@@ -139,7 +139,7 @@ Probar siempre a 1440×900, 1280×800, 1024×768, 768×1024 y 375×812, sin scro
 - Fotos reales, si se usan: escenas de trabajo reales y sobrias (equipos, pantallas, oficinas), retocadas a tonos fríos para casar con el marino. Nada de robots, cerebros brillantes ni manos humanas tocando circuitos.
 - El `description` es el resumen de la portada: 2–3 frases, con una cifra si la hay.
 - El Radar es semanal; cada noticia se convierte en una pregunta concreta de empresa («¿Tengo que renegociar Marketing Cloud tras la compra de Braze?»).
-- **Publicación semanal:** cada lunes una rutina en la nube abre un pull request «¿Publicar? Radar semana NN + artículo» con el texto completo en la descripción. **Fusionar el PR = publicar; cerrarlo = descartar.** Nada se publica sin esa decisión.
+- **Publicación semanal:** cada lunes una rutina en la nube abre un pull request «¿Publicar? Radar semana NN + artículo» con el texto completo en la descripción. Llega un email con el enlace: **comentar «OK» en el PR = publicar** (la acción `publicar-con-ok.yml` fusiona y despliega); **cerrarlo = descartar**. Nada se publica sin esa decisión.
 
 ---
 
