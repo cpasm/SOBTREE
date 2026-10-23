@@ -1,21 +1,22 @@
-# Compila la web con Astro y la sube a Hostinger por FTP en cada push a main.
-# Desactivado hasta que configures en GitHub (Settings → Secrets and variables → Actions):
-#   Secretos:  FTP_SERVER (p. ej. ftp.sobtree.com, en hPanel → Archivos → Cuentas FTP), FTP_USERNAME, FTP_PASSWORD
-#   Variable:  DEPLOY_ENABLED = true
-name: Deploy to Hostinger
+# Compila la web con Astro y deja el resultado (dist/) en la rama `hostinger`.
+# Hostinger (hPanel → sobtree.com → Conectado con GitHub) despliega esa rama en public_html.
+# No edites la rama `hostinger` a mano: se sobrescribe en cada push a main.
+name: Build para Hostinger
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 concurrency:
   group: deploy
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,16 +26,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - name: Subir por FTP
-        env:
-          FTP_SERVER: ${{ secrets.FTP_SERVER }}
-          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
-          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+      - name: Publicar dist/ en la rama hostinger
+        working-directory: dist
         run: |
-          sudo apt-get install -y -qq lftp > /dev/null
-          lftp -u "$FTP_USERNAME","$FTP_PASSWORD" "$FTP_SERVER" -e "
-            set ftp:ssl-allow true; set ssl:verify-certificate no;
-            set ftp:passive-mode true; set net:max-retries 3; set net:timeout 30;
-            echo 'Carpetas en la raiz FTP:'; cls -1;
-            mirror --reverse --verbose --parallel=2 dist/ public_html/;
-            bye"
+          git init -q -b hostinger
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Build de ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" hostinger

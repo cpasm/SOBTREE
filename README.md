@@ -15,7 +15,7 @@ src/data/faq.ts                Preguntas frecuentes (alimentan el FAQ visible, e
 src/data/schema.ts             Datos estructurados schema.org
 src/layouts/Base.astro         <head>, cabecera y pie comunes
 public/                        Se copia tal cual: assets/, contact.php, .htaccess, robots.txt
-.github/workflows/deploy.yml   Compilación y despliegue por FTP
+.github/workflows/deploy.yml   Compila y publica dist/ en la rama hostinger
 ```
 
 ## Trabajar en local
@@ -40,13 +40,12 @@ Copia `src/content/analisis/plantilla.mdx` con un nombre en minúsculas y guione
 
 ## Publicar en Hostinger
 
-La web ya **necesita compilarse**, así que no se puede subir el repositorio tal cual ni usar el Git nativo de Hostinger (subiría el código fuente, no la web).
+La web necesita compilarse, así que Hostinger no publica `main` sino la rama `hostinger`:
 
-1. Si tenías conectado hPanel → Avanzado → Git a este repositorio, desconéctalo.
-2. En GitHub → Settings → Secrets and variables → Actions crea los secretos `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD` y la variable `DEPLOY_ENABLED = true`.
-3. Cada push a `main` compila y sube `dist/` a `public_html/`.
+1. Cada push a `main` lanza `.github/workflows/deploy.yml`, que compila con Astro y sube `dist/` a la rama `hostinger`.
+2. hPanel → sobtree.com → Conectado con GitHub, con rama `hostinger` y directorio `public_html`, y la implementación automática publica ese contenido.
 
-Manual: `npm run build` y sube el contenido de `dist/` (incluido `.htaccess`) a `public_html/`.
+No edites la rama `hostinger` a mano: se sobrescribe en cada build.
 
 ## Antes de publicar
 
