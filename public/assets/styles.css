@@ -75,7 +75,9 @@ p { margin: 0; }
 }
 .site-header.scrolled { border-bottom-color: var(--line); }
 .header-inner { display: flex; align-items: center; gap: 28px; height: 76px; }
-.brand { display: inline-flex; align-items: center; gap: 14px; text-decoration: none; color: var(--white); }
+.brand { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; color: var(--white); }
+.brand-mark { width: 38px; height: 38px; flex: none; transition: transform .3s var(--ease); }
+.brand:hover .brand-mark { transform: rotate(-8deg) scale(1.05); }
 .brand-word { font-size: 26px; font-weight: 800; letter-spacing: -0.035em; line-height: 1; }
 .brand-word .dot-accent { color: var(--accent); }
 .brand-bar { width: 1px; height: 26px; background: rgba(255, 255, 255, .3); }

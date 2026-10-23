@@ -9,8 +9,9 @@ Todo lo que se añada a la web sigue esta guía. Los valores viven en `public/as
 ## 1. Marca
 
 ### Logotipo
-- **Wordmark:** `Sobtree.` en Open Sans 800, blanco sobre marino (o marino sobre blanco), con el **punto en el color de acento** (`--accent`). No hay símbolo ni icono.
-- **Lockup en cabecera:** `Sobtree.` · barra vertical fina (1 px, 26 px de alto, blanco al 30 %) · `IA × SALESFORCE` en versalitas, 13 px, 600, tracking 0,06 em.
+- **Monograma:** «S.»: S blanca en Open Sans 800 y punto en `--accent`, sobre un cuadrado marino con radio 16/64 y borde blanco al 28 %. Es el símbolo de la marca y el favicon.
+- **Wordmark:** `Sobtree.` en Open Sans 800, blanco sobre marino (o marino sobre blanco), con el **punto en el color de acento** (`--accent`).
+- **Lockup en cabecera:** monograma · `Sobtree.` · barra vertical fina (1 px, 26 px de alto, blanco al 30 %) · `IA × SALESFORCE` en versalitas, 13 px, 600, tracking 0,06 em.
 - **Logo de Salesforce:** solo si Sobtree es partner oficial y con el distintivo que Salesforce entregue a partners. Mientras no lo sea, el nombre «Salesforce» va solo en texto (uso nominativo) y el pie mantiene el aviso de no afiliación.
 - **Favicon:** monograma «S.» blanco con punto de acento sobre marino (`public/assets/favicon.svg`).
 - **El punto de acento** es un recurso de marca: puede cerrar titulares cortos («Gana más con IA.»). Uno por bloque como máximo.
