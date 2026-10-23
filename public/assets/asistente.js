@@ -60,7 +60,7 @@
   }
 
   function offer(motivo) {
-    const el = bubble("offer", `<p><strong>¿Lo vemos para tu caso${name ? `, ${esc(name)}` : ""}?</strong> 30 minutos con un perfil senior, sin compromiso.</p>
+    const el = bubble("offer", `<p><strong>¿Lo vemos para tu caso${name ? `, ${esc(name)}` : ""}?</strong> 25 minutos con un perfil senior, sin compromiso.</p>
       <button type="button" class="btn btn-primary btn-sm">Reservar conversación</button>`);
     $("button", el).addEventListener("click", () => toContact(motivo));
   }

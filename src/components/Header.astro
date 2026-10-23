@@ -15,11 +15,11 @@ const NAV = [
     <nav class="nav" aria-label="Principal">
       {NAV.map((n) => <a href={n.href}>{n.label}</a>)}
     </nav>
-    <a class="btn btn-primary btn-sm header-cta" href="/#contacto">Reservar 30 min</a>
+    <a class="btn btn-primary btn-sm header-cta" href="/#contacto">Reservar 25 min</a>
     <button class="menu-toggle" aria-expanded="false" aria-controls="mobile-nav" aria-label="Abrir menú"><span></span><span></span></button>
   </div>
   <nav class="mobile-nav" id="mobile-nav" aria-label="Principal móvil" hidden>
     {NAV.map((n) => <a href={n.href}>{n.label}</a>)}
-    <a class="btn btn-primary" href="/#contacto">Reservar 30 min</a>
+    <a class="btn btn-primary" href="/#contacto">Reservar 25 min</a>
   </nav>
 </header>

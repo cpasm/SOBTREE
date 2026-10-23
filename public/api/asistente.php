@@ -132,7 +132,7 @@ TXT;
 
 $tools = [[
     'name' => 'ofrecer_reunion',
-    'description' => 'Muestra al visitante un botón para reservar una conversación de 30 minutos con Sobtree. Úsala solo cuando haya intención real de contratar o de hablar sobre su caso concreto.',
+    'description' => 'Muestra al visitante un botón para reservar una conversación de 25 minutos con Sobtree. Úsala solo cuando haya intención real de contratar o de hablar sobre su caso concreto.',
     'inputSchema' => [
         'type' => 'object',
         'properties' => [

@@ -83,7 +83,7 @@ Reglas:
 ## 5. Portada: todo de un vistazo
 
 En escritorio (≥1280×800) la primera pantalla muestra, sin hacer scroll:
-1. Cabecera con el lockup y «Reservar 30 min».
+1. Cabecera con el lockup y «Reservar 25 min».
 2. Antetítulo, titular y una frase de apoyo.
 3. Dos acciones: **Reservar diagnóstico** (primaria) y **Calcular mi ahorro**.
 4. Diagrama interactivo horizontal (Fuentes → Data 360 → Agentforce → Personas).
@@ -96,7 +96,7 @@ Los artículos empiezan justo debajo, en una sección blanca con esquinas superi
 
 ## 6. Componentes
 
-**Llamadas a reservar:** como máximo **dos** en la primera pantalla: «Reservar 30 min» (cabecera) y «Reservar diagnóstico» (titular). El resto de tarjetas enlazan a su explicación con una flecha («Qué incluye →», «Cómo →», «Por qué →»). Más abajo: el formulario de contacto y la oferta del asistente.
+**Llamadas a reservar:** como máximo **dos** en la primera pantalla: «Reservar 25 min» (cabecera) y «Reservar diagnóstico» (titular). El resto de tarjetas enlazan a su explicación con una flecha («Qué incluye →», «Cómo →», «Por qué →»). Más abajo: el formulario de contacto y la oferta del asistente.
 
 - **Botón primario:** píldora, blanco sobre marino, 700, 15–16 px, padding 15×26. Hover: sube 2 px.
 - **Botón fantasma:** píldora, borde `--line-strong`, texto blanco.
