@@ -1,10 +1,7 @@
-# Despliegue automático a Hostinger por FTP en cada push a main.
-# Desactivado hasta que configures los secretos en GitHub:
-#   Settings → Secrets and variables → Actions → New repository secret
-#   FTP_SERVER   (p. ej. ftp.tudominio.com, lo ves en hPanel → Archivos → Cuentas FTP)
-#   FTP_USERNAME
-#   FTP_PASSWORD
-# Si usas el despliegue Git nativo de Hostinger (hPanel → Avanzado → Git), borra este fichero.
+# Compila la web con Astro y la sube a Hostinger por FTP en cada push a main.
+# Desactivado hasta que configures en GitHub (Settings → Secrets and variables → Actions):
+#   Secretos:  FTP_SERVER (p. ej. ftp.sobtree.com, en hPanel → Archivos → Cuentas FTP), FTP_USERNAME, FTP_PASSWORD
+#   Variable:  DEPLOY_ENABLED = true
 name: Deploy to Hostinger
 
 on:
@@ -12,22 +9,27 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
 jobs:
   deploy:
     if: ${{ vars.DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
       - name: Subir por FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./
+          local-dir: ./dist/
           server-dir: ./public_html/
-          exclude: |
-            **/.git*
-            **/.git*/**
-            .github/**
-            README.md

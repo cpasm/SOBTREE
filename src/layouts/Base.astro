@@ -1,0 +1,50 @@
+---
+import { SITE } from "../data/site";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+
+interface Props {
+  title?: string;
+  description?: string;
+  ogType?: "website" | "article";
+  jsonld?: string;
+  noindex?: boolean;
+  bare?: boolean; // sin cabecera ni pie (p. ej. páginas legales)
+}
+const { title = SITE.title, description = SITE.description, ogType = "website", jsonld, noindex = false, bare = false } = Astro.props;
+const canonical = new URL(Astro.url.pathname, SITE.url).href;
+---
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title>
+<meta name="description" content={description}>
+<meta name="theme-color" content="#112d44">
+{noindex ? <meta name="robots" content="noindex"> : <link rel="canonical" href={canonical}>}
+<meta property="og:type" content={ogType}>
+<meta property="og:site_name" content={SITE.name}>
+<meta property="og:locale" content="es_ES">
+<meta property="og:title" content={title}>
+<meta property="og:description" content={description}>
+<meta property="og:url" content={canonical}>
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="sitemap" href="/sitemap-index.xml">
+<link rel="alternate" type="text/plain" title="llms.txt" href="/llms.txt">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/styles.css">
+<slot name="head" />
+{jsonld && <script type="application/ld+json" set:html={jsonld} />}
+</head>
+<body>
+{!bare && <a class="skip" href="#main">Saltar al contenido</a>}
+{!bare && <Header />}
+<slot />
+{!bare && <Footer />}
+{!bare && <script is:inline src="/assets/nav.js" defer></script>}
+</body>
+</html>

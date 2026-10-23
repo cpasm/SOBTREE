@@ -1,16 +1,8 @@
-<!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Privacidad y aviso legal | Sobtree</title>
-<meta name="robots" content="noindex">
-<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/styles.css">
-<style>
+---
+import Base from "../layouts/Base.astro";
+---
+<Base title="Privacidad y aviso legal | Sobtree" description="Política de privacidad y aviso legal de Sobtree." noindex bare>
+<style is:global>
   .legal { max-width: 780px; padding-top: 64px; padding-bottom: 96px; }
   .legal h1 { font-size: clamp(32px, 4vw, 44px); font-weight: 800; }
   .legal h2 { font-size: 22px; font-weight: 700; margin-top: 40px; }
@@ -19,10 +11,8 @@
   .legal .back { display: inline-block; margin-bottom: 32px; color: var(--text-3); text-decoration: none; }
   .legal .back:hover { color: #fff; }
 </style>
-</head>
-<body>
 <main class="wrap legal">
-  <a class="back" href="index.html">Volver a la web</a>
+  <a class="back" href="/">Volver a la web</a>
   <h1>Privacidad y aviso legal</h1>
 
   <h2>Titular</h2>
@@ -49,5 +39,4 @@
   <h2>Marcas</h2>
   <p>Salesforce, Agentforce, Data 360 y demás marcas citadas pertenecen a sus respectivos titulares. Sobtree es una consultora independiente y no está afiliada a Salesforce, Inc.</p>
 </main>
-</body>
-</html>
+</Base>

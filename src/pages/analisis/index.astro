@@ -1,0 +1,28 @@
+---
+import Base from "../../layouts/Base.astro";
+import { getAnalisis, fmtDate } from "../../data/analisis";
+import { graph, organization, website } from "../../data/schema";
+
+const items = await getAnalisis();
+---
+<Base title="Análisis de IA y Salesforce | Sobtree" description="Análisis independientes sobre Agentforce, Data 360 y cómo sacar retorno de la IA en Salesforce." jsonld={graph(organization(), website())}>
+  <main id="main" class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Análisis</p>
+        <h1 class="page-title">Lo que vemos en los proyectos de IA y Salesforce</h1>
+      </div>
+      {items.length === 0
+        ? <p class="section-sub">Pronto publicaremos los primeros análisis.</p>
+        : <ul class="post-list">
+            {items.map((e) => (
+              <li class="card">
+                <a href={`/analisis/${e.id}/`}><h2>{e.data.title}</h2></a>
+                <p>{e.data.description}</p>
+                <p class="prose-meta"><time datetime={e.data.date.toISOString()}>{fmtDate(e.data.date)}</time></p>
+              </li>
+            ))}
+          </ul>}
+    </div>
+  </main>
+</Base>

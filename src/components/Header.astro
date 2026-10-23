@@ -1,0 +1,25 @@
+---
+import Brand from "./Brand.astro";
+
+const NAV = [
+  { href: "/#servicios", label: "Servicios" },
+  { href: "/#casos", label: "Casos de uso" },
+  { href: "/#roi", label: "Calculadora ROI" },
+  { href: "/#metodo", label: "Cómo trabajamos" },
+  { href: "/#faq", label: "FAQ" }
+];
+---
+<header class="site-header" id="top">
+  <div class="wrap header-inner">
+    <Brand label="Sobtree, inicio" />
+    <nav class="nav" aria-label="Principal">
+      {NAV.map((n) => <a href={n.href}>{n.label}</a>)}
+    </nav>
+    <a class="btn btn-primary btn-sm header-cta" href="/#contacto">Reservar diagnóstico</a>
+    <button class="menu-toggle" aria-expanded="false" aria-controls="mobile-nav" aria-label="Abrir menú"><span></span><span></span></button>
+  </div>
+  <nav class="mobile-nav" id="mobile-nav" aria-label="Principal móvil" hidden>
+    {NAV.map((n) => <a href={n.href}>{n.label}</a>)}
+    <a class="btn btn-primary" href="/#contacto">Reservar diagnóstico</a>
+  </nav>
+</header>

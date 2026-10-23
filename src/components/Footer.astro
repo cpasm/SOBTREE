@@ -1,0 +1,36 @@
+---
+import Brand from "./Brand.astro";
+import { SITE } from "../data/site";
+---
+<footer class="site-footer">
+  <div class="wrap footer-grid">
+    <div>
+      <Brand label="Sobtree, volver arriba" />
+      <p class="footer-note">Consultoría independiente de IA y Salesforce para empresas.</p>
+    </div>
+    <nav aria-label="Pie: servicios">
+      <p class="footer-h">Servicios</p>
+      <a href="/#servicios">Diagnóstico de valor</a>
+      <a href="/#servicios">Agentforce</a>
+      <a href="/#servicios">Data 360</a>
+      <a href="/#servicios">Marketing y Loyalty</a>
+    </nav>
+    <nav aria-label="Pie: recursos">
+      <p class="footer-h">Recursos</p>
+      <a href="/#casos">Casos de uso</a>
+      <a href="/#roi">Calculadora ROI</a>
+      <a href="/#madurez">Autodiagnóstico</a>
+      <a href="/#faq">Preguntas frecuentes</a>
+    </nav>
+    <div>
+      <p class="footer-h">Contacto</p>
+      <a href={`mailto:${SITE.email}`}>{SITE.email}</a>
+      <p class="footer-note">{SITE.city}, España</p>
+    </div>
+  </div>
+  <div class="wrap footer-bottom">
+    <p>© <span id="year">{new Date().getFullYear()}</span> {SITE.legalName} Todos los derechos reservados.</p>
+    <p><a href="/privacidad">Privacidad y aviso legal</a></p>
+  </div>
+  <p class="wrap trademark">Salesforce, Agentforce, Data 360 y demás marcas citadas pertenecen a sus respectivos titulares. Sobtree es una consultora independiente y no está afiliada a Salesforce, Inc.</p>
+</footer>

@@ -1,65 +1,11 @@
-<!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sobtree | Consultoría de IA y Salesforce para empresas</title>
-<meta name="description" content="Consultoría independiente de IA y Salesforce para empresas. Llevamos Agentforce y Data 360 a producción con un business case medible: menos coste por caso, más conversión y más retención.">
-<meta name="theme-color" content="#112d44">
-<link rel="canonical" href="https://sobtree.com/">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="Sobtree">
-<meta property="og:title" content="Sobtree | Consultoría de IA y Salesforce para empresas">
-<meta property="og:description" content="Agentforce y Data 360 en producción, con retorno medible. Diagnóstico de valor en 3 semanas a precio cerrado.">
-<meta property="og:url" content="https://sobtree.com/">
-<meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/styles.css">
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "ProfessionalService",
-  "name": "Sobtree",
-  "url": "https://sobtree.com/",
-  "email": "info@sobtree.com",
-  "areaServed": ["ES", "EU", "LATAM"],
-  "serviceType": ["Consultoría Salesforce", "Consultoría de inteligencia artificial", "Agentforce", "Data 360"],
-  "description": "Consultoría independiente de IA y Salesforce para empresas: Agentforce, Data 360, Marketing Cloud Next y Loyalty Management con retorno medible."
-}
-</script>
-</head>
-<body>
-<a class="skip" href="#main">Saltar al contenido</a>
+---
+import Base from "../layouts/Base.astro";
+import { FAQ } from "../data/faq";
+import { graph, organization, website, person, faqPage } from "../data/schema";
 
-<header class="site-header" id="top">
-  <div class="wrap header-inner">
-    <a class="brand" href="#top" aria-label="Sobtree, inicio">
-      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 28V15M16 15 9.5 8.5M16 15l6.5-6.5M16 20.5l-4.5-3.5M16 20.5l4.5-3.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="9" cy="8" r="2.7" fill="currentColor"/><circle cx="23" cy="8" r="2.7" fill="currentColor"/></svg>
-      <span>Sobtree</span>
-    </a>
-    <nav class="nav" aria-label="Principal">
-      <a href="#servicios">Servicios</a>
-      <a href="#casos">Casos de uso</a>
-      <a href="#roi">Calculadora ROI</a>
-      <a href="#metodo">Cómo trabajamos</a>
-      <a href="#faq">FAQ</a>
-    </nav>
-    <a class="btn btn-primary btn-sm header-cta" href="#contacto">Reservar diagnóstico</a>
-    <button class="menu-toggle" aria-expanded="false" aria-controls="mobile-nav" aria-label="Abrir menú"><span></span><span></span></button>
-  </div>
-  <nav class="mobile-nav" id="mobile-nav" aria-label="Principal móvil" hidden>
-    <a href="#servicios">Servicios</a>
-    <a href="#casos">Casos de uso</a>
-    <a href="#roi">Calculadora ROI</a>
-    <a href="#metodo">Cómo trabajamos</a>
-    <a href="#faq">FAQ</a>
-    <a class="btn btn-primary" href="#contacto">Reservar diagnóstico</a>
-  </nav>
-</header>
-
+const jsonld = graph(organization(), website(), person(), faqPage());
+---
+<Base jsonld={jsonld}>
 <main id="main">
 
 <!-- ============ HERO ============ -->
@@ -370,12 +316,7 @@
       <h2>Lo que nos preguntan antes de empezar</h2>
     </div>
     <div class="faqs">
-      <details class="faq"><summary>¿Trabajáis con nuestro integrador actual?</summary><p>Sí. A menudo nuestro papel es dar criterio a la empresa frente al integrador: revisar lo que se propone, validar estimaciones y asegurar que cada desarrollo responde a un objetivo de negocio.</p></details>
-      <details class="faq"><summary>¿Necesitamos Data 360 para usar Agentforce?</summary><p>No siempre para empezar, pero sí para escalar. Un agente sin contexto unificado se queda corto cuando el caso se complica. En el diagnóstico te decimos si puedes arrancar sin él y cuándo lo vas a necesitar.</p></details>
-      <details class="faq"><summary>¿Cómo se fija el precio?</summary><p>El diagnóstico tiene precio cerrado. Las fases siguientes se presupuestan con alcance, plazo y entregables definidos, para que cada una se justifique por sí sola.</p></details>
-      <details class="faq"><summary>¿Recibís comisiones de Salesforce u otros fabricantes?</summary><p>No. No revendemos licencias ni cobramos por recomendar productos. Nuestro único incentivo es que tu inversión funcione.</p></details>
-      <details class="faq"><summary>¿Qué pasa con la seguridad y el cumplimiento normativo?</summary><p>Diseñamos los agentes con permisos mínimos, límites explícitos, auditoría y supervisión humana en las decisiones sensibles, alineados con el RGPD y el Reglamento Europeo de IA.</p></details>
-      <details class="faq"><summary>¿Trabajáis fuera de España?</summary><p>Sí. Trabajamos en español e inglés, en remoto y con presencia cuando el proyecto lo requiere, en Europa y Latinoamérica.</p></details>
+      {FAQ.map((f) => <details class="faq"><summary>{f.q}</summary><p>{f.a}</p></details>)}
     </div>
   </div>
 </section>
@@ -394,7 +335,7 @@
       </ul>
       <p class="contact-mail">También puedes escribirnos a <a href="mailto:info@sobtree.com">info@sobtree.com</a></p>
     </div>
-    <form class="contact" id="contact" action="contact.php" method="post" novalidate>
+    <form class="contact" id="contact" action="/contact.php" method="post" novalidate>
       <div class="row-2">
         <label>Nombre y apellidos<input name="nombre" autocomplete="name" required></label>
         <label>Cargo<input name="cargo" autocomplete="organization-title" required></label>
@@ -427,7 +368,7 @@
       </div>
       <label>¿Qué quieres conseguir?<textarea name="mensaje" rows="4" required></textarea></label>
       <label class="hp" aria-hidden="true">No rellenar<input name="web" tabindex="-1" autocomplete="off"></label>
-      <label class="consent"><input type="checkbox" name="consentimiento" value="si" required><span>Acepto la <a href="privacidad.html">política de privacidad</a> y que Sobtree use estos datos para responder a mi solicitud.</span></label>
+      <label class="consent"><input type="checkbox" name="consentimiento" value="si" required><span>Acepto la <a href="/privacidad">política de privacidad</a> y que Sobtree use estos datos para responder a mi solicitud.</span></label>
       <button class="btn btn-primary" type="submit">Solicitar conversación</button>
       <p class="form-status" id="contact-status" role="status"></p>
     </form>
@@ -435,43 +376,5 @@
 </section>
 
 </main>
-
-<footer class="site-footer">
-  <div class="wrap footer-grid">
-    <div>
-      <a class="brand" href="#top" aria-label="Sobtree, volver arriba">
-        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 28V15M16 15 9.5 8.5M16 15l6.5-6.5M16 20.5l-4.5-3.5M16 20.5l4.5-3.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="9" cy="8" r="2.7" fill="currentColor"/><circle cx="23" cy="8" r="2.7" fill="currentColor"/></svg>
-        <span>Sobtree</span>
-      </a>
-      <p class="footer-note">Consultoría independiente de IA y Salesforce para empresas.</p>
-    </div>
-    <nav aria-label="Pie: servicios">
-      <p class="footer-h">Servicios</p>
-      <a href="#servicios">Diagnóstico de valor</a>
-      <a href="#servicios">Agentforce</a>
-      <a href="#servicios">Data 360</a>
-      <a href="#servicios">Marketing y Loyalty</a>
-    </nav>
-    <nav aria-label="Pie: recursos">
-      <p class="footer-h">Recursos</p>
-      <a href="#casos">Casos de uso</a>
-      <a href="#roi">Calculadora ROI</a>
-      <a href="#madurez">Autodiagnóstico</a>
-      <a href="#faq">Preguntas frecuentes</a>
-    </nav>
-    <div>
-      <p class="footer-h">Contacto</p>
-      <a href="mailto:info@sobtree.com">info@sobtree.com</a>
-      <p class="footer-note">Madrid, España</p>
-    </div>
-  </div>
-  <div class="wrap footer-bottom">
-    <p>© <span id="year">2026</span> Sobtree Holding, S.L. Todos los derechos reservados.</p>
-    <p><a href="privacidad.html">Privacidad y aviso legal</a></p>
-  </div>
-  <p class="wrap trademark">Salesforce, Agentforce, Data 360 y demás marcas citadas pertenecen a sus respectivos titulares. Sobtree es una consultora independiente y no está afiliada a Salesforce, Inc.</p>
-</footer>
-
-<script src="assets/main.js" defer></script>
-</body>
-</html>
+<script is:inline src="/assets/main.js" defer></script>
+</Base>
