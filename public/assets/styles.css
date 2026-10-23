@@ -518,3 +518,11 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .chat-chips { margin: 0 14px 10px; }
 .chat-chips[hidden] { display: none; }
 .section-sub a { color: var(--accent-2); }
+
+/* Bloque «Cómo lo resolvemos» dentro de los artículos */
+.como { margin: 36px 0; padding: 24px 26px; border-radius: var(--r); background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent); }
+.como .eyebrow { margin: 0 0 8px; }
+.como-body > :first-child { margin-top: 0; }
+.como-body > :last-child { margin-bottom: 0; }
+.como-link { display: inline-block; margin-top: 14px; font-weight: 700; color: var(--accent-2); text-decoration: none; }
+.como-link:hover, .como-link:focus-visible { text-decoration: underline; }

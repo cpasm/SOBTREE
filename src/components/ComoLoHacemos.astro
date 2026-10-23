@@ -1,0 +1,12 @@
+---
+// Bloque «Cómo lo resolvemos» dentro de un artículo MDX:
+// import ComoLoHacemos from "../../components/ComoLoHacemos.astro";
+// <ComoLoHacemos titulo="...">Texto en markdown</ComoLoHacemos>
+interface Props { titulo?: string }
+const { titulo = "Cómo lo resolvemos" } = Astro.props;
+---
+<aside class="como">
+  <p class="eyebrow">{titulo}</p>
+  <div class="como-body"><slot /></div>
+  <a class="como-link" href="/#contacto">Lo vemos en 25 minutos →</a>
+</aside>

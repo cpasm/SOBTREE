@@ -13,8 +13,11 @@ interface Props {
   tags: string[];
   path: string; // p. ej. /analisis/mi-articulo/
   back: { href: string; label: string };
+  cta?: { texto: string; boton: string };
 }
-const { title, description, date, updated, tags, path, back } = Astro.props;
+const { title, description, date, updated, tags, path, back, cta } = Astro.props;
+const ctaTexto = cta?.texto ?? "¿Quieres ver cómo aplica esto a tu empresa?";
+const ctaBoton = cta?.boton ?? "Reservar 25 minutos";
 const url = new URL(path, SITE.url).href;
 const jsonld = graph(organization(), website(), person(), article({ title, description, url, date, updated, tags }));
 ---
@@ -29,8 +32,8 @@ const jsonld = graph(organization(), website(), person(), article({ title, descr
       <slot name="intro" />
       <div class="prose-body"><slot /></div>
       <aside class="prose-cta">
-        <p>¿Quieres ver cómo aplica esto a tu empresa?</p>
-        <a class="btn btn-primary" href="/#contacto">Reservar diagnóstico</a>
+        <p>{ctaTexto}</p>
+        <a class="btn btn-primary" href="/#contacto">{ctaBoton}</a>
       </aside>
     </article>
   </main>
