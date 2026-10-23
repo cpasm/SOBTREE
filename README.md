@@ -48,6 +48,14 @@ Copia `src/content/radar/plantilla.mdx` (por ejemplo `2026-semana-44.mdx`), escr
 
 Mientras no haya Radar ni análisis publicados, la home muestra en su lugar el autodiagnóstico y los casos de uso por sector, y los enlaces de Radar y Análisis no salen en el menú ni en el sitemap.
 
+## Newsletter
+
+Al final de cada análisis y Radar hay un formulario de suscripción (email + consentimiento). Envía a `/api/newsletter.php`, que reenvía el alta a un webhook de Zapier. Para activarlo, añade esta línea al array de `domains/sobtree.com/sobtree-secrets.php` (el mismo fichero de la clave del asistente):
+
+`'ZAPIER_NEWSLETTER_WEBHOOK' => 'https://hooks.zapier.com/hooks/catch/...',`
+
+Zapier recibe `email`, `consentimiento`, `texto_consentimiento`, `origen` (página) y `fecha`. Mientras no haya webhook, el formulario no aparece. Límite: 5 altas por IP y hora, 300 al día.
+
 ## Radar y artículo semanal
 
 Cada lunes a las 8:00 (hora de Madrid) una rutina en la nube prepara el Radar de la semana y un artículo para CIOs, y abre un pull request «¿Publicar? …» con el texto completo. Te llega un email.

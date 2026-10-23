@@ -105,6 +105,7 @@ Los artículos empiezan justo debajo, en una sección blanca con esquinas superi
 - **Artículo destacado:** portada 16:9 con radio 28 px, línea temática, titular 800 y resumen de 2–3 frases (el `description` del artículo).
 - **Lista de artículos:** miniatura 88×64, línea temática y titular.
 - **Asistente:** burbuja fija abajo a la derecha. A los 3,5 s se abre una tarjeta con «Deja tu nombre y comienza a ahorrar.», un campo, un botón y una **cruz para cerrar** (cerrada, no vuelve a abrirse sola en la visita). Indica siempre que es una IA. El nombre no se envía al modelo: solo saluda y rellena el formulario de contacto.
+- **Newsletter:** al final de cada análisis y Radar (`src/components/Newsletter.astro`, en `Post.astro`), a todo el ancho del artículo, en tarjeta `--panel` con radio 28 px. Título «¿Quieres más análisis como este?», email + casilla de consentimiento (obligatoria) + «Suscribirme». Envía a `/api/newsletter.php`, que reenvía a Zapier; la URL del webhook va en `sobtree-secrets.php`, nunca en la página. Sin webhook configurado, no se muestra.
 - **Franja de confianza:** logos reales (`src/data/confianza.ts`). Sin logos aprobados, muestra las plataformas en texto. Nunca logos de clientes sin permiso escrito ni de proyectos hechos para otra empresa.
 
 ---

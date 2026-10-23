@@ -1,0 +1,23 @@
+---
+// Suscripción a la newsletter (email + consentimiento). Envía a /api/newsletter.php, que reenvía a Zapier.
+// Queda oculto hasta que el servidor confirma que el webhook está configurado (newsletter.js).
+interface Props { title?: string; sub?: string }
+const {
+  title = "¿Quieres más análisis como este?",
+  sub = "Cada semana, el Radar y un análisis para CIOs que quieren gastar menos y ganar más. Sin relleno. Te das de baja cuando quieras."
+} = Astro.props;
+---
+<section class="newsletter" id="newsletter" aria-labelledby="nl-title" hidden>
+  <h2 id="nl-title">{title}</h2>
+  <p class="nl-sub">{sub}</p>
+  <form class="nl-form" id="nl-form" novalidate>
+    <div class="nl-row">
+      <label class="sr-only" for="nl-email">Tu email</label>
+      <input id="nl-email" name="email" type="email" autocomplete="email" placeholder="tu@empresa.com" required>
+      <button class="btn btn-primary" type="submit">Suscribirme</button>
+    </div>
+    <label class="hp" aria-hidden="true">No rellenar<input name="web" tabindex="-1" autocomplete="off"></label>
+    <label class="nl-consent"><input type="checkbox" name="consentimiento" value="si" required><span>Acepto recibir la newsletter de Sobtree y la <a href="/privacidad/">política de privacidad</a>.</span></label>
+    <p class="nl-status" id="nl-status" role="status"></p>
+  </form>
+</section>
