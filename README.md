@@ -48,6 +48,14 @@ Copia `src/content/radar/plantilla.mdx` (por ejemplo `2026-semana-44.mdx`), escr
 
 Mientras no haya Radar ni análisis publicados, la home muestra en su lugar el autodiagnóstico y los casos de uso por sector, y los enlaces de Radar y Análisis no salen en el menú ni en el sitemap.
 
+## Radar y artículo semanal
+
+Cada lunes a las 8:00 (hora de Madrid) una rutina en la nube prepara el Radar de la semana y un artículo para CIOs, y abre un pull request «¿Publicar? …» con el texto completo. Te llega un email.
+
+- **Publicar:** abre el PR y escribe **OK** en un comentario (vale también «publicar» o «súbelo»). La acción `publicar-con-ok.yml` fusiona el PR y despliega la web en 1–2 minutos. Pulsar «Merge» en GitHub hace lo mismo.
+- **Descartar:** cierra el PR.
+- Solo cuenta un comentario del dueño del repositorio y solo en ramas `radar/*`.
+
 ## Para buscadores y asistentes de IA
 
 - `robots.txt` permite explícitamente a GPTBot, OAI-SearchBot, ChatGPT-User, ClaudeBot, Claude-User, Claude-SearchBot, PerplexityBot, Google-Extended y Applebot-Extended.
