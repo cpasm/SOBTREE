@@ -10,6 +10,6 @@ const sfLogo = existsSync(new URL("../../public/img/logos/salesforce.png", impor
 <a class="brand" href={href} aria-label={label}>
   <span class="brand-word" aria-hidden="true">Sobtree<span class="dot-accent">.</span></span>
   {tag && <span class="brand-bar" aria-hidden="true"></span>}
-  {tag && sfLogo && <img class="brand-sf" src={sfLogo} alt="" width="48" height="32">}
-  {tag && <span class="brand-tag" aria-hidden="true">IA × Salesforce</span>}
+  {tag && sfLogo && <img class="brand-sf" src={sfLogo} alt="Salesforce" width="46" height="46">}
+  {tag && <span class="brand-tag" aria-hidden="true">{sfLogo ? "× IA" : "IA × Salesforce"}</span>}
 </a>

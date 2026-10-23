@@ -449,7 +449,11 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 }
 @media (max-width: 640px) {
   body { font-size: 16px; }
-  .brand-bar, .brand-tag, .brand-sf { display: none; }
+  .brand { gap: 10px; }
+  .brand-word { font-size: 23px; }
+  .brand-bar { height: 22px; }
+  .brand-sf { height: 40px; margin: -8px -4px; }
+  .brand-tag { font-size: 12px; }
   .header-cta { display: none; }
   .menu-toggle { margin-left: auto; }
   .foco-copy { text-align: left; }

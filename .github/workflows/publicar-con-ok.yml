@@ -1,0 +1,41 @@
+# Publicación con un «OK»: en un PR de la rutina semanal (ramas radar/*), si el dueño del repo
+# comenta «OK» (o «publicar», «súbelo»), se fusiona el PR y se lanza el despliegue a la web.
+# Solo cuenta un comentario del dueño; cualquier otro se ignora.
+name: Publicar con OK
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  publicar:
+    if: github.event.issue.pull_request && github.event.comment.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comprobar que es un PR de la rutina y fusionarlo
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+          BODY: ${{ github.event.comment.body }}
+        run: |
+          # El comentario debe ser solo «OK», «publicar» o «súbelo» (con o sin «OK,» delante), sin importar mayúsculas.
+          text=$(printf '%s' "$BODY" | tr '[:upper:]' '[:lower:]' | sed -e 's/[[:space:][:punct:]]*$//' -e 's/^[[:space:]]*//' -e 's/ú/u/g')
+          case "$text" in
+            ok|publicar|subelo|"ok subelo"|"ok, subelo"|"ok publicar"|"ok, publicar") ;;
+            *) echo "Comentario normal, no es una orden de publicar."; exit 0 ;;
+          esac
+          branch=$(gh pr view "$PR" -R "$REPO" --json headRefName,state -q 'select(.state=="OPEN") | .headRefName')
+          case "$branch" in
+            radar/*) ;;
+            *) echo "No es un PR abierto de la rutina semanal ($branch). No hago nada."; exit 0 ;;
+          esac
+          gh pr merge "$PR" -R "$REPO" --squash --delete-branch
+          # Un merge hecho con el token de Actions no dispara el despliegue por sí solo: lo lanzamos aquí.
+          gh workflow run deploy.yml -R "$REPO" --ref main
+          gh pr comment "$PR" -R "$REPO" --body "Publicado. La web se actualiza en 1–2 minutos: https://sobtree.com"
