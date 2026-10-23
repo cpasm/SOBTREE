@@ -1,14 +1,9 @@
 ---
-// Marca (DESIGN.md §1): monograma «S.» (S blanca, punto en acento) + wordmark «Sobtree.».
+// Marca en pantalla (DESIGN.md §1): wordmark «Sobtree.». El monograma «S.» se usa solo como favicon.
 interface Props { label: string; href?: string; tag?: boolean }
 const { label, href = "/", tag = false } = Astro.props;
 ---
 <a class="brand" href={href} aria-label={label}>
-  <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
-    <rect x="1" y="1" width="62" height="62" rx="16" fill="#050F2C" stroke="rgba(255,255,255,.28)" stroke-width="2"></rect>
-    <text x="27" y="46" text-anchor="middle" font-family="Open Sans, Arial, sans-serif" font-size="42" font-weight="800" fill="#FFFFFF">S</text>
-    <circle cx="48" cy="44" r="5" fill="#6AA2FF"></circle>
-  </svg>
   <span class="brand-word" aria-hidden="true">Sobtree<span class="dot-accent">.</span></span>
   {tag && <span class="brand-bar" aria-hidden="true"></span>}
   {tag && <span class="brand-tag" aria-hidden="true">IA × Salesforce</span>}
