@@ -1,0 +1,33 @@
+# Despliegue automático a Hostinger por FTP en cada push a main.
+# Desactivado hasta que configures los secretos en GitHub:
+#   Settings → Secrets and variables → Actions → New repository secret
+#   FTP_SERVER   (p. ej. ftp.tudominio.com, lo ves en hPanel → Archivos → Cuentas FTP)
+#   FTP_USERNAME
+#   FTP_PASSWORD
+# Si usas el despliegue Git nativo de Hostinger (hPanel → Avanzado → Git), borra este fichero.
+name: Deploy to Hostinger
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Subir por FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./
+          server-dir: ./public_html/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            .github/**
+            README.md
