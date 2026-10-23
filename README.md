@@ -5,11 +5,14 @@ Sitio estático generado con [Astro](https://astro.build). El contenido se escri
 ## Estructura
 
 ```
-src/pages/index.astro          Home (servicios, casos, calculadora ROI, método, autodiagnóstico, FAQ, contacto)
+src/pages/index.astro          Home: bento + secciones (servicios, casos, ROI, método, autodiagnóstico, FAQ, contacto)
+src/components/Bento.astro     Bloques de la home: propuesta, calculadora mini, Radar, análisis, método, reservar
 src/pages/analisis/            Listado y página de cada análisis
+src/pages/radar/               Listado y página de cada entrega del Radar
 src/pages/privacidad.astro     Privacidad y aviso legal
 src/pages/llms.txt.ts          /llms.txt y /llms-full.txt, generados desde los datos de la web
 src/content/analisis/          Análisis en .md/.mdx (ver plantilla.mdx)
+src/content/radar/             Radar semanal en .md/.mdx (ver plantilla.mdx)
 src/data/site.ts               Datos de la empresa, servicios y autor
 src/data/faq.ts                Preguntas frecuentes (alimentan el FAQ visible, el JSON-LD y llms.txt)
 src/data/schema.ts             Datos estructurados schema.org
@@ -30,6 +33,12 @@ npm run preview  # sirve dist/ para revisarlo
 ## Publicar un análisis
 
 Copia `src/content/analisis/plantilla.mdx` con un nombre en minúsculas y guiones (será la URL), rellena el frontmatter, pon `draft: false` y haz push. Se generan solos la página, el JSON-LD `Article`, el sitemap y las entradas de `llms.txt`.
+
+## Publicar el Radar
+
+Copia `src/content/radar/plantilla.mdx` (por ejemplo `2026-semana-44.mdx`), escribe de 1 a 4 `puntos` (son los que salen en la home), desarrolla cada uno en el cuerpo y pon `draft: false`.
+
+Mientras no haya Radar ni análisis publicados, la home muestra en su lugar el autodiagnóstico y los casos de uso por sector, y los enlaces de Radar y Análisis no salen en el menú ni en el sitemap.
 
 ## Para buscadores y asistentes de IA
 

@@ -1,0 +1,29 @@
+---
+import Base from "../../layouts/Base.astro";
+import { getRadar, fmtDate } from "../../data/content";
+import { graph, organization, website } from "../../data/schema";
+
+const items = await getRadar();
+---
+<Base title="Radar de Salesforce e IA | Sobtree" description="Cada semana, lo que importa en Salesforce, Agentforce y Data 360, y qué significa para tu empresa." jsonld={graph(organization(), website())}>
+  <main id="main" class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Radar</p>
+        <h1 class="page-title">Lo que importa esta semana en Salesforce e IA</h1>
+        <p class="section-sub">Pocas noticias, filtradas y con nuestra lectura: qué cambia para quien tiene que decidir.</p>
+      </div>
+      {items.length === 0
+        ? <p class="section-sub">La primera entrega está en camino.</p>
+        : <ul class="post-list">
+            {items.map((e) => (
+              <li class="card">
+                <p class="prose-meta"><time datetime={e.data.date.toISOString()}>{fmtDate(e.data.date)}</time></p>
+                <a href={`/radar/${e.id}/`}><h2>{e.data.title}</h2></a>
+                <ol class="radar-points">{e.data.puntos.map((p) => <li>{p}</li>)}</ol>
+              </li>
+            ))}
+          </ul>}
+    </div>
+  </main>
+</Base>

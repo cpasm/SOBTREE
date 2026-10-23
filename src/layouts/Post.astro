@@ -1,0 +1,37 @@
+---
+// Página de un artículo (análisis o Radar).
+import Base from "./Base.astro";
+import { SITE } from "../data/site";
+import { fmtDate } from "../data/content";
+import { graph, organization, website, person, article } from "../data/schema";
+
+interface Props {
+  title: string;
+  description: string;
+  date: Date;
+  updated?: Date;
+  tags: string[];
+  path: string; // p. ej. /analisis/mi-articulo/
+  back: { href: string; label: string };
+}
+const { title, description, date, updated, tags, path, back } = Astro.props;
+const url = new URL(path, SITE.url).href;
+const jsonld = graph(organization(), website(), person(), article({ title, description, url, date, updated, tags }));
+---
+<Base title={`${title} | Sobtree`} description={description} ogType="article" jsonld={jsonld}>
+  <main id="main" class="section">
+    <article class="wrap prose">
+      <a class="back" href={back.href}>{back.label}</a>
+      {tags.length > 0 && <p class="eyebrow">{tags.join(" · ")}</p>}
+      <h1>{title}</h1>
+      <p class="prose-meta"><time datetime={date.toISOString()}>{fmtDate(date)}</time>{updated && <> · Actualizado el <time datetime={updated.toISOString()}>{fmtDate(updated)}</time></>}</p>
+      <p class="lede">{description}</p>
+      <slot name="intro" />
+      <div class="prose-body"><slot /></div>
+      <aside class="prose-cta">
+        <p>¿Quieres ver cómo aplica esto a tu empresa?</p>
+        <a class="btn btn-primary" href="/#contacto">Reservar diagnóstico</a>
+      </aside>
+    </article>
+  </main>
+</Base>

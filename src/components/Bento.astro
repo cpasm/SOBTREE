@@ -1,0 +1,113 @@
+---
+// Home en bento: todo lo importante en una pantalla y cada bloque enlaza a su detalle.
+// Radar y análisis se muestran cuando hay algo publicado; si no, sus huecos los ocupan
+// el autodiagnóstico y los casos de uso, para que la rejilla nunca quede vacía.
+import { getAnalisis, getRadar, fmtShort } from "../data/content";
+
+const [analisis, radar] = await Promise.all([getAnalisis(), getRadar()]);
+const lastRadar = radar[0];
+const lastPosts = analisis.slice(0, 3);
+const SECTORS = [
+  ["seguros", "Seguros"], ["retail", "Retail"], ["transporte", "Transporte y viajes"],
+  ["energia", "Energía y utilities"], ["automocion", "Automoción"]
+];
+---
+<section class="hero bento-hero" aria-label="Sobtree en un vistazo">
+  <div class="wrap bento">
+
+    <!-- Propuesta de valor (en la Fase 3 aquí irá el asistente) -->
+    <div class="tile t-value">
+      <p class="kicker"><span class="pulse" aria-hidden="true"></span>Consultoría independiente de IA y Salesforce</p>
+      <h1>Convierte Salesforce en tu ventaja competitiva en la era de la IA</h1>
+      <p class="lede">Llevamos Agentforce y Data 360 a producción con un business case firmado por negocio antes de empezar. Medido, no prometido.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#contacto">Reservar diagnóstico de valor</a>
+        <a class="btn btn-ghost" href="#madurez">Hacer el autodiagnóstico</a>
+      </div>
+      <ul class="hero-proof">
+        <li><strong>3 semanas</strong><span>Diagnóstico a precio cerrado</span></li>
+        <li><strong>90 días</strong><span>Primer agente en producción</span></li>
+        <li><strong>0 €</strong><span>En comisiones de licencias</span></li>
+      </ul>
+    </div>
+
+    <!-- Calculadora mini: mueve los mismos controles que la calculadora completa -->
+    <form class="tile t-roi" id="roi-mini" aria-label="Calculadora rápida de ahorro">
+      <p class="tile-k">Calculadora de ahorro</p>
+      <p class="tile-h">¿Cuánto ahorra un agente de IA en tu atención al cliente?</p>
+      <div class="mini-field">
+        <label for="m-cases">Casos al mes</label><output id="mo-cases" for="m-cases"></output>
+        <input type="range" id="m-cases" min="1000" max="100000" step="1000" value="10000">
+      </div>
+      <div class="mini-field">
+        <label for="m-auto">Resueltos por el agente</label><output id="mo-auto" for="m-auto"></output>
+        <input type="range" id="m-auto" min="10" max="70" step="5" value="35">
+      </div>
+      <p class="mini-out"><span class="mini-v" id="m-eur">—</span><span class="mini-u">al año</span></p>
+      <p class="tile-foot"><span id="m-assume"></span> <a href="#roi">Ajustar supuestos</a></p>
+    </form>
+
+    {lastRadar ? (
+      <a class="tile t-radar tile-link" href={`/radar/${lastRadar.id}/`}>
+        <p class="tile-k"><span class="live" aria-hidden="true"></span>Radar · <time datetime={lastRadar.data.date.toISOString()}>{fmtShort(lastRadar.data.date)}</time></p>
+        <p class="tile-h">{lastRadar.data.title}</p>
+        <ul class="radar-mini">{lastRadar.data.puntos.slice(0, 3).map((p) => <li>{p}</li>)}</ul>
+        <p class="tile-more">Leer el Radar</p>
+      </a>
+    ) : (
+      <a class="tile t-radar tile-link" href="#madurez">
+        <p class="tile-k">Autodiagnóstico</p>
+        <p class="tile-h">¿En qué punto está tu empresa con la IA en Salesforce?</p>
+        <p class="tile-p">Seis preguntas, dos minutos: tu nivel de madurez y por dónde empezar.</p>
+        <p class="tile-more">Empezar</p>
+      </a>
+    )}
+
+    {lastPosts.length ? (
+      <div class="tile t-posts">
+        <p class="tile-k">Últimos análisis</p>
+        <ul class="posts-mini">
+          {lastPosts.map((p) => (
+            <li><a href={`/analisis/${p.id}/`} title={p.data.title}><span>{p.data.title}</span><time datetime={p.data.date.toISOString()}>{fmtShort(p.data.date)}</time></a></li>
+          ))}
+        </ul>
+        <a class="tile-more" href="/analisis/">Todos los análisis</a>
+      </div>
+    ) : (
+      <div class="tile t-posts">
+        <p class="tile-k">Casos de uso por sector</p>
+        <p class="tile-h">Dónde está el retorno en tu industria</p>
+        <ul class="chips">
+          {SECTORS.map(([id, name]) => <li><a href="#casos" data-goto-sector={id}>{name}</a></li>)}
+        </ul>
+      </div>
+    )}
+
+    <a class="tile t-method tile-link" href="#metodo">
+      <p class="tile-k">Cómo trabajamos</p>
+      <ol class="method-mini">
+        <li><b>1</b>Diagnóstico<span>3 sem.</span></li>
+        <li><b>2</b>Business case<span>Sem. 4</span></li>
+        <li><b>3</b>Construcción<span>Sem. 5–12</span></li>
+        <li><b>4</b>Escala<span>Mes 4+</span></li>
+      </ol>
+    </a>
+
+    <div class="tile t-book">
+      <p class="tile-k">Hablemos</p>
+      <p class="tile-h">30 minutos con un perfil senior</p>
+      <p class="tile-p">Te decimos dónde vemos retorno y, si no lo vemos, también.</p>
+      <a class="btn btn-primary btn-block" href="#contacto">Reservar conversación</a>
+    </div>
+
+  </div>
+
+  <div class="wrap">
+    <div class="stack-bar" aria-label="Plataformas en las que trabajamos">
+      <span class="stack-label">Especialistas en</span>
+      <ul>
+        <li>Agentforce</li><li>Data 360</li><li>Marketing Cloud Next</li><li>Loyalty Management</li><li>Sales Cloud</li><li>Service Cloud</li><li>MuleSoft</li><li>Tableau</li>
+      </ul>
+    </div>
+  </div>
+</section>

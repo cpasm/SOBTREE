@@ -63,6 +63,7 @@
     });
   });
   renderCases("seguros");
+  $$("[data-goto-sector]").forEach((a) => a.addEventListener("click", () => renderCases(a.dataset.gotoSector)));
 
   /* ---------- Calculadora ROI ---------- */
   const nf = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0 });
@@ -88,7 +89,23 @@
     $("#roi-hours").textContent = nf.format(hours);
     $("#roi-fte").textContent = nf.format(hours / HOURS_PER_FTE);
     lastRoi = { cases, min, cost, auto: auto * 100, savings };
+    syncMini();
   }
+
+  /* Calculadora mini del bento: controla los mismos valores que la completa. */
+  const M = { cases: [$("#m-cases"), $("#mo-cases"), "cases"], auto: [$("#m-auto"), $("#mo-auto"), "auto"] };
+  function syncMini() {
+    if (!M.cases[0]) return;
+    Object.values(M).forEach(([inp, out, key]) => {
+      const [full, , fmt] = R[key];
+      inp.value = full.value;
+      out.textContent = fmt(Number(full.value));
+      inp.style.setProperty("--p", `${((inp.value - inp.min) / (inp.max - inp.min)) * 100}%`);
+    });
+    $("#m-eur").textContent = $("#roi-eur").textContent;
+    $("#m-assume").textContent = `Con ${R.min[0].value} min por caso y ${R.cost[0].value} €/h.`;
+  }
+  Object.values(M).forEach(([inp, , key]) => inp && inp.addEventListener("input", () => { R[key][0].value = inp.value; calcRoi(); }));
   Object.values(R).forEach(([inp]) => inp.addEventListener("input", calcRoi));
   calcRoi();
   $("#roi-cta").addEventListener("click", () => {

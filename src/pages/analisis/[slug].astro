@@ -1,9 +1,7 @@
 ---
 import { render } from "astro:content";
-import Base from "../../layouts/Base.astro";
-import { SITE } from "../../data/site";
-import { getAnalisis, fmtDate } from "../../data/analisis";
-import { graph, organization, website, person, article } from "../../data/schema";
+import Post from "../../layouts/Post.astro";
+import { getAnalisis } from "../../data/content";
 
 export async function getStaticPaths() {
   const items = await getAnalisis();
@@ -12,23 +10,7 @@ export async function getStaticPaths() {
 
 const { entry } = Astro.props;
 const { Content } = await render(entry);
-const { title, description, date, updated, tags } = entry.data;
-const url = new URL(`/analisis/${entry.id}/`, SITE.url).href;
-const jsonld = graph(organization(), website(), person(), article({ title, description, url, date, updated, tags }));
 ---
-<Base title={`${title} | Sobtree`} description={description} ogType="article" jsonld={jsonld}>
-  <main id="main" class="section">
-    <article class="wrap prose">
-      <a class="back" href="/analisis/">Todos los análisis</a>
-      <p class="eyebrow">{tags.join(" · ")}</p>
-      <h1>{title}</h1>
-      <p class="prose-meta"><time datetime={date.toISOString()}>{fmtDate(date)}</time>{updated && <> · Actualizado el <time datetime={updated.toISOString()}>{fmtDate(updated)}</time></>}</p>
-      <p class="lede">{description}</p>
-      <div class="prose-body"><Content /></div>
-      <aside class="prose-cta">
-        <p>¿Quieres ver cómo aplica esto a tu empresa?</p>
-        <a class="btn btn-primary" href="/#contacto">Reservar diagnóstico</a>
-      </aside>
-    </article>
-  </main>
-</Base>
+<Post {...entry.data} path={`/analisis/${entry.id}/`} back={{ href: "/analisis/", label: "Todos los análisis" }}>
+  <Content />
+</Post>

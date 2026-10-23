@@ -1,12 +1,15 @@
 ---
 import Brand from "./Brand.astro";
+import { getAnalisis, getRadar } from "../data/content";
 
+const [analisis, radar] = await Promise.all([getAnalisis(), getRadar()]);
 const NAV = [
   { href: "/#servicios", label: "Servicios" },
   { href: "/#casos", label: "Casos de uso" },
-  { href: "/#roi", label: "Calculadora ROI" },
   { href: "/#metodo", label: "Cómo trabajamos" },
-  { href: "/#faq", label: "FAQ" }
+  { href: "/#faq", label: "FAQ" },
+  ...(radar.length ? [{ href: "/radar/", label: "Radar" }] : []),
+  ...(analisis.length ? [{ href: "/analisis/", label: "Análisis" }] : [])
 ];
 ---
 <header class="site-header" id="top">

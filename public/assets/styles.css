@@ -133,6 +133,85 @@ p { margin: 0; }
 .stack-bar ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px 32px; }
 .stack-bar li { font-size: 15.5px; font-weight: 700; letter-spacing: -0.01em; color: var(--text-2); }
 
+/* ---------- Home en bento ---------- */
+.bento-hero { padding: clamp(20px, 2.2vw, 28px) 0 40px; }
+.bento {
+  position: relative; display: grid; gap: 14px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-areas:
+    "value value value value value value value roi   roi   roi   roi   roi"
+    "value value value value value value value radar radar radar radar radar"
+    "posts posts posts posts posts meth  meth  meth  book  book  book  book";
+}
+.tile {
+  position: relative; display: flex; flex-direction: column; min-width: 0;
+  padding: clamp(18px, 1.7vw, 24px); border-radius: var(--r-lg);
+  background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.025));
+  border: 1px solid var(--line); color: var(--white); text-decoration: none;
+}
+.tile-link { transition: border-color .15s, background-color .15s, transform .15s; }
+.tile-link:hover { border-color: var(--line-strong); background-color: rgba(255,255,255,.03); transform: translateY(-2px); }
+.tile-k { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--accent-2); }
+.tile-h { margin-top: 6px; font-size: 18px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.25; }
+.tile-p { margin-top: 10px; font-size: 15px; color: var(--text-2); }
+.tile-more, .tile-foot a { margin-top: auto; padding-top: 10px; font-size: 14.5px; font-weight: 600; color: var(--white); text-decoration: none; }
+.tile-more::after, .tile-foot a::after { content: " →"; color: var(--accent-2); }
+a.tile-more:hover, .tile-foot a:hover { color: var(--accent-2); }
+
+.t-value { grid-area: value; justify-content: center; padding: clamp(26px, 3vw, 44px); background: radial-gradient(600px 360px at 100% 0%, rgba(79,179,232,.18), transparent 70%), linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); }
+.t-value h1 { margin-top: 18px; font-size: clamp(32px, 3.3vw, 46px); font-weight: 800; letter-spacing: -0.035em; line-height: 1.06; max-width: 18ch; }
+.t-value .lede { margin-top: 14px; font-size: clamp(16px, 1.3vw, 18px); }
+.t-value .hero-actions { margin-top: 22px; }
+.t-value .hero-proof { margin-top: 26px; }
+
+.t-roi { grid-area: roi; gap: 9px; }
+.t-roi .tile-h { margin-top: 0; font-size: 16px; }
+.mini-field { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: baseline; }
+.mini-field label { font-size: 14px; color: var(--text-2); }
+.mini-field output { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.mini-field input { grid-column: 1 / -1; }
+.mini-out { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; }
+.mini-v { font-size: clamp(28px, 2.8vw, 36px); font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.mini-u { font-size: 14px; color: var(--text-3); }
+.tile-foot { margin-top: auto; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: 13px; color: var(--text-3); }
+.tile-foot a { padding-top: 0; font-size: 14px; }
+
+.t-radar { grid-area: radar; }
+.live { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); animation: pulse 2.4s infinite; }
+.radar-mini { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.radar-mini li { position: relative; padding-left: 16px; font-size: 14.5px; color: var(--text-2); line-height: 1.45; }
+.radar-mini li::before { content: ""; position: absolute; left: 0; top: .6em; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+.t-posts { grid-area: posts; }
+.posts-mini { list-style: none; margin: 10px 0 0; padding: 0; }
+.posts-mini a { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 9px 0; border-bottom: 1px solid var(--line); text-decoration: none; font-weight: 600; font-size: 15.5px; line-height: 1.35; }
+.posts-mini a:hover span { color: var(--accent-2); }
+.posts-mini span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.posts-mini time { flex: none; font-size: 13px; font-weight: 500; color: var(--text-3); }
+.chips { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.chips a { display: inline-block; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line-strong); font-size: 14px; font-weight: 600; text-decoration: none; transition: border-color .15s, background-color .15s; }
+.chips a:hover { border-color: var(--accent); background: rgba(79,179,232,.12); }
+
+.t-method { grid-area: meth; }
+.method-mini { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.method-mini li { display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: 10px; font-size: 14.5px; font-weight: 600; }
+.method-mini b { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; border: 1.5px solid var(--accent); }
+.method-mini li:first-child b { background: var(--accent); color: var(--bg); }
+.method-mini span { white-space: nowrap; font-size: 12.5px; font-weight: 500; color: var(--text-3); }
+
+.t-book { grid-area: book; background: linear-gradient(180deg, rgba(79,179,232,.16), rgba(79,179,232,.05)); border-color: rgba(143,211,245,.3); }
+.t-book .btn { margin-top: auto; }
+.t-book .tile-p { margin-bottom: 14px; }
+
+.bento-hero .stack-bar { margin-top: 28px; }
+#arquitectura { border-bottom: 1px solid var(--line); }
+.arch-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: clamp(36px, 5vw, 72px); align-items: center; }
+
+/* Radar en páginas de contenido */
+.radar-points { margin: 24px 0 0; padding-left: 1.3em; display: grid; gap: 8px; color: var(--text-2); }
+.radar-points li::marker { color: var(--accent-2); font-weight: 700; }
+.post-list .radar-points { margin-top: 12px; font-size: 15.5px; }
+
 /* ---------- Secciones ---------- */
 .section { padding: clamp(72px, 9vw, 120px) 0; }
 .section-alt { background: var(--bg-alt); }
@@ -321,7 +400,16 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
   .header-cta { margin-left: auto; }
   .grid-4 { grid-template-columns: 1fr 1fr; }
 }
+@media (max-width: 1080px) {
+  .bento { grid-template-areas:
+    "value value value value value value value value value value value value"
+    "roi   roi   roi   roi   roi   roi   radar radar radar radar radar radar"
+    "posts posts posts posts posts posts posts posts posts posts posts posts"
+    "meth  meth  meth  meth  meth  meth  book  book  book  book  book  book"; }
+  .t-value h1 { max-width: 20ch; }
+}
 @media (max-width: 960px) {
+  .arch-grid,
   .hero-grid, .roi-grid, .diag-grid, .faq-grid, .contact-grid { grid-template-columns: 1fr; }
   .offer { grid-template-columns: 1fr; }
   .grid-3, .uc-panel { grid-template-columns: 1fr; }
@@ -333,6 +421,12 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 }
 @media (max-width: 640px) {
   body { font-size: 16px; }
+  .bento { grid-template-columns: 1fr; grid-template-areas: "value" "roi" "radar" "posts" "meth" "book"; gap: 12px; }
+  .t-value { padding: 24px 20px; }
+  .t-value .hero-proof strong { font-size: 18px; white-space: nowrap; }
+  .t-value .hero-proof li { padding: 0 10px; }
+  .t-value .hero-proof li:first-child { padding-left: 0; }
+  .arch-grid .arch { margin-top: 8px; }
   .header-cta { display: none; }
   .menu-toggle { display: block; }
   .hero-proof { grid-template-columns: 1fr 1fr 1fr; }
@@ -360,7 +454,7 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .post-list h2 { font-size: 22px; font-weight: 700; }
 .post-list p { margin-top: 10px; color: var(--text-2); }
 .prose { max-width: 760px; }
-.prose .back { display: inline-block; margin-bottom: 28px; color: var(--text-3); text-decoration: none; }
+.prose .back { display: block; width: fit-content; margin-bottom: 28px; color: var(--text-3); text-decoration: none; }
 .prose .back:hover { color: var(--white); }
 .prose h1 { font-size: clamp(32px, 4.2vw, 48px); font-weight: 800; margin-top: 14px; }
 .prose-meta { margin-top: 14px; font-size: 14.5px; color: var(--text-3); }

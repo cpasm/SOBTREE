@@ -1,5 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
+import Bento from "../components/Bento.astro";
 import { FAQ } from "../data/faq";
 import { graph, organization, website, person, faqPage } from "../data/schema";
 
@@ -8,82 +9,8 @@ const jsonld = graph(organization(), website(), person(), faqPage());
 <Base jsonld={jsonld}>
 <main id="main">
 
-<!-- ============ HERO ============ -->
-<section class="hero">
-  <div class="wrap hero-grid">
-    <div class="hero-copy">
-      <p class="kicker"><span class="pulse" aria-hidden="true"></span>Consultoría independiente de IA y Salesforce</p>
-      <h1>Convierte Salesforce en tu ventaja competitiva en la era de la IA</h1>
-      <p class="lede">Llevamos Agentforce y Data 360 de la presentación comercial a producción, con un business case firmado por negocio antes de empezar. Menos coste por caso, más conversión y más retención. Medido, no prometido.</p>
-      <div class="hero-actions">
-        <a class="btn btn-primary" href="#contacto">Reservar diagnóstico de valor</a>
-        <a class="btn btn-ghost" href="#roi">Calcular mi ahorro</a>
-      </div>
-      <ul class="hero-proof">
-        <li><strong>3 semanas</strong><span>Diagnóstico a precio cerrado</span></li>
-        <li><strong>90 días</strong><span>Primer agente en producción</span></li>
-        <li><strong>0 €</strong><span>En comisiones de licencias</span></li>
-      </ul>
-    </div>
-
-    <figure class="arch" aria-labelledby="arch-cap">
-      <figcaption id="arch-cap">Arquitectura objetivo: dato unificado, agentes y personas trabajando sobre la misma plataforma</figcaption>
-      <svg viewBox="0 0 520 470" role="img" aria-label="Diagrama: fuentes de datos alimentan Data 360, que da contexto a Agentforce, que actúa en ventas, servicio, marketing y fidelización con supervisión humana">
-        <defs>
-          <linearGradient id="g-core" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b6f9e"/><stop offset="1" stop-color="#1a4a6e"/></linearGradient>
-        </defs>
-        <!-- fuentes -->
-        <g class="a-src">
-          <rect x="10" y="20" width="110" height="40" rx="8"/><text x="65" y="45">ERP</text>
-          <rect x="140" y="20" width="110" height="40" rx="8"/><text x="195" y="45">E-commerce</text>
-          <rect x="270" y="20" width="110" height="40" rx="8"/><text x="325" y="45">App y web</text>
-          <rect x="400" y="20" width="110" height="40" rx="8"/><text x="455" y="45">Contact center</text>
-        </g>
-        <g class="a-lines">
-          <path d="M65 60V100H260"/><path d="M195 60V100"/><path d="M325 60V100"/><path d="M455 60V100H260"/><path d="M260 100V122"/>
-        </g>
-        <!-- data 360 -->
-        <g class="a-core">
-          <rect x="60" y="122" width="400" height="74" rx="12" fill="url(#g-core)"/>
-          <text class="t-title" x="260" y="153">Data 360</text>
-          <text class="t-sub" x="260" y="177">Perfil único de cliente, consentimiento y señales en tiempo real</text>
-        </g>
-        <g class="a-lines"><path d="M260 196V226"/></g>
-        <!-- agentforce -->
-        <g class="a-agent">
-          <rect x="60" y="226" width="400" height="74" rx="12"/>
-          <text class="t-title" x="260" y="257">Agentforce</text>
-          <text class="t-sub" x="260" y="281">Agentes que razonan, actúan y escalan a personas con reglas claras</text>
-        </g>
-        <g class="a-lines">
-          <path d="M260 300V326H80V352"/><path d="M260 326H200V352"/><path d="M260 326H320V352"/><path d="M260 326H440V352"/>
-        </g>
-        <g class="a-ch">
-          <rect x="22" y="352" width="116" height="44" rx="8"/><text x="80" y="379">Ventas</text>
-          <rect x="142" y="352" width="116" height="44" rx="8"/><text x="200" y="379">Servicio</text>
-          <rect x="262" y="352" width="116" height="44" rx="8"/><text x="320" y="379">Marketing</text>
-          <rect x="382" y="352" width="116" height="44" rx="8"/><text x="440" y="379">Fidelización</text>
-        </g>
-        <g class="a-human">
-          <rect x="60" y="418" width="400" height="38" rx="19"/>
-          <text x="260" y="442">Supervisión humana · Gobierno · Trazabilidad</text>
-        </g>
-        <circle class="a-flow" r="4"><animateMotion dur="5s" repeatCount="indefinite" path="M65 60V100H260V122M260 196V226M260 300V326H80V352"/></circle>
-        <circle class="a-flow" r="4"><animateMotion dur="5s" begin="-1.6s" repeatCount="indefinite" path="M455 60V100H260V122M260 196V226M260 300V326H440V352"/></circle>
-        <circle class="a-flow" r="4"><animateMotion dur="5s" begin="-3.2s" repeatCount="indefinite" path="M325 60V100H260V122M260 196V226M260 300V326H200V352"/></circle>
-      </svg>
-    </figure>
-  </div>
-
-  <div class="wrap">
-    <div class="stack-bar" aria-label="Plataformas en las que trabajamos">
-      <span class="stack-label">Especialistas en</span>
-      <ul>
-        <li>Agentforce</li><li>Data 360</li><li>Marketing Cloud Next</li><li>Loyalty Management</li><li>Sales Cloud</li><li>Service Cloud</li><li>MuleSoft</li><li>Tableau</li>
-      </ul>
-    </div>
-  </div>
-</section>
+<!-- ============ BENTO ============ -->
+<Bento />
 
 <!-- ============ PROBLEMA ============ -->
 <section class="section section-alt" id="reto">
@@ -110,6 +37,64 @@ const jsonld = graph(organization(), website(), person(), faqPage());
         <p>Se mide adopción y número de licencias, no ingresos ni coste. Sin un KPI de negocio, cada renovación es un acto de fe.</p>
       </article>
     </div>
+  </div>
+</section>
+
+<!-- ============ ARQUITECTURA ============ -->
+<section class="section" id="arquitectura">
+  <div class="wrap arch-grid">
+    <div class="section-head">
+      <p class="eyebrow">Arquitectura objetivo</p>
+      <h2>Dato unificado, agentes y personas sobre la misma plataforma</h2>
+      <p class="section-sub">Los agentes aciertan cuando tienen contexto. Por eso empezamos por el dato y terminamos con supervisión humana, gobierno y trazabilidad.</p>
+    </div>
+  <figure class="arch" aria-labelledby="arch-cap">
+    <figcaption id="arch-cap">Arquitectura objetivo: dato unificado, agentes y personas trabajando sobre la misma plataforma</figcaption>
+    <svg viewBox="0 0 520 470" role="img" aria-label="Diagrama: fuentes de datos alimentan Data 360, que da contexto a Agentforce, que actúa en ventas, servicio, marketing y fidelización con supervisión humana">
+      <defs>
+        <linearGradient id="g-core" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b6f9e"/><stop offset="1" stop-color="#1a4a6e"/></linearGradient>
+      </defs>
+      <!-- fuentes -->
+      <g class="a-src">
+        <rect x="10" y="20" width="110" height="40" rx="8"/><text x="65" y="45">ERP</text>
+        <rect x="140" y="20" width="110" height="40" rx="8"/><text x="195" y="45">E-commerce</text>
+        <rect x="270" y="20" width="110" height="40" rx="8"/><text x="325" y="45">App y web</text>
+        <rect x="400" y="20" width="110" height="40" rx="8"/><text x="455" y="45">Contact center</text>
+      </g>
+      <g class="a-lines">
+        <path d="M65 60V100H260"/><path d="M195 60V100"/><path d="M325 60V100"/><path d="M455 60V100H260"/><path d="M260 100V122"/>
+      </g>
+      <!-- data 360 -->
+      <g class="a-core">
+        <rect x="60" y="122" width="400" height="74" rx="12" fill="url(#g-core)"/>
+        <text class="t-title" x="260" y="153">Data 360</text>
+        <text class="t-sub" x="260" y="177">Perfil único de cliente, consentimiento y señales en tiempo real</text>
+      </g>
+      <g class="a-lines"><path d="M260 196V226"/></g>
+      <!-- agentforce -->
+      <g class="a-agent">
+        <rect x="60" y="226" width="400" height="74" rx="12"/>
+        <text class="t-title" x="260" y="257">Agentforce</text>
+        <text class="t-sub" x="260" y="281">Agentes que razonan, actúan y escalan a personas con reglas claras</text>
+      </g>
+      <g class="a-lines">
+        <path d="M260 300V326H80V352"/><path d="M260 326H200V352"/><path d="M260 326H320V352"/><path d="M260 326H440V352"/>
+      </g>
+      <g class="a-ch">
+        <rect x="22" y="352" width="116" height="44" rx="8"/><text x="80" y="379">Ventas</text>
+        <rect x="142" y="352" width="116" height="44" rx="8"/><text x="200" y="379">Servicio</text>
+        <rect x="262" y="352" width="116" height="44" rx="8"/><text x="320" y="379">Marketing</text>
+        <rect x="382" y="352" width="116" height="44" rx="8"/><text x="440" y="379">Fidelización</text>
+      </g>
+      <g class="a-human">
+        <rect x="60" y="418" width="400" height="38" rx="19"/>
+        <text x="260" y="442">Supervisión humana · Gobierno · Trazabilidad</text>
+      </g>
+      <circle class="a-flow" r="4"><animateMotion dur="5s" repeatCount="indefinite" path="M65 60V100H260V122M260 196V226M260 300V326H80V352"/></circle>
+      <circle class="a-flow" r="4"><animateMotion dur="5s" begin="-1.6s" repeatCount="indefinite" path="M455 60V100H260V122M260 196V226M260 300V326H440V352"/></circle>
+      <circle class="a-flow" r="4"><animateMotion dur="5s" begin="-3.2s" repeatCount="indefinite" path="M325 60V100H260V122M260 196V226M260 300V326H200V352"/></circle>
+    </svg>
+  </figure>
   </div>
 </section>
 

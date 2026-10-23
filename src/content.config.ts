@@ -15,4 +15,17 @@ const analisis = defineCollection({
   })
 });
 
-export const collections = { analisis };
+// Radar: una entrega semanal con lo que importa en Salesforce e IA, en src/content/radar/.
+// `puntos` son las 3–4 frases que se ven en la home; el cuerpo desarrolla cada una.
+const radar = defineCollection({
+  loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/radar" }),
+  schema: z.object({
+    title: z.string(),
+    description: z.string().max(200),
+    date: z.coerce.date(),
+    puntos: z.array(z.string()).min(1).max(4),
+    draft: z.boolean().default(false)
+  })
+});
+
+export const collections = { analisis, radar };
