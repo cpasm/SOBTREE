@@ -2,6 +2,7 @@
 import Base from "../layouts/Base.astro";
 import Bento from "../components/Bento.astro";
 import { FAQ } from "../data/faq";
+import { BUILD_VERSION } from "../data/site";
 import { graph, organization, website, person, faqPage } from "../data/schema";
 
 const jsonld = graph(organization(), website(), person(), faqPage());
@@ -361,5 +362,5 @@ const jsonld = graph(organization(), website(), person(), faqPage());
 </section>
 
 </main>
-<script is:inline src="/assets/main.js" defer></script>
+<script is:inline src={`/assets/main.js?v=${BUILD_VERSION}`} defer></script>
 </Base>

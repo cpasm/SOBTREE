@@ -2,6 +2,7 @@
 import { SITE } from "../data/site";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import { BUILD_VERSION } from "../data/site";
 
 interface Props {
   title?: string;
@@ -13,6 +14,8 @@ interface Props {
 }
 const { title = SITE.title, description = SITE.description, ogType = "website", jsonld, noindex = false, bare = false } = Astro.props;
 const canonical = new URL(Astro.url.pathname, SITE.url).href;
+// Cambia en cada build para que los navegadores no usen CSS/JS antiguos de su caché (7 días).
+const v = BUILD_VERSION;
 ---
 <!doctype html>
 <html lang="es">
@@ -36,7 +39,7 @@ const canonical = new URL(Astro.url.pathname, SITE.url).href;
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/styles.css">
+<link rel="stylesheet" href={`/assets/styles.css?v=${v}`}>
 <slot name="head" />
 {jsonld && <script type="application/ld+json" set:html={jsonld} />}
 </head>
@@ -45,6 +48,6 @@ const canonical = new URL(Astro.url.pathname, SITE.url).href;
 {!bare && <Header />}
 <slot />
 {!bare && <Footer />}
-{!bare && <script is:inline src="/assets/nav.js" defer></script>}
+{!bare && <script is:inline src={`/assets/nav.js?v=${v}`} defer></script>}
 </body>
 </html>

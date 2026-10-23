@@ -1,3 +1,6 @@
+// Versión de los assets: cambia en cada build (ver Base.astro).
+export const BUILD_VERSION = Date.now().toString(36);
+
 // Datos de la empresa. Se usan en las metaetiquetas, los datos estructurados (JSON-LD) y llms.txt.
 export const SITE = {
   name: "Sobtree",
