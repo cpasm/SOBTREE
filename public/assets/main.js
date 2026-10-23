@@ -15,42 +15,16 @@
   $$("[data-interest]").forEach((a) => a.addEventListener("click", () => prefill(a.dataset.interest)));
 
   /* ---------- Casos de uso por sector ---------- */
-  const CASES = {
-    seguros: [
-      { a: "Servicio", t: "Primer aviso de siniestro", d: "Un agente registra el parte por cualquier canal, recoge la documentación, abre el expediente y mantiene informado al cliente. El tramitador entra solo en los casos complejos.", k: ["Tiempo de apertura", "Contactos evitados", "NPS"] },
-      { a: "Ventas", t: "Renovaciones y retención", d: "Data 360 detecta señales de riesgo de baja y Agentforce lanza la acción adecuada: oferta personalizada, revisión de coberturas o llamada del mediador.", k: ["Tasa de retención", "Prima retenida"] },
-      { a: "Red comercial", t: "Copiloto del mediador", d: "Antes de cada visita, el mediador recibe un resumen del cliente, su cartera y las oportunidades de venta cruzada con argumentario.", k: ["Pólizas por cliente", "Tiempo de preparación"] }
-    ],
-    retail: [
-      { a: "Atención", t: "Pedidos, cambios y devoluciones", d: "Un agente resuelve el estado del pedido, gestiona cambios y devoluciones y emite reembolsos dentro de la política, sin pasar por el contact center.", k: ["Resolución sin agente", "Coste por contacto"] },
-      { a: "Marketing", t: "Personalización en tiempo real", d: "Señales de navegación y compra unificadas activan journeys de carrito abandonado, reposición y recomendación en el canal correcto.", k: ["Conversión", "Ticket medio"] },
-      { a: "Fidelización", t: "Programa que premia el valor", d: "Loyalty Management con ofertas personalizadas por socio y un agente que explica saldo, beneficios y próximos niveles.", k: ["Frecuencia de compra", "Tasa de canje"] }
-    ],
-    transporte: [
-      { a: "Operaciones", t: "Incidencias gestionadas de forma proactiva", d: "Ante retrasos o cancelaciones, el agente avisa al cliente, propone alternativas y tramita compensaciones antes de que llegue la reclamación.", k: ["Reclamaciones", "Tiempo de respuesta"] },
-      { a: "Fidelización", t: "Beneficios dinámicos por valor", d: "Programa de fidelización conectado al dato de viaje que adapta beneficios y ofertas al valor real y potencial de cada socio.", k: ["Socios activos", "Gasto por socio"] },
-      { a: "Ventas B2B", t: "Cuentas corporativas", d: "Un agente atiende tarifas, reservas de grupo y consultas de empresas, y deriva al gestor de cuenta las negociaciones.", k: ["Tiempo de cotización", "Ingreso corporativo"] }
-    ],
-    energia: [
-      { a: "Servicio", t: "Autoservicio de altas y cambios", d: "Altas, cambios de tarifa, lecturas y facturas resueltos por un agente con acceso al contrato y a la normativa aplicable.", k: ["Coste por gestión", "Tiempo de alta"] },
-      { a: "Retención", t: "Prevención del cambio de comercializadora", d: "Modelos de propensión en Data 360 identifican clientes en riesgo y activan una oferta o contacto personalizado a tiempo.", k: ["Tasa de baja", "Margen retenido"] },
-      { a: "Comunicación", t: "Incidencias de suministro", d: "Comunicación omnicanal y automática durante cortes e incidencias, con respuestas consistentes y trazables.", k: ["Llamadas en incidencia", "Satisfacción"] }
-    ],
-    automocion: [
-      { a: "Ventas", t: "Cualificación de leads y prueba de conducción", d: "Un agente responde al lead en minutos, cualifica la necesidad y agenda la prueba en el concesionario más cercano.", k: ["Tiempo de respuesta", "Conversión a prueba"] },
-      { a: "Posventa", t: "Mantenimiento y cita de taller", d: "Recordatorios basados en el uso del vehículo y reserva de cita automática según la disponibilidad del taller.", k: ["Ocupación de taller", "Retención posventa"] },
-      { a: "Datos", t: "Cliente único entre marca y red", d: "Perfil unificado entre marca, financiera y concesionarios para que cada interacción conozca toda la relación.", k: ["Recompra", "Valor de vida del cliente"] }
-    ]
-  };
+  const CASES = JSON.parse($("#casos-data").textContent);
   const ucPanel = $("#uc-panel");
   const tabs = $$(".tabs button");
   function renderCases(sector) {
-    ucPanel.innerHTML = CASES[sector].map((c) => `
+    ucPanel.innerHTML = CASES[sector].casos.map((c) => `
       <article class="uc">
-        <span class="uc-area">${c.a}</span>
-        <h3>${c.t}</h3>
-        <p>${c.d}</p>
-        <ul class="uc-kpis" aria-label="KPIs de impacto">${c.k.map((k) => `<li>${k}</li>`).join("")}</ul>
+        <span class="uc-area">${c.area}</span>
+        <h3>${c.titulo}</h3>
+        <p>${c.descripcion}</p>
+        <ul class="uc-kpis" aria-label="KPIs de impacto">${c.kpis.map((k) => `<li>${k}</li>`).join("")}</ul>
       </article>`).join("");
     tabs.forEach((b) => b.setAttribute("aria-selected", String(b.dataset.sector === sector)));
   }

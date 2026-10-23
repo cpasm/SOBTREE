@@ -26,6 +26,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # Dependencias del asistente (api/asistente.php): SDK de Claude para PHP.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          tools: composer
+      - run: composer install --no-dev --optimize-autoloader --no-interaction --working-dir=api
+      - run: cp -R api/vendor dist/api/vendor
       - name: Publicar dist/ en la rama hostinger
         working-directory: dist
         run: |

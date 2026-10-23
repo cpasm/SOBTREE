@@ -1,0 +1,14 @@
+{
+  "name": "sobtree/asistente",
+  "description": "Endpoint del asistente de sobtree.com",
+  "type": "project",
+  "require": {
+    "php": ">=8.3",
+    "anthropic-ai/sdk": "^1.1",
+    "guzzlehttp/guzzle": "^8.3"
+  },
+  "config": {
+    "platform": { "php": "8.3.0" },
+    "optimize-autoloader": true
+  }
+}

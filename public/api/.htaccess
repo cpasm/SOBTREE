@@ -1,0 +1,4 @@
+# Solo asistente.php es accesible desde fuera; vendor/ y corpus.json se leen desde PHP.
+RewriteEngine On
+RewriteRule ^asistente\.php$ - [L]
+RewriteRule ^ - [F,L]

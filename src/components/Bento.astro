@@ -7,6 +7,11 @@ import { getAnalisis, getRadar, fmtShort } from "../data/content";
 const [analisis, radar] = await Promise.all([getAnalisis(), getRadar()]);
 const lastRadar = radar[0];
 const lastPosts = analisis.slice(0, 3);
+const SUGERENCIAS = [
+  "¿Cuánto cuesta un agente de Agentforce?",
+  "¿Necesito Data 360 para empezar?",
+  "¿Qué incluye el diagnóstico de valor?"
+];
 const SECTORS = [
   ["seguros", "Seguros"], ["retail", "Retail"], ["transporte", "Transporte y viajes"],
   ["energia", "Energía y utilities"], ["automocion", "Automoción"]
@@ -20,9 +25,21 @@ const SECTORS = [
       <p class="kicker"><span class="pulse" aria-hidden="true"></span>Consultoría independiente de IA y Salesforce</p>
       <h1>Convierte Salesforce en tu ventaja competitiva en la era de la IA</h1>
       <p class="lede">Llevamos Agentforce y Data 360 a producción con un business case firmado por negocio antes de empezar. Medido, no prometido.</p>
-      <div class="hero-actions">
+      <div class="hero-actions" id="hero-actions">
         <a class="btn btn-primary" href="#contacto">Reservar diagnóstico de valor</a>
         <a class="btn btn-ghost" href="#madurez">Hacer el autodiagnóstico</a>
+      </div>
+      <!-- Asistente: se muestra solo si el servidor confirma que está configurado (asistente.js) -->
+      <div class="ask" id="ask" hidden>
+        <form class="ask-box" id="ask-form">
+          <label class="sr-only" for="ask-q">Pregunta al asistente de Sobtree</label>
+          <input id="ask-q" name="q" type="text" maxlength="600" autocomplete="off" placeholder="Pregunta sobre Salesforce e IA">
+          <button class="btn btn-primary btn-sm" type="submit">Preguntar</button>
+        </form>
+        <ul class="ask-chips" aria-label="Preguntas sugeridas">
+          {SUGERENCIAS.map((q) => <li><button type="button" data-ask={q}>{q}</button></li>)}
+        </ul>
+        <p class="ask-note">Asistente de IA. Responde solo con lo publicado en esta web y cita sus fuentes.</p>
       </div>
       <ul class="hero-proof">
         <li><strong>3 semanas</strong><span>Diagnóstico a precio cerrado</span></li>
@@ -101,6 +118,20 @@ const SECTORS = [
     </div>
 
   </div>
+
+  <dialog class="chat" id="chat" aria-labelledby="chat-title">
+    <div class="chat-head">
+      <p id="chat-title"><span class="live" aria-hidden="true"></span>Asistente de Sobtree <span class="chat-tag">IA</span></p>
+      <button type="button" class="chat-close" id="chat-close" aria-label="Cerrar el asistente">×</button>
+    </div>
+    <div class="chat-log" id="chat-log" aria-live="polite"></div>
+    <form class="ask-box chat-form" id="chat-form">
+      <label class="sr-only" for="chat-q">Otra pregunta</label>
+      <input id="chat-q" type="text" maxlength="600" autocomplete="off" placeholder="Haz otra pregunta">
+      <button class="btn btn-primary btn-sm" type="submit">Enviar</button>
+    </form>
+    <p class="chat-foot">Respuestas generadas por IA a partir del contenido de sobtree.com. Pueden contener errores: comprueba las fuentes. No incluyas datos personales. <a href="/privacidad/">Privacidad</a></p>
+  </dialog>
 
   <div class="wrap">
     <div class="stack-bar" aria-label="Plataformas en las que trabajamos">

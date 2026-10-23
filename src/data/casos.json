@@ -1,0 +1,163 @@
+{
+  "seguros": {
+    "nombre": "Seguros",
+    "casos": [
+      {
+        "area": "Servicio",
+        "titulo": "Primer aviso de siniestro",
+        "descripcion": "Un agente registra el parte por cualquier canal, recoge la documentación, abre el expediente y mantiene informado al cliente. El tramitador entra solo en los casos complejos.",
+        "kpis": [
+          "Tiempo de apertura",
+          "Contactos evitados",
+          "NPS"
+        ]
+      },
+      {
+        "area": "Ventas",
+        "titulo": "Renovaciones y retención",
+        "descripcion": "Data 360 detecta señales de riesgo de baja y Agentforce lanza la acción adecuada: oferta personalizada, revisión de coberturas o llamada del mediador.",
+        "kpis": [
+          "Tasa de retención",
+          "Prima retenida"
+        ]
+      },
+      {
+        "area": "Red comercial",
+        "titulo": "Copiloto del mediador",
+        "descripcion": "Antes de cada visita, el mediador recibe un resumen del cliente, su cartera y las oportunidades de venta cruzada con argumentario.",
+        "kpis": [
+          "Pólizas por cliente",
+          "Tiempo de preparación"
+        ]
+      }
+    ]
+  },
+  "retail": {
+    "nombre": "Retail",
+    "casos": [
+      {
+        "area": "Atención",
+        "titulo": "Pedidos, cambios y devoluciones",
+        "descripcion": "Un agente resuelve el estado del pedido, gestiona cambios y devoluciones y emite reembolsos dentro de la política, sin pasar por el contact center.",
+        "kpis": [
+          "Resolución sin agente",
+          "Coste por contacto"
+        ]
+      },
+      {
+        "area": "Marketing",
+        "titulo": "Personalización en tiempo real",
+        "descripcion": "Señales de navegación y compra unificadas activan journeys de carrito abandonado, reposición y recomendación en el canal correcto.",
+        "kpis": [
+          "Conversión",
+          "Ticket medio"
+        ]
+      },
+      {
+        "area": "Fidelización",
+        "titulo": "Programa que premia el valor",
+        "descripcion": "Loyalty Management con ofertas personalizadas por socio y un agente que explica saldo, beneficios y próximos niveles.",
+        "kpis": [
+          "Frecuencia de compra",
+          "Tasa de canje"
+        ]
+      }
+    ]
+  },
+  "transporte": {
+    "nombre": "Transporte y viajes",
+    "casos": [
+      {
+        "area": "Operaciones",
+        "titulo": "Incidencias gestionadas de forma proactiva",
+        "descripcion": "Ante retrasos o cancelaciones, el agente avisa al cliente, propone alternativas y tramita compensaciones antes de que llegue la reclamación.",
+        "kpis": [
+          "Reclamaciones",
+          "Tiempo de respuesta"
+        ]
+      },
+      {
+        "area": "Fidelización",
+        "titulo": "Beneficios dinámicos por valor",
+        "descripcion": "Programa de fidelización conectado al dato de viaje que adapta beneficios y ofertas al valor real y potencial de cada socio.",
+        "kpis": [
+          "Socios activos",
+          "Gasto por socio"
+        ]
+      },
+      {
+        "area": "Ventas B2B",
+        "titulo": "Cuentas corporativas",
+        "descripcion": "Un agente atiende tarifas, reservas de grupo y consultas de empresas, y deriva al gestor de cuenta las negociaciones.",
+        "kpis": [
+          "Tiempo de cotización",
+          "Ingreso corporativo"
+        ]
+      }
+    ]
+  },
+  "energia": {
+    "nombre": "Energía y utilities",
+    "casos": [
+      {
+        "area": "Servicio",
+        "titulo": "Autoservicio de altas y cambios",
+        "descripcion": "Altas, cambios de tarifa, lecturas y facturas resueltos por un agente con acceso al contrato y a la normativa aplicable.",
+        "kpis": [
+          "Coste por gestión",
+          "Tiempo de alta"
+        ]
+      },
+      {
+        "area": "Retención",
+        "titulo": "Prevención del cambio de comercializadora",
+        "descripcion": "Modelos de propensión en Data 360 identifican clientes en riesgo y activan una oferta o contacto personalizado a tiempo.",
+        "kpis": [
+          "Tasa de baja",
+          "Margen retenido"
+        ]
+      },
+      {
+        "area": "Comunicación",
+        "titulo": "Incidencias de suministro",
+        "descripcion": "Comunicación omnicanal y automática durante cortes e incidencias, con respuestas consistentes y trazables.",
+        "kpis": [
+          "Llamadas en incidencia",
+          "Satisfacción"
+        ]
+      }
+    ]
+  },
+  "automocion": {
+    "nombre": "Automoción",
+    "casos": [
+      {
+        "area": "Ventas",
+        "titulo": "Cualificación de leads y prueba de conducción",
+        "descripcion": "Un agente responde al lead en minutos, cualifica la necesidad y agenda la prueba en el concesionario más cercano.",
+        "kpis": [
+          "Tiempo de respuesta",
+          "Conversión a prueba"
+        ]
+      },
+      {
+        "area": "Posventa",
+        "titulo": "Mantenimiento y cita de taller",
+        "descripcion": "Recordatorios basados en el uso del vehículo y reserva de cita automática según la disponibilidad del taller.",
+        "kpis": [
+          "Ocupación de taller",
+          "Retención posventa"
+        ]
+      },
+      {
+        "area": "Datos",
+        "titulo": "Cliente único entre marca y red",
+        "descripcion": "Perfil unificado entre marca, financiera y concesionarios para que cada interacción conozca toda la relación.",
+        "kpis": [
+          "Recompra",
+          "Valor de vida del cliente"
+        ]
+      }
+    ]
+  }
+}

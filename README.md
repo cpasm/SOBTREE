@@ -18,6 +18,9 @@ src/data/faq.ts                Preguntas frecuentes (alimentan el FAQ visible, e
 src/data/schema.ts             Datos estructurados schema.org
 src/layouts/Base.astro         <head>, cabecera y pie comunes
 public/                        Se copia tal cual: assets/, contact.php, .htaccess, robots.txt
+public/api/asistente.php       Asistente de la home (llama a Claude con el contenido de la web)
+src/pages/api/corpus.json.ts   Documentos que el asistente puede citar, generados en cada build
+api/composer.json              Dependencias PHP del asistente (el build las instala en dist/api/vendor)
 .github/workflows/deploy.yml   Compila y publica dist/ en la rama hostinger
 ```
 
@@ -55,6 +58,16 @@ La web necesita compilarse, así que Hostinger no publica `main` sino la rama `h
 2. hPanel → sobtree.com → Conectado con GitHub, con rama `hostinger` y directorio `public_html`, y la implementación automática publica ese contenido.
 
 No edites la rama `hostinger` a mano: se sobrescribe en cada build.
+
+## Asistente de IA
+
+La caja de la home envía la pregunta a `/api/asistente.php`, que llama a Claude (`claude-opus-5-5`, esfuerzo bajo) con el contenido de la web como documentos citables. Responde solo con ese contenido, cita las fuentes y, si detecta intención de contratar, ofrece reservar (rellena el formulario de contacto).
+
+- **Clave de la API:** nunca en el repositorio. Créala en console.anthropic.com y súbela con el gestor de archivos de Hostinger a `domains/sobtree.com/sobtree-secrets.php` (fuera de `public_html`):
+  `<?php return ['ANTHROPIC_API_KEY' => 'sk-ant-...'];`
+- **Mientras no haya clave**, la caja no aparece y la home muestra sus botones de siempre.
+- **Límites:** 20 preguntas por visitante y hora, 500 al día en total (`LIMIT_*` en `asistente.php`). Pon además un límite de gasto mensual en la consola de Anthropic.
+- **Contenido:** el asistente sabe lo que sabe la web. Al publicar un Radar o un análisis, el asistente lo incorpora en el siguiente build.
 
 ## Antes de publicar
 
