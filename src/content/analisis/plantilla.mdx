@@ -6,6 +6,9 @@ tags: ["Agentforce", "Data 360"]
 linea: "Salesforce + IA"   # Salesforce | IA | Salesforce + IA
 # imagen: "/img/mi-portada.jpg"   # opcional, con licencia de uso
 # imagenAlt: "Descripción de la imagen"
+# cta:   # opcional: llamada a la acción del final, específica de este artículo
+#   texto: "Qué resolvemos en 25 minutos sobre este tema, en una frase."
+#   boton: "Reservar 25 minutos"
 draft: true
 ---
 
@@ -18,3 +21,18 @@ Este fichero es una plantilla y no se publica (`draft: true`).
 3. Cambia `draft` a `false`, haz commit y push. La web se publica sola.
 
 Al publicar se generan automáticamente la página del artículo, sus datos estructurados (Article), su entrada en el sitemap y en `llms.txt`.
+
+## Tono y estructura
+
+- Se escribe para un CIO, un CMO o un responsable de CRM. Habla de tú, frases cortas, sin rodeos. Cifras solo si son verificables.
+- Abre con el problema o el número que duele, no con definiciones.
+- Incluye una sección «Qué hacer según tu silla» (CIO, CMO, responsable de CRM) o, en el Radar, «Qué haríamos» en cada noticia.
+- Un bloque «Cómo lo resolvemos» por artículo como máximo, a mitad del texto y ligado al tema:
+
+```mdx
+import ComoLoHacemos from "../../components/ComoLoHacemos.astro";
+
+<ComoLoHacemos titulo="Cómo lo resolvemos">
+Qué hacemos nosotros con este problema, en dos o tres frases concretas.
+</ComoLoHacemos>
+```

@@ -10,9 +10,9 @@ export async function getStaticPaths() {
 
 const { entry } = Astro.props;
 const { Content } = await render(entry);
-const { title, description, date, puntos } = entry.data;
+const { title, description, date, puntos, cta } = entry.data;
 ---
-<Post title={title} description={description} date={date} tags={["Radar"]} path={`/radar/${entry.id}/`} back={{ href: "/radar/", label: "Todas las entregas del Radar" }}>
+<Post title={title} description={description} date={date} tags={["Radar"]} cta={cta} path={`/radar/${entry.id}/`} back={{ href: "/radar/", label: "Todas las entregas del Radar" }}>
   <ol class="radar-points" slot="intro">{puntos.map((p) => <li>{p}</li>)}</ol>
   <Content />
 </Post>

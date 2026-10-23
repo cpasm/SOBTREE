@@ -6,6 +6,9 @@ puntos:
   - "Primera noticia en una frase: qué ha pasado y por qué importa."
   - "Segunda noticia en una frase."
   - "Tercera noticia en una frase."
+# cta:   # opcional: llamada a la acción del final, específica de este artículo
+#   texto: "Qué resolvemos en 25 minutos sobre este tema, en una frase."
+#   boton: "Reservar 25 minutos"
 draft: true
 ---
 
@@ -17,3 +20,18 @@ Esta es la plantilla del Radar y no se publica (`draft: true`).
 2. En `puntos` escribe de 1 a 4 frases. Son las que salen en la home.
 3. En el cuerpo, desarrolla cada punto con un `##` por noticia, el enlace a la fuente y tu lectura: qué significa para un cliente de Salesforce.
 4. Cambia `draft` a `false`, haz commit y push.
+
+## Tono y estructura
+
+- Se escribe para un CIO, un CMO o un responsable de CRM. Habla de tú, frases cortas, sin rodeos. Cifras solo si son verificables.
+- Abre con el problema o el número que duele, no con definiciones.
+- Incluye una sección «Qué hacer según tu silla» (CIO, CMO, responsable de CRM) o, en el Radar, «Qué haríamos» en cada noticia.
+- Un bloque «Cómo lo resolvemos» por artículo como máximo, a mitad del texto y ligado al tema:
+
+```mdx
+import ComoLoHacemos from "../../components/ComoLoHacemos.astro";
+
+<ComoLoHacemos titulo="Cómo lo resolvemos">
+Qué hacemos nosotros con este problema, en dos o tres frases concretas.
+</ComoLoHacemos>
+```

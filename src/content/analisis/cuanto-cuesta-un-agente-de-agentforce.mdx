@@ -1,64 +1,88 @@
 ---
 title: "Cuánto cuesta de verdad un agente de Agentforce"
-description: "Flex Credits, precio por conversación o licencia por usuario: cómo se calcula el coste de un agente, dónde está el punto de equilibrio y qué preguntar antes de firmar."
+description: "El mismo agente puede costarte 48.000 € o 240.000 € al año. Depende del modelo de precio y de cuántas acciones hace por conversación. Cómo calcularlo antes de firmar."
 date: 2026-10-23
 tags: ["Agentforce", "Precios", "Business case"]
 linea: "Salesforce"
+cta:
+  texto: "Tráenos tu volumen de casos y tu oferta de licencias. En 25 minutos te decimos qué modelo de precio te conviene y dónde se te va el dinero."
+  boton: "Revisar mi caso"
 draft: false
 ---
+import ComoLoHacemos from "../../components/ComoLoHacemos.astro";
 
-La pregunta que más nos hacen antes de un piloto de Agentforce no es técnica: es cuánto va a costar al mes cuando esté en producción. La respuesta depende menos del número de clientes que de **cómo esté diseñado el agente**. Lo explicamos con la lista de precios oficial y un ejemplo con números.
+El mismo agente, con los mismos clientes y las mismas preguntas, puede costarte **48.000 € al año o 240.000 €**. La diferencia no está en la tecnología. Está en dos decisiones que casi nunca se toman con calma: qué modelo de precio firmas y cuántas cosas hace el agente cada vez que alguien le escribe.
 
-> Precios de lista publicados por Salesforce, consultados el 23 de octubre de 2026. Salesforce indica que pueden cambiar, y los descuentos negociados alteran el resultado. Úsalo para entender la lógica, no como presupuesto.
+Si eres CIO, esto es tu business case. Si eres CMO o diriges atención al cliente, es tu presupuesto del año que viene. Si eres responsable de CRM, es el número que te van a pedir en cuanto llegue la primera factura.
 
-## Los tres modelos de precio
+Vamos con la lista de precios oficial y un ejemplo con números.
 
-**1. Flex Credits (pago por acción).** Se compran en bloques: 100.000 créditos cuestan 500 €. Cada acción estándar del agente consume 20 créditos y cada acción de voz, 30. Es decir, **0,10 € por acción estándar** y **0,15 € por acción de voz**. Una *acción* es cada cosa que hace el agente: consultar un pedido, actualizar un caso, buscar en la base de conocimiento.
+> Precios de lista publicados por Salesforce, consultados el 23 de octubre de 2026. Pueden cambiar y los descuentos negociados alteran el resultado. Úsalo para entender la lógica, no como presupuesto.
 
-**2. Precio por conversación.** **2 € por conversación**, independientemente de cuántas acciones haga el agente dentro de ella.
+## Los tres modelos de precio, sin letra pequeña
 
-**3. Por usuario, para uso interno.** Para agentes que ayudan a tus empleados (no a tus clientes), los *add-ons* de Agentforce para Sales, Service o Field Service cuestan 125 $ por usuario y mes con uso de empleados sin medir. También hay una licencia de usuario de 5 $ al mes, pero su consumo se paga aparte con Flex Credits.
+**1. Flex Credits: pagas por acción.** Se compran en bloques: 100.000 créditos cuestan 500 €. Cada acción estándar consume 20 créditos y cada acción de voz, 30. Traducido: **0,10 € por acción estándar** y **0,15 € por acción de voz**. Una acción es cada cosa que hace el agente: consultar un pedido, actualizar un caso, buscar en la base de conocimiento.
 
-Además, la edición **Max** (desde 550 $ por usuario y mes) incluye 2,75 millones de Flex Credits por org y año.
+**2. Por conversación: 2 € cada una.** Da igual cuántas acciones haga el agente dentro.
+
+**3. Por usuario, para agentes internos.** Si el agente ayuda a tus empleados y no a tus clientes, los *add-ons* de Agentforce para Sales, Service o Field Service cuestan 125 $ por usuario y mes, con uso de empleados sin medir. También existe una licencia de 5 $ al mes, pero el consumo se paga aparte con Flex Credits.
+
+La edición **Max** (desde 550 $ por usuario y mes) incluye 2,75 millones de Flex Credits por org y año. Suena a mucho. Ahora verás que no lo es.
 
 Fuente: [página de precios de Agentforce](https://www.salesforce.com/agentforce/pricing/).
 
-## El punto de equilibrio: 20 acciones por conversación
+## El número que nadie mide: acciones por conversación
 
-Si una conversación cuesta 2 € y una acción 0,10 €, los dos modelos cuestan lo mismo cuando el agente hace **20 acciones por conversación**:
+Si una conversación cuesta 2 € y una acción 0,10 €, los dos modelos cuestan lo mismo con **20 acciones por conversación**. Con voz, el equilibrio baja a **unas 13**.
 
-- Por debajo de 20 acciones (lo habitual en atención al cliente: consultar, responder, quizá actualizar algo), **Flex Credits sale más barato**.
-- Por encima de 20 (agentes que encadenan muchos pasos o se van por las ramas), **el precio por conversación protege tu presupuesto**.
-- Con voz, el equilibrio baja a unas **13 acciones**, porque cada acción cuesta 0,15 €.
+- Por debajo de ese número, que es lo normal en atención al cliente (consultar, responder, quizá actualizar algo), **Flex Credits sale más barato**.
+- Por encima (agentes que encadenan muchos pasos o se van por las ramas), **el precio por conversación te pone un techo**.
 
-Por eso el número que hay que medir en el piloto no es «cuántas conversaciones», sino **cuántas acciones hace el agente por conversación**. Un agente mal diseñado, que consulta tres veces lo mismo o no sabe cuándo parar, puede duplicar el coste sin que nadie lo note.
+Aquí está la trampa. En los pilotos se mide cuántas conversaciones atiende el agente y qué tal valoran los clientes la experiencia. Casi nadie mide **cuántas acciones gasta en cada una**. Y un agente mal diseñado, que consulta tres veces el mismo pedido o no sabe cuándo parar, puede duplicar el coste sin que nadie lo vea hasta la factura.
 
 ## Un ejemplo con números
 
-Partimos del mismo escenario que la [calculadora de ahorro](/calculadora/): un servicio de atención con **10.000 casos al mes**, 12 minutos por caso, 28 €/hora y un agente que resuelve solo el **35 %**. El ahorro operativo estimado es de unos **235.200 € al año**.
+Mismo escenario que la [calculadora de ahorro](/calculadora/): **10.000 casos al mes**, 12 minutos por caso, 28 €/hora, y un agente que resuelve solo el **35 %**. El ahorro operativo estimado es de unos **235.200 € al año**.
 
-Supongamos que todas las conversaciones pasan primero por el agente y que este hace **4 acciones de media** (es una hipótesis: hay que medirla en el piloto).
+Supongamos que todas las conversaciones pasan primero por el agente y que este hace **4 acciones de media**. Es una hipótesis: hay que medirla en el piloto.
 
 | | Flex Credits | Por conversación |
 |---|---|---|
 | Unidades al mes | 40.000 acciones | 10.000 conversaciones |
 | Coste mensual | 4.000 € | 20.000 € |
 | Coste anual | **48.000 €** | **240.000 €** |
+| Ahorro neto anual | **187.200 €** | **−4.800 €** |
 
-Tres conclusiones:
+Con un modelo hay business case. Con el otro pierdes dinero por tener un agente. Mismo agente, mismos clientes.
 
-1. **El modelo de precio decide si hay business case.** Con Flex Credits, el ahorro supera con holgura el consumo. Con precio por conversación, en este escenario el consumo se come todo el ahorro.
-2. **Pagas por conversación atendida, no por caso resuelto.** El agente resuelve el 35 %, pero consume en el 100 % de las conversaciones que pasan por él. Mejorar la tasa de resolución es la palanca más rentable.
-3. **Los créditos incluidos no llegan muy lejos.** Los 2,75 millones de créditos de la edición Max equivalen a unas 137.500 acciones al año. En este ejemplo cubren menos de un tercio del consumo anual (480.000 acciones).
+Tres cosas más que conviene tener claras:
 
-Y faltan costes que no entran en esta tabla: la implantación, la integración con tus sistemas, el dato que necesita el agente para acertar y el equipo que lo mantiene.
+1. **Pagas por conversación atendida, no por caso resuelto.** El agente resuelve el 35 %, pero consume en el 100 % de las conversaciones que pasan por él. Cada punto de resolución que ganas es ahorro casi puro.
+2. **Los créditos incluidos se acaban pronto.** Los 2,75 millones de la edición Max son unas 137.500 acciones al año. En este ejemplo cubren menos de un tercio del consumo (480.000 acciones).
+3. **La licencia no es el único coste.** Faltan la implantación, la integración con tus sistemas, el dato que necesita el agente para acertar y el equipo que lo mantiene. Si alguien te presenta un business case sin esas líneas, no es un business case.
 
-## Qué preguntar antes de firmar
+<ComoLoHacemos titulo="Cómo bajamos la factura sin tocar el servicio">
+No empezamos por el agente. Empezamos por **qué conversaciones deberían llegarle**. Si el agente solo resuelve el 35 %, mandarle el otro 65 % es pagar por nada. Clasificar la intención en la entrada y derivar directamente a persona lo que el agente no va a resolver puede reducir el consumo de forma drástica.
 
-- **¿Cuántas acciones hace el agente por conversación?** Pide medirlo en el piloto, por tipo de caso.
-- **¿Qué modelo de precio me conviene con esa cifra?** Y si se puede cambiar de modelo más adelante.
-- **¿Cuántos créditos incluye lo que ya tengo contratado** y qué pasa cuando se acaban?
-- **¿Qué conversaciones no deberían llegar al agente?** Filtrarlas bien es ahorro directo.
-- **¿Cómo voy a ver el consumo cada semana?** Sin un panel de consumo, la primera señal de alarma será la factura.
+Después, **diseñamos las acciones para que hagan más con menos**: una acción que devuelve todo el contexto del cliente en lugar de tres consultas sueltas, límites de turnos y una salida clara a persona cuando el agente se atasca.
 
-En el [diagnóstico de valor](/#servicios) hacemos este cálculo con tus volúmenes reales, antes de que se firme ninguna licencia.
+Y desde el primer día, **un panel de consumo semanal** con acciones por conversación y tipo de caso. Si ese número sube, lo ves en una semana, no en la factura trimestral.
+</ComoLoHacemos>
+
+## Qué hacer según tu silla
+
+**Si eres CIO:** no firmes un modelo de precio sin el dato de acciones por conversación medido en un piloto real, por tipo de caso. Y negocia por escrito la posibilidad de cambiar de modelo cuando tengas ese dato. Lo que no esté en el contrato, no existe.
+
+**Si eres CMO o diriges atención al cliente:** tu palanca es la tasa de resolución, no el número de conversaciones. Un agente que atiende mucho y resuelve poco es el escenario más caro posible: pagas el agente y además a la persona que termina resolviendo el caso.
+
+**Si eres responsable de CRM:** el consumo va a ser tu problema aunque no lo hayas firmado tú. Pide acceso al monitor de consumo de Salesforce desde el primer día y monta una alerta antes de que se acaben los créditos incluidos, no después.
+
+## Cinco preguntas antes de firmar
+
+1. **¿Cuántas acciones hace el agente por conversación?** Medido en el piloto, por tipo de caso. Una media global esconde los casos caros.
+2. **¿Qué modelo de precio me conviene con esa cifra, y puedo cambiar más adelante?**
+3. **¿Cuántos créditos incluye lo que ya tengo contratado y qué pasa cuando se acaban?** ¿Se corta el servicio o se factura al precio de lista?
+4. **¿Qué conversaciones no deberían llegar al agente?** Filtrarlas es el ahorro más barato que vas a encontrar.
+5. **¿Quién mira el consumo cada semana?** Si la respuesta es «nadie en concreto», el primer aviso será la factura.
+
+Si no tienes respuesta a las cinco, todavía no estás listo para firmar. Y no pasa nada: es mucho más barato descubrirlo ahora.

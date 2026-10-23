@@ -15,6 +15,8 @@ const analisis = defineCollection({
     linea: z.enum(["Salesforce", "IA", "Salesforce + IA"]).default("Salesforce + IA"),
     imagen: z.string().optional(),
     imagenAlt: z.string().optional(),
+    // Llamada a la acción del final, específica de cada artículo (opcional).
+    cta: z.object({ texto: z.string(), boton: z.string().default("Reservar 25 minutos") }).optional(),
     draft: z.boolean().default(false)
   })
 });
@@ -30,6 +32,8 @@ const radar = defineCollection({
     puntos: z.array(z.string()).min(1).max(4),
     imagen: z.string().optional(),
     imagenAlt: z.string().optional(),
+    // Llamada a la acción del final, específica de cada artículo (opcional).
+    cta: z.object({ texto: z.string(), boton: z.string().default("Reservar 25 minutos") }).optional(),
     draft: z.boolean().default(false)
   })
 });
