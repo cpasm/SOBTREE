@@ -79,7 +79,7 @@ p { margin: 0; }
 .brand-word { font-size: 26px; font-weight: 800; letter-spacing: -0.035em; line-height: 1; }
 .brand-word .dot-accent { color: var(--accent); }
 .brand-bar { width: 1px; height: 26px; background: rgba(255, 255, 255, .3); }
-.brand-sf { height: 30px; width: auto; }
+.brand-sf { height: 46px; width: auto; margin: -8px -4px; }
 .brand-tag { font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); white-space: nowrap; }
 .nav { display: flex; gap: 26px; margin-left: auto; font-size: 15px; font-weight: 600; }
 .nav a { text-decoration: none; color: var(--text-2); transition: color .15s; }
@@ -449,8 +449,7 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 }
 @media (max-width: 640px) {
   body { font-size: 16px; }
-  .brand-bar, .brand-sf { height: 30px; width: auto; }
-.brand-tag { display: none; }
+  .brand-bar, .brand-tag, .brand-sf { display: none; }
   .header-cta { display: none; }
   .menu-toggle { margin-left: auto; }
   .foco-copy { text-align: left; }
