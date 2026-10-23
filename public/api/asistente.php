@@ -26,14 +26,31 @@ function reply(int $code, array $body): void {
 }
 
 // ---------- Configuración ----------
-$secretsFile = dirname((string)($_SERVER['DOCUMENT_ROOT'] ?? __DIR__ . '/..')) . '/sobtree-secrets.php';
-$secrets = is_file($secretsFile) ? (array)require $secretsFile : [];
-$apiKey = (string)($secrets['ANTHROPIC_API_KEY'] ?? getenv('ANTHROPIC_API_KEY') ?: '');
-$ready = $apiKey !== '' && is_file(__DIR__ . '/vendor/autoload.php') && is_file(__DIR__ . '/corpus.json');
+// sobtree-secrets.php vive en domains/sobtree.com/, junto a public_html. Según cómo despliegue
+// Hostinger, esa carpeta se resuelve de varias formas: probamos todas.
+$candidates = array_unique(array_filter([
+    dirname((string)($_SERVER['DOCUMENT_ROOT'] ?? '')),
+    dirname(__DIR__, 2),
+    ($real = realpath(__DIR__)) ? dirname($real, 2) : null,
+    getenv('HOME') ? getenv('HOME') . '/domains/sobtree.com' : null,
+]));
+$secrets = [];
+foreach ($candidates as $base) {
+    if (is_file("$base/sobtree-secrets.php")) { $secrets = (array)(require "$base/sobtree-secrets.php"); break; }
+}
+$apiKey = trim((string)($secrets['ANTHROPIC_API_KEY'] ?? getenv('ANTHROPIC_API_KEY') ?: ''));
+$missing = match (true) {
+    !$secrets && $apiKey === '' => 'fichero_de_clave_no_encontrado',
+    $apiKey === '' => 'clave_vacia',
+    !is_file(__DIR__ . '/vendor/autoload.php') => 'dependencias',
+    !is_file(__DIR__ . '/corpus.json') => 'corpus',
+    default => null,
+};
+$ready = $missing === null;
 
 // GET ?estado: la home solo muestra el asistente si está configurado.
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['estado'])) {
-    reply(200, ['ok' => $ready]);
+    reply(200, $ready ? ['ok' => true] : ['ok' => false, 'falta' => $missing]);
 }
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     reply(405, ['error' => 'Método no permitido.']);
