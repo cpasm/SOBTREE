@@ -5,8 +5,9 @@
 //   1) valida y descarta spam (honeypot, tiempo mínimo, límite por IP);
 //   2) GUARDA el lead en el registro local (lib/leads.php) ANTES de cualquier envío;
 //   3) responde al visitante;
-//   4) después avisa por correo a info@sobtree.com y lo reenvía firmado al webhook de n8n
-//      (si está configurado). Lo que falle queda marcado y lo reintenta lib/reintentar-leads.php.
+//   4) después lo reenvía firmado a n8n (aviso principal a info@ + HubSpot). Solo si n8n falla,
+//      da timeout o no está configurado, la web envía un correo de RESPALDO a info@sobtree.com.
+//      Lo pendiente lo reintenta lib/reintentar-leads.php (cron) sin duplicar respaldos.
 declare(strict_types=1);
 ini_set('display_errors', '0');
 header('Content-Type: application/json; charset=utf-8');
@@ -132,19 +133,18 @@ try { $saved = leads_save($lead); } catch (Throwable $e) { error_log('contact: '
 if (!$saved) {
     // Sin registro local, el correo es la única copia: lo enviamos antes de responder.
     error_log('contact: no se pudo guardar el lead ' . $lead['id'] . ' en el registro local');
-    if (!leads_send_mail($lead)) {
+    if (!leads_send_mail($lead, 'sin_registro_local')) {
         reply(500, ['ok' => false, 'error' => 'No se ha podido enviar. Escríbenos directamente a info@sobtree.com.']);
     }
-    leads_send_webhook($lead);
+    leads_send_webhook($lead, true);
     reply(200, ['ok' => true]);
 }
 
 // ---------- 2) Responder ya al visitante ----------
 reply(200, ['ok' => true], true);
 
-// ---------- 3) Avisos, después de responder ----------
+// ---------- 3) Entrega, después de responder ----------
+// n8n envía el aviso principal a info@ y da de alta en HubSpot. El correo de la web solo sale
+// como respaldo si n8n falla, da timeout, no está configurado o no pudo enviar su aviso.
 ignore_user_abort(true);
-leads_mark($lead['id'], 'correo', leads_send_mail($lead) ? 'correo_ok' : 'correo_error');
-[$estado, $detalle] = leads_send_webhook($lead);
-leads_mark($lead['id'], 'n8n', $estado, $detalle);
-if ($estado === 'error') error_log("contact: n8n falló para {$lead['id']}: $detalle (se reintentará)");
+leads_deliver($lead);

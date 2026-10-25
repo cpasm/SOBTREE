@@ -15,7 +15,7 @@
 declare(strict_types=1);
 
 const LEADS_SCHEMA_VERSION = 1;
-const LEADS_WEBHOOK_TIMEOUT = 6;        // segundos en total (el visitante ya tiene su respuesta)
+const LEADS_WEBHOOK_TIMEOUT = 10;       // segundos en total (el visitante ya tiene su respuesta)
 const LEADS_WEBHOOK_CONNECT_TIMEOUT = 2;
 const LEADS_MAX_ATTEMPTS = 8;           // intentos máximos de reenvío a n8n por lead
 
@@ -124,11 +124,16 @@ function leads_sign(string $secret, string $timestamp, string $body): string {
     return hash_hmac('sha256', $timestamp . '.' . $body, $secret);
 }
 
-/** Reenvía el lead a n8n. Devuelve [estado, detalle] sin lanzar excepciones. */
-function leads_send_webhook(array $lead): array {
-    if (!leads_webhook_ready()) return ['omitido', 'webhook_no_configurado'];
-    if (!function_exists('curl_init')) return ['error', 'curl_no_disponible'];
+/**
+ * Reenvía el lead a n8n. Devuelve [estado, detalle, aviso] sin lanzar excepciones.
+ * aviso: true/false si n8n dice si envió su aviso a info@ (campo "aviso" de su respuesta), null si no lo dice.
+ * $respaldoEnviado viaja firmado en el cuerpo para que n8n no repita el aviso si la web ya mandó el de respaldo.
+ */
+function leads_send_webhook(array $lead, bool $respaldoEnviado = false): array {
+    if (!leads_webhook_ready()) return ['omitido', 'webhook_no_configurado', null];
+    if (!function_exists('curl_init')) return ['error', 'curl_no_disponible', null];
     $c = leads_config();
+    $lead['envio'] = ['respaldo_enviado' => $respaldoEnviado];
     $body = json_encode($lead, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     $ts = (string)time();
     $ch = curl_init($c['webhook_url']);
@@ -147,22 +152,62 @@ function leads_send_webhook(array $lead): array {
         CURLOPT_TIMEOUT => LEADS_WEBHOOK_TIMEOUT,
         CURLOPT_FOLLOWLOCATION => false,
     ]);
-    curl_exec($ch);
+    $resp = curl_exec($ch);
     $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
     $err = curl_error($ch);
     curl_close($ch);
-    if ($status >= 200 && $status < 300) return ['enviado', "http_$status"];
-    return ['error', $err !== '' ? $err : "http_$status"];
+    if ($status >= 200 && $status < 300) {
+        $json = is_string($resp) ? json_decode($resp, true) : null;
+        $aviso = is_array($json) && array_key_exists('aviso', $json) ? (bool)$json['aviso'] : null;
+        return ['enviado', "http_$status" . ($aviso === false ? ' sin_aviso_n8n' : ''), $aviso];
+    }
+    return ['error', $err !== '' ? $err : "http_$status", null];
 }
 
-/** Aviso por correo a info@sobtree.com (se mantiene como antes, ahora con el origen). */
-function leads_send_mail(array $lead): bool {
+/**
+ * Entrega de un lead YA GUARDADO: primero n8n (aviso principal a info@ + HubSpot) y, solo si n8n falla,
+ * da timeout, no está configurado o no pudo enviar su aviso, el correo de RESPALDO desde la web.
+ * Nunca envía dos respaldos: usa el último estado del canal «correo» en estado.jsonl.
+ *   $n8nPrevio / $correoPrevio: último estado conocido (null si no hay).
+ *   $intentarN8n: false cuando el cron ya agotó los intentos.
+ * Devuelve ['n8n' => estado, 'correo' => estado|null].
+ */
+function leads_deliver(array $lead, ?string $n8nPrevio = null, ?string $correoPrevio = null, bool $intentarN8n = true): array {
+    $id = $lead['id'];
+    $respaldoHecho = $correoPrevio === 'correo_ok';
+    $estado = $n8nPrevio; $aviso = null; $detalle = '';
+    if ($n8nPrevio !== 'enviado' && $intentarN8n) {
+        [$estado, $detalle, $aviso] = leads_send_webhook($lead, $respaldoHecho);
+        leads_mark($id, 'n8n', $estado, $detalle);
+        if ($estado === 'error') error_log("leads: n8n falló para $id: $detalle (se reintentará)");
+    }
+    $necesita = $estado !== 'enviado' || $aviso === false;
+    // Si n8n ya lo tenía de antes, solo se reintenta un respaldo que falló.
+    if ($n8nPrevio === 'enviado') $necesita = $correoPrevio === 'correo_error';
+    $correo = $correoPrevio;
+    if ($necesita && !$respaldoHecho) {
+        $motivo = $estado === 'enviado' ? 'n8n_sin_aviso' : ($estado === 'omitido' ? 'webhook_no_configurado' : 'n8n_fallo');
+        $ok = leads_send_mail($lead, $motivo);
+        $correo = $ok ? 'correo_ok' : 'correo_error';
+        leads_mark($id, 'correo', $correo, "respaldo: $motivo");
+    }
+    return ['n8n' => $estado, 'correo' => $correo];
+}
+
+/**
+ * Correo a info@sobtree.com desde la web. Desde que n8n envía el aviso principal, es solo RESPALDO
+ * (n8n caído, timeout, sin configurar o sin aviso) o la única copia si no se pudo guardar el lead.
+ */
+function leads_send_mail(array $lead, string $motivo = ''): bool {
     $c = leads_config();
     $one = fn(string $s): string => str_replace(["\r", "\n"], ' ', $s);
     $tipo = $lead['tipo_formulario'];
-    $subject = '=?UTF-8?B?' . base64_encode('Nuevo lead web (' . $tipo . ') — ' . $one($lead['empresa']) . ' (' . $one($lead['interes']) . ')') . '?=';
+    $prefijo = $motivo !== '' ? '[Respaldo] ' : '';
+    $subject = '=?UTF-8?B?' . base64_encode($prefijo . 'Nuevo lead web (' . $tipo . ') — ' . $one($lead['empresa']) . ' (' . $one($lead['interes']) . ')') . '?=';
     $o = $lead['origen'];
-    $b  = "Nueva solicitud desde la web\n\n";
+    $b  = "Nueva solicitud desde la web\n";
+    if ($motivo !== '') $b .= "Aviso de RESPALDO: el envío a n8n/HubSpot no se completó ($motivo). Puede que este lead aún no esté en HubSpot; la web lo reintentará.\n";
+    $b .= "\n";
     $b .= "Nombre:    {$lead['nombre']}\n";
     $b .= "Cargo:     " . ($lead['cargo'] !== '' ? $lead['cargo'] : '—') . "\n";
     $b .= "Teléfono:  {$lead['telefono']}\n";
@@ -185,7 +230,13 @@ function leads_send_mail(array $lead): bool {
     $h  = "From: Sobtree Web <{$c['notify_from']}>\r\n";
     $h .= 'Reply-To: ' . $one($lead['email']) . "\r\n";
     $h .= "MIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n";
-    if (getenv('LEADS_DISABLE_MAIL') === '1') return true; // solo para pruebas locales
+    // Ganchos SOLO para pruebas locales (tests/leads); en producción estas variables no existen.
+    $failFile = getenv('LEADS_TEST_MAIL_FAIL_FILE');
+    if ($failFile && is_file($failFile)) return false;
+    if (getenv('LEADS_DISABLE_MAIL') === '1') {
+        if ($log = getenv('LEADS_TEST_MAIL_LOG')) @file_put_contents($log, $lead['id'] . " $motivo\n", FILE_APPEND | LOCK_EX);
+        return true;
+    }
     return @mail($c['notify_to'], $subject, $b, $h);
 }
 

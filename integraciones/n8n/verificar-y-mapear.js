@@ -93,8 +93,12 @@ const nota = [
   `<p><strong>Consentimiento:</strong> ${esc((lead.consentimiento || {}).texto)} (${esc((lead.consentimiento || {}).fecha)})</p>`,
 ].filter(Boolean).join('');
 
+// Si la web ya envió su correo de RESPALDO (n8n falló antes), no se repite el aviso.
+const avisoNecesario = !(lead.envio && lead.envio.respaldo_enviado === true);
+
 return [{ json: {
   valido: true,
+  aviso_necesario: avisoNecesario,
   lead_id: corta(lead.id, 64),
   email,
   props_alta: { ...comunes, ...soloAlta },

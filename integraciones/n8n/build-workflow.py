@@ -5,7 +5,7 @@ Uso: python3 integraciones/n8n/build-workflow.py
 Importar en n8n: Workflows → Import from File. Después, dentro de n8n:
   1) pegar el secreto en el nodo «Verificar firma y mapear» (SECRET);
   2) elegir las credenciales «HubSpot Sobtree» (app privada) y «Gmail Sobtree (info@)»;
-  3) poner el id del portal de HubSpot en el nodo «Aviso a info@»;
+  3) (el enlace a la ficha ya apunta al portal 149616589, región EU1);
   4) en Settings del workflow, Error workflow = «Sobtree · Errores de workflows».
 """
 import json, pathlib, uuid
@@ -75,19 +75,31 @@ nodes = [
     hubspot("Crear nota en el contacto", [1320, 200], "POST", "https://api.hubapi.com/crm/v3/objects/notes",
             "={{ JSON.stringify({ properties: { hs_timestamp: $now.toISO(), hs_note_body: " + MAP + ".nota_html }, "
             "associations: [{ to: { id: $json.id }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 202 }] }] }) }}"),
-    respond("Responder 200", [1540, 200], 200,
-            "={{ JSON.stringify({ ok: true, lead_id: " + MAP + ".lead_id }) }}"),
-    node("Aviso a info@", "n8n-nodes-base.gmail", 2.1, [1760, 200], {
+    node("¿Enviar aviso?", "n8n-nodes-base.if", 2, [1540, 200], {
+        "conditions": {
+            "options": {"caseSensitive": True, "leftValue": "", "typeValidation": "strict"},
+            "conditions": [{"id": nid("cond-aviso"), "leftValue": "={{ " + MAP + ".aviso_necesario }}", "rightValue": True,
+                            "operator": {"type": "boolean", "operation": "true", "singleValue": True}}],
+            "combinator": "and",
+        }, "options": {},
+    }),
+    # Aviso PRINCIPAL a info@ (antes de responder: la web solo manda su correo de respaldo si aquí falla).
+    node("Aviso a info@", "n8n-nodes-base.gmail", 2.1, [1760, 100], {
         "sendTo": "info@sobtree.com",
         "subject": "={{ " + MAP + ".aviso_asunto }}",
         "emailType": "text",
-        "message": "={{ " + MAP + ".aviso_texto }}\n\nFicha en HubSpot: https://app.hubspot.com/contacts/REEMPLAZAR_PORTAL_ID/record/0-1/{{ ($('Actualizar contacto').isExecuted ? $('Actualizar contacto').first().json.id : $('Crear contacto').first().json.id) }}",
+        "message": "={{ " + MAP + ".aviso_texto }}\n\nFicha en HubSpot: https://app-eu1.hubspot.com/contacts/149616589/record/0-1/{{ ($('Actualizar contacto').isExecuted ? $('Actualizar contacto').first().json.id : $('Crear contacto').first().json.id) }}",
         "options": {"appendAttribution": False},
-    }, credentials=GMAIL, onError="continueRegularOutput"),
+    }, credentials=GMAIL, retryOnFail=True, maxTries=2, waitBetweenTries=1000, onError="continueErrorOutput"),
+    respond("Responder 200 (aviso enviado)", [1980, 40], 200,
+            "={{ JSON.stringify({ ok: true, aviso: true, lead_id: " + MAP + ".lead_id }) }}"),
+    respond("Responder 200 (sin aviso)", [1980, 300], 200,
+            "={{ JSON.stringify({ ok: true, aviso: false, motivo: " + MAP + ".aviso_necesario ? 'aviso_fallo' : 'respaldo_ya_enviado', lead_id: " + MAP + ".lead_id }) }}"),
     respond("Responder 502 (HubSpot falló)", [1540, 480], 502,
             '={{ JSON.stringify({ ok: false, motivo: "hubspot", detalle: String($json.error?.message || "").slice(0, 200) }) }}'),
     node("Nota", "n8n-nodes-base.stickyNote", 1, [0, 0], {
-        "content": "## Sobtree · Lead web → HubSpot\nLa web (contact.php) ya guardó el lead y avisó por correo antes de llamar aquí.\n"
+        "content": "## Sobtree · Lead web → HubSpot\nLa web (contact.php) ya guardó el lead. ESTE workflow envía el aviso PRINCIPAL a info@.\n"
+                   "- La web solo manda correo de respaldo si aquí hay 401/502/timeout o aviso:false.\n"
                    "- 401: firma o timestamp no válidos (la web reintenta y queda registro).\n"
                    "- 502: HubSpot falló → la web lo reintenta por cron (máx. 8 intentos).\n"
                    "- 200: contacto creado/actualizado por email (sin duplicados) + nota.\n"
@@ -105,8 +117,9 @@ connections = {
     "¿Ya existe?": {"main": conn(["Actualizar contacto"], ["Crear contacto"])},
     "Actualizar contacto": {"main": conn(["Crear nota en el contacto"], ["Responder 502 (HubSpot falló)"])},
     "Crear contacto": {"main": conn(["Crear nota en el contacto"], ["Responder 502 (HubSpot falló)"])},
-    "Crear nota en el contacto": {"main": conn(["Responder 200"], ["Responder 502 (HubSpot falló)"])},
-    "Responder 200": {"main": conn(["Aviso a info@"])},
+    "Crear nota en el contacto": {"main": conn(["¿Enviar aviso?"], ["Responder 502 (HubSpot falló)"])},
+    "¿Enviar aviso?": {"main": conn(["Aviso a info@"], ["Responder 200 (sin aviso)"])},
+    "Aviso a info@": {"main": conn(["Responder 200 (aviso enviado)"], ["Responder 200 (sin aviso)"])},
 }
 
 workflow = {

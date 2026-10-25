@@ -103,9 +103,10 @@ La caja de la home envía la pregunta a `/api/asistente.php`, que llama a Claude
 1. Valida y filtra spam (honeypot `web`, envíos en menos de 3 s, 1 envío cada 30 s por IP).
 2. **Guarda el lead** en `domains/sobtree.com/sobtree-leads/leads.jsonl` (fuera de `public_html`, con bloqueo de escritura y permisos 600) **antes de cualquier envío**.
 3. Responde al visitante.
-4. Avisa por correo a `info@sobtree.com` y reenvía el lead al webhook de n8n firmado con HMAC-SHA256. Cada resultado queda en `estado.jsonl`.
+4. Reenvía el lead al webhook de n8n firmado con HMAC-SHA256. **n8n envía el aviso principal a `info@sobtree.com`** y lo da de alta en HubSpot.
+5. **Correo de respaldo** desde la web a `info@sobtree.com` solo si n8n falla, da timeout, no está configurado o responde que no pudo enviar su aviso (`aviso: false`). Cada resultado queda en `estado.jsonl` y la marca del canal `correo` evita respaldos duplicados.
 
-Lo que falle lo reenvía `public/lib/reintentar-leads.php` (cron cada 15 min en hPanel → Avanzado → Cron Jobs):
+Lo que falle lo reenvía `public/lib/reintentar-leads.php` (y envía el respaldo pendiente si aún no salió) (cron cada 15 min en hPanel → Avanzado → Cron Jobs):
 `/usr/bin/php /home/<usuario>/domains/sobtree.com/public_html/lib/reintentar-leads.php`
 
 - **Configuración:** en `sobtree-secrets.php` (ver `config/sobtree-secrets.example.php`): `N8N_LEADS_WEBHOOK_URL`, `N8N_LEADS_WEBHOOK_SECRET` y opcionales `LEADS_DIR`, `LEADS_NOTIFY_TO`, `LEADS_NOTIFY_FROM`. Sin webhook, el reenvío se omite y los leads quedan guardados y avisados por correo.

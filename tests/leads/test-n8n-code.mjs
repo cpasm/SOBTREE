@@ -46,6 +46,11 @@ const sig2 = "sha256=" + crypto.createHmac("sha256", SECRET).update(ts + "." + r
 const [sinCalc] = await run(raw2, { "x-sobtree-timestamp": ts, "x-sobtree-signature": sig2 });
 t("vacíos no se envían (no borran datos existentes)", sinCalc.json.valido === true && !("sobtree_contexto_lead" in sinCalc.json.props_actualizacion) && !("industry" in sinCalc.json.props_actualizacion));
 
+t("sin marca de respaldo → aviso_necesario=true", good.json.aviso_necesario === true);
+const raw3 = raw.slice(0, -1) + ',"envio":{"respaldo_enviado":true}}';
+const sig3 = "sha256=" + crypto.createHmac("sha256", SECRET).update(ts + "." + raw3).digest("hex");
+const [conResp] = await run(raw3, { "x-sobtree-timestamp": ts, "x-sobtree-signature": sig3 });
+t("respaldo ya enviado por la web → aviso_necesario=false (sin duplicar)", conResp.json.valido === true && conResp.json.aviso_necesario === false);
 const [bad] = await run(raw, { "x-sobtree-timestamp": ts, "x-sobtree-signature": "sha256=" + "0".repeat(64) });
 t("firma falsa → no válido", bad.json.valido === false);
 const [tampered] = await run(raw.replace("Acme SL", "Otra SL"), { "x-sobtree-timestamp": ts, "x-sobtree-signature": sig });

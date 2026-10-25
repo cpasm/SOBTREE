@@ -17,7 +17,8 @@ write_config() { # $1 = url (vacío = sin webhook)
 <?php return ['N8N_LEADS_WEBHOOK_URL' => '$1', 'N8N_LEADS_WEBHOOK_SECRET' => '$SECRET'];
 PHP
 }
-export SOBTREE_BASE_DIR="$BASE" LEADS_ALLOW_HTTP_WEBHOOK=1 LEADS_DISABLE_MAIL=1 TMPDIR="$WORK/tmp"
+MAILLOG="$WORK/mails.log"; MAILFAIL="$WORK/mail-fail"; : > "$MAILLOG"
+export SOBTREE_BASE_DIR="$BASE" LEADS_ALLOW_HTTP_WEBHOOK=1 LEADS_DISABLE_MAIL=1 LEADS_TEST_MAIL_LOG="$MAILLOG" LEADS_TEST_MAIL_FAIL_FILE="$MAILFAIL" TMPDIR="$WORK/tmp"
 MOCK_DIR="$MOCK" MOCK_SECRET="$SECRET" php -S 127.0.0.1:$MOCK_PORT "$ROOT/tests/leads/mock-webhook.php" >"$WORK/mock.log" 2>&1 &
 P1=$!
 php -S 127.0.0.1:$SITE_PORT -t "$ROOT/public" >"$WORK/site.log" 2>&1 &
@@ -34,6 +35,8 @@ VALID=(-d nombre=Ana%20Prueba -d cargo=Gerente -d telefono=%2B34%20600%20000%200
        -d consentimiento=si -d web= -d t0=1)
 lines() { [ -f "$1" ] && wc -l < "$1" | tr -d ' ' || echo 0; }
 last_state() { grep "\"id\":\"$1\"" "$ESTADO" | grep "\"canal\":\"$2\"" | tail -1 | sed -E 's/.*"estado":"([^"]+)".*/\1/'; }
+mails_for() { grep -c "^$1 " "$MAILLOG"; }
+correo_marks() { grep "\"id\":\"$1\"" "$ESTADO" | grep -c "\"canal\":\"correo\""; }
 last_id() { tail -1 "$LEADS" | sed -E 's/.*"id":"([^"]+)".*/\1/'; }
 
 echo "1. Sintaxis"
@@ -61,7 +64,8 @@ check "email normalizado y cargo/teléfono separados" 'grep -q "\"email\":\"ana@
 check "UTM y origen guardados" 'grep -q "\"utm_source\":\"linkedin\"" "$LEADS" && grep -q "\"referrer\":\"https://www.linkedin.com/\"" "$LEADS"'
 check "n8n recibió el lead con firma válida" 'tail -1 "$RECV" | grep -q "\"valid_signature\":true" && tail -1 "$RECV" | grep -q "$ID"'
 check "estado n8n = enviado" '[ "$(last_state "$ID" n8n)" = enviado ]'
-check "estado correo = correo_ok" '[ "$(last_state "$ID" correo)" = correo_ok ]'
+check "n8n OK → la web NO envía correo (el aviso principal es de n8n)" '[ "$(mails_for "$ID")" = 0 ] && [ "$(correo_marks "$ID")" = 0 ]'
+check "payload indica respaldo_enviado=false" 'tail -1 "$RECV" | grep -q "\"respaldo_enviado\":false"'
 check "límite por IP: segundo envío inmediato → 429" '[ "$(curl -s -o /dev/null -w %{http_code} -X POST "$URL" "${VALID[@]}")" = 429 ]'
 
 echo "4. Calculadora y asistente"
@@ -72,32 +76,57 @@ check "tipo asistente + motivo" 'tail -1 "$LEADS" | grep -q "\"tipo_formulario\"
 post "${VALID[@]}" -d tipo_formulario=hack >/dev/null
 check "tipo desconocido → contacto" 'tail -1 "$LEADS" | grep -q "\"tipo_formulario\":\"contacto\""'
 
-echo "5. n8n caído: el visitante recibe OK, el lead queda guardado y se reintenta"
+echo "5. n8n caído: OK al visitante, correo de RESPALDO una sola vez y reintento"
 echo 500 > "$MOCK/mode"
 CODE=$(post "${VALID[@]}"); ID=$(last_id)
 check "respuesta 200 aunque n8n falle" '[ "$CODE" = 200 ]'
 check "estado n8n = error" '[ "$(last_state "$ID" n8n)" = error ]'
+check "correo de respaldo enviado (1) y marcado" '[ "$(mails_for "$ID")" = 1 ] && [ "$(last_state "$ID" correo)" = correo_ok ] && grep -q "respaldo: n8n_fallo" "$ESTADO"'
+php "$ROOT/public/lib/reintentar-leads.php" >/dev/null 2>&1
+check "cron con n8n aún caído: NO repite el respaldo" '[ "$(mails_for "$ID")" = 1 ] && [ "$(last_state "$ID" n8n)" = error ]'
 echo 200 > "$MOCK/mode"
 php "$ROOT/public/lib/reintentar-leads.php" >"$WORK/retry.out" 2>&1
 check "reintento lo reenvía → enviado" '[ "$(last_state "$ID" n8n)" = enviado ]'
+check "el reenvío avisa a n8n de que ya hubo respaldo (no duplica aviso)" 'tail -1 "$RECV" | grep -q "\"respaldo_enviado\":true"'
 php "$ROOT/public/lib/reintentar-leads.php" >"$WORK/retry2.out" 2>&1
-check "segundo reintento no duplica envíos" 'grep -q "\"enviados\":0" "$WORK/retry2.out"'
+check "segundo reintento no duplica envíos ni correos" 'grep -q "\"enviados\":0" "$WORK/retry2.out" && [ "$(mails_for "$ID")" = 1 ]'
+
+echo "5b. n8n recibe pero no puede enviar su aviso → respaldo de la web"
+echo 200-sin-aviso > "$MOCK/mode"
+post "${VALID[@]}" >/dev/null; ID=$(last_id)
+check "n8n enviado + respaldo n8n_sin_aviso" '[ "$(last_state "$ID" n8n)" = enviado ] && [ "$(mails_for "$ID")" = 1 ] && grep "$ID" "$ESTADO" | grep -q "n8n_sin_aviso"'
+echo 200 > "$MOCK/mode"
+
+echo "5c. Falla el correo de respaldo → el cron lo reintenta una vez resuelto"
+echo 500 > "$MOCK/mode"; touch "$MAILFAIL"
+post "${VALID[@]}" >/dev/null; ID=$(last_id)
+check "n8n error + correo_error" '[ "$(last_state "$ID" n8n)" = error ] && [ "$(last_state "$ID" correo)" = correo_error ]'
+rm -f "$MAILFAIL"
+php "$ROOT/public/lib/reintentar-leads.php" >/dev/null 2>&1
+check "cron (n8n sigue caído) envía el respaldo pendiente" '[ "$(last_state "$ID" correo)" = correo_ok ] && [ "$(mails_for "$ID")" = 1 ]'
+echo 200 > "$MOCK/mode"
+php "$ROOT/public/lib/reintentar-leads.php" >/dev/null 2>&1
+check "al volver n8n: enviado y sin más correos" '[ "$(last_state "$ID" n8n)" = enviado ] && [ "$(mails_for "$ID")" = 1 ]'
 
 echo "6. n8n lento: timeout corto"
 echo sleep > "$MOCK/mode"
 T0=$(date +%s); post "${VALID[@]}" >/dev/null; T1=$(date +%s); ID=$(last_id)
-check "termina en ≤ 8 s (timeout 6 s)" '[ $((T1-T0)) -le 8 ]'
+check "termina en ≤ 12 s (timeout 10 s)" '[ $((T1-T0)) -le 12 ]'
 check "estado n8n = error por timeout" '[ "$(last_state "$ID" n8n)" = error ]'
-echo 200 > "$MOCK/mode"; sleep 9   # deja terminar al mock (servidor de un hilo)
+check "timeout → correo de respaldo" '[ "$(mails_for "$ID")" = 1 ]'
+echo 200 > "$MOCK/mode"; sleep 5   # deja terminar al mock (servidor de un hilo)
 
 echo "7. Sin webhook configurado: se guarda y se omite sin romper nada"
 write_config ""
 CODE=$(post "${VALID[@]}"); ID=$(last_id)
 check "respuesta 200" '[ "$CODE" = 200 ]'
 check "estado n8n = omitido" '[ "$(last_state "$ID" n8n)" = omitido ]'
+check "sin webhook → correo de respaldo (webhook_no_configurado)" '[ "$(mails_for "$ID")" = 1 ] && grep "$ID" "$ESTADO" | grep -q webhook_no_configurado'
+php "$ROOT/public/lib/reintentar-leads.php" >/dev/null 2>&1
+check "cron sin webhook: no repite el respaldo" '[ "$(mails_for "$ID")" = 1 ]'
 write_config "$WEBHOOK"
 php "$ROOT/public/lib/reintentar-leads.php" >/dev/null 2>&1
-check "al configurarlo, el reintento lo envía" '[ "$(last_state "$ID" n8n)" = enviado ]'
+check "al configurarlo, el reintento lo envía sin más correos" '[ "$(last_state "$ID" n8n)" = enviado ] && [ "$(mails_for "$ID")" = 1 ]'
 
 echo "8. Protección del registro y de los scripts"
 check "registro con permisos 600" '[ "$(stat -c %a "$LEADS")" = 600 ]'

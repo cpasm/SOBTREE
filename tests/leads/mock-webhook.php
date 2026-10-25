@@ -1,6 +1,7 @@
 <?php
 // Webhook simulado de n8n para pruebas LOCALES (php -S). Verifica la firma HMAC y guarda lo recibido.
-// Modo de respuesta en $MOCK_DIR/mode: "200" (defecto), "500" o "sleep".
+// Modo de respuesta en $MOCK_DIR/mode: "200" (defecto, n8n envió su aviso), "200-sin-aviso",
+// "500" o "sleep".
 declare(strict_types=1);
 $dir = getenv('MOCK_DIR') ?: sys_get_temp_dir();
 $secret = getenv('MOCK_SECRET') ?: '';
@@ -13,7 +14,10 @@ $valid = $ts !== '' && abs(time() - (int)$ts) <= 300
 file_put_contents("$dir/received.jsonl", json_encode([
     'valid_signature' => $valid, 'lead_id' => $_SERVER['HTTP_X_SOBTREE_LEAD_ID'] ?? '', 'mode' => $mode, 'body' => json_decode($body, true),
 ], JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND | LOCK_EX);
-if ($mode === 'sleep') sleep(10);
+if ($mode === 'sleep') sleep(14);
 if (!$valid) { http_response_code(401); echo '{"ok":false}'; exit; }
-http_response_code($mode === '500' ? 500 : 200);
-echo '{"ok":true}';
+if ($mode === '500') { http_response_code(500); echo '{"ok":false}'; exit; }
+$lead = json_decode($body, true);
+$respaldo = !empty($lead['envio']['respaldo_enviado']);
+// Como el workflow real: si la web ya mandó el respaldo, n8n no repite el aviso.
+echo json_encode(['ok' => true, 'aviso' => $mode !== '200-sin-aviso' && !$respaldo]);

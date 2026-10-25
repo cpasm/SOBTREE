@@ -30,7 +30,7 @@
         300
       ],
       "parameters": {
-        "jsCode": "// Nodo Code «Verificar firma y mapear» del workflow «Sobtree · Lead web → HubSpot».\n// Fuente única: build-workflow.py lo incrusta en el JSON y tests/ lo prueba en local.\n// Modo: Run Once for All Items. Requiere que el nodo Webhook tenga activado «Raw Body».\nconst crypto = require('crypto');\n\n// Secreto compartido con la web (N8N_LEADS_WEBHOOK_SECRET en sobtree-secrets.php).\n// Plan Starter de n8n Cloud: sin Variables, así que se pega aquí DENTRO de n8n, nunca en el repositorio.\n// En planes con Variables, usar: const SECRET = $vars.SOBTREE_LEADS_SECRET;\nconst SECRET = 'REEMPLAZAR_EN_N8N';\nconst MAX_DESFASE_S = 300; // 5 minutos\n\nconst item = $input.first();\nconst h = item.json.headers || {};\nconst ts = String(h['x-sobtree-timestamp'] || '');\nconst firma = String(h['x-sobtree-signature'] || '');\nlet raw = '';\ntry { raw = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8'); } catch (e) { raw = ''; }\n\nconst esperada = 'sha256=' + crypto.createHmac('sha256', SECRET).update(ts + '.' + raw).digest('hex');\nconst reciente = /^\\d+$/.test(ts) && Math.abs(Date.now() / 1000 - Number(ts)) <= MAX_DESFASE_S;\nconst a = Buffer.from(firma), b = Buffer.from(esperada);\nconst valida = SECRET !== 'REEMPLAZAR_EN_N8N' && reciente && a.length === b.length && crypto.timingSafeEqual(a, b);\nif (!valida) return [{ json: { valido: false, motivo: !reciente ? 'timestamp' : 'firma' } }];\n\nlet lead;\ntry { lead = JSON.parse(raw); } catch (e) { return [{ json: { valido: false, motivo: 'json' } }]; }\nconst email = String(lead.email || '').trim().toLowerCase();\nif (!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)) return [{ json: { valido: false, motivo: 'email' } }];\n\nconst o = lead.origen || {}, utm = o.utm || {}, calc = lead.calculadora || {}, asis = lead.asistente || {};\nconst partes = String(lead.nombre || '').trim().split(/\\s+/);\nconst corta = (s, n) => String(s || '').slice(0, n);\n\n// Fuente de tráfico (propiedad nativa hs_analytics_source), deducida de UTM y referrer.\nfunction fuente() {\n  const med = String(utm.utm_medium || '').toLowerCase(), src = String(utm.utm_source || '').toLowerCase();\n  let ref = ''; try { ref = o.referrer ? new URL(o.referrer).hostname : ''; } catch (e) {}\n  if (/^(cpc|ppc|paid|paidsearch|sem)$/.test(med)) return /facebook|instagram|linkedin|twitter|x\\.com|tiktok/.test(src) ? 'PAID_SOCIAL' : 'PAID_SEARCH';\n  if (/paid_?social/.test(med)) return 'PAID_SOCIAL';\n  if (/e-?mail|newsletter/.test(med)) return 'EMAIL_MARKETING';\n  if (/social/.test(med)) return 'SOCIAL_MEDIA';\n  if (med || src) return 'OTHER_CAMPAIGNS';\n  if (/chatgpt|openai|perplexity|claude|gemini|copilot/.test(ref)) return 'AI_REFERRALS';\n  if (/google\\.|bing\\.|duckduckgo|ecosia|yahoo\\./.test(ref)) return 'ORGANIC_SEARCH';\n  if (/linkedin|facebook|instagram|twitter|x\\.com|t\\.co|youtube|tiktok/.test(ref)) return 'SOCIAL_MEDIA';\n  if (ref) return 'REFERRALS';\n  return 'DIRECT_TRAFFIC';\n}\n\nconst eur = (n) => (typeof n === 'number' ? n.toLocaleString('es-ES') + ' €' : '—');\nconst resumenCalc = Object.keys(calc).length\n  ? `Sector: ${calc.sector || '—'} · ${calc.personas ?? '—'} personas · ${calc.horas ?? '—'} h/sem · ${calc.coste ?? '—'} €/h · Áreas: ${(calc.areas || []).join(', ') || '—'} · Ahorro ${eur(calc.ahorro_min)}–${eur(calc.ahorro_max)}/año · Precio ${eur(calc.precio_min)}–${eur(calc.precio_max)}`\n  : '';\nconst contexto = [resumenCalc && 'Calculadora: ' + resumenCalc, asis.motivo && 'Asistente: ' + asis.motivo].filter(Boolean).join('\\n');\nconst detalleOrigen = [\n  o.landing && 'entrada=' + o.landing, o.referrer && 'referrer=' + o.referrer, o.pagina && 'pagina=' + o.pagina,\n  utm.utm_term && 'utm_term=' + utm.utm_term, utm.utm_content && 'utm_content=' + utm.utm_content,\n].filter(Boolean).join(' | ');\n\n// Propiedades que se escriben siempre (alta y actualización).\nconst comunes = {\n  email,\n  firstname: corta(partes[0], 100),\n  lastname: corta(partes.slice(1).join(' '), 100),\n  phone: corta(lead.telefono, 40),\n  company: corta(lead.empresa, 200),\n  company_size: corta(lead.tamano, 60),\n  message: corta(lead.mensaje, 4000),\n  hs_legal_basis: 'Freely given consent from contact',\n  sobtree_tipo_formulario: ['contacto', 'calculadora', 'asistente'].includes(lead.tipo_formulario) ? lead.tipo_formulario : 'contacto',\n  sobtree_interes: corta(lead.interes, 100),\n  sobtree_utm_source: corta(utm.utm_source, 150),\n  sobtree_utm_medium: corta(utm.utm_medium, 150),\n  sobtree_utm_campaign: corta(utm.utm_campaign, 150),\n  sobtree_origen_detalle: corta(detalleOrigen, 1000),\n  sobtree_contexto_lead: corta(contexto, 2000),\n};\nif (lead.cargo) comunes.jobtitle = corta(lead.cargo, 120);\nif (calc.sector) comunes.industry = corta(calc.sector, 80);\n// No borrar datos buenos con vacíos al actualizar.\nfor (const k of Object.keys(comunes)) if (comunes[k] === '') delete comunes[k];\n\n// Solo en el alta: etapa, estado y fuente (no se pisan en contactos que ya avanzaron).\nconst soloAlta = { lifecyclestage: 'lead', hs_lead_status: 'NEW', hs_analytics_source: fuente() };\n\nconst esc = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);\nconst nota = [\n  `<p><strong>Lead web (${esc(comunes.sobtree_tipo_formulario)})</strong> · ${esc(lead.fecha)} · id ${esc(lead.id)}</p>`,\n  `<p><strong>Interés:</strong> ${esc(lead.interes)} · <strong>Tamaño:</strong> ${esc(lead.tamano)}</p>`,\n  `<p><strong>Mensaje:</strong><br>${esc(lead.mensaje).replace(/\\n/g, '<br>')}</p>`,\n  contexto && `<p>${esc(contexto).replace(/\\n/g, '<br>')}</p>`,\n  `<p><strong>Origen:</strong> ${esc(detalleOrigen || '—')} · UTM: ${esc([utm.utm_source, utm.utm_medium, utm.utm_campaign].filter(Boolean).join(' / ') || '—')}</p>`,\n  `<p><strong>Consentimiento:</strong> ${esc((lead.consentimiento || {}).texto)} (${esc((lead.consentimiento || {}).fecha)})</p>`,\n].filter(Boolean).join('');\n\nreturn [{ json: {\n  valido: true,\n  lead_id: corta(lead.id, 64),\n  email,\n  props_alta: { ...comunes, ...soloAlta },\n  props_actualizacion: comunes,\n  nota_html: nota,\n  aviso_asunto: `Lead en HubSpot (${comunes.sobtree_tipo_formulario}): ${corta(lead.empresa, 80)} · ${corta(lead.interes, 60)}`,\n  aviso_texto: `${lead.nombre} (${lead.cargo || 'sin cargo'}) de ${lead.empresa}\\n${email} · ${lead.telefono}\\nInterés: ${lead.interes} · Tamaño: ${lead.tamano}\\n\\n${lead.mensaje}\\n\\n${contexto ? contexto + '\\n\\n' : ''}Origen: ${detalleOrigen || '—'}\\nUTM: ${[utm.utm_source, utm.utm_medium, utm.utm_campaign].filter(Boolean).join(' / ') || '—'}\\nId lead: ${lead.id}`,\n} }];\n"
+        "jsCode": "// Nodo Code «Verificar firma y mapear» del workflow «Sobtree · Lead web → HubSpot».\n// Fuente única: build-workflow.py lo incrusta en el JSON y tests/ lo prueba en local.\n// Modo: Run Once for All Items. Requiere que el nodo Webhook tenga activado «Raw Body».\nconst crypto = require('crypto');\n\n// Secreto compartido con la web (N8N_LEADS_WEBHOOK_SECRET en sobtree-secrets.php).\n// Plan Starter de n8n Cloud: sin Variables, así que se pega aquí DENTRO de n8n, nunca en el repositorio.\n// En planes con Variables, usar: const SECRET = $vars.SOBTREE_LEADS_SECRET;\nconst SECRET = 'REEMPLAZAR_EN_N8N';\nconst MAX_DESFASE_S = 300; // 5 minutos\n\nconst item = $input.first();\nconst h = item.json.headers || {};\nconst ts = String(h['x-sobtree-timestamp'] || '');\nconst firma = String(h['x-sobtree-signature'] || '');\nlet raw = '';\ntry { raw = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8'); } catch (e) { raw = ''; }\n\nconst esperada = 'sha256=' + crypto.createHmac('sha256', SECRET).update(ts + '.' + raw).digest('hex');\nconst reciente = /^\\d+$/.test(ts) && Math.abs(Date.now() / 1000 - Number(ts)) <= MAX_DESFASE_S;\nconst a = Buffer.from(firma), b = Buffer.from(esperada);\nconst valida = SECRET !== 'REEMPLAZAR_EN_N8N' && reciente && a.length === b.length && crypto.timingSafeEqual(a, b);\nif (!valida) return [{ json: { valido: false, motivo: !reciente ? 'timestamp' : 'firma' } }];\n\nlet lead;\ntry { lead = JSON.parse(raw); } catch (e) { return [{ json: { valido: false, motivo: 'json' } }]; }\nconst email = String(lead.email || '').trim().toLowerCase();\nif (!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)) return [{ json: { valido: false, motivo: 'email' } }];\n\nconst o = lead.origen || {}, utm = o.utm || {}, calc = lead.calculadora || {}, asis = lead.asistente || {};\nconst partes = String(lead.nombre || '').trim().split(/\\s+/);\nconst corta = (s, n) => String(s || '').slice(0, n);\n\n// Fuente de tráfico (propiedad nativa hs_analytics_source), deducida de UTM y referrer.\nfunction fuente() {\n  const med = String(utm.utm_medium || '').toLowerCase(), src = String(utm.utm_source || '').toLowerCase();\n  let ref = ''; try { ref = o.referrer ? new URL(o.referrer).hostname : ''; } catch (e) {}\n  if (/^(cpc|ppc|paid|paidsearch|sem)$/.test(med)) return /facebook|instagram|linkedin|twitter|x\\.com|tiktok/.test(src) ? 'PAID_SOCIAL' : 'PAID_SEARCH';\n  if (/paid_?social/.test(med)) return 'PAID_SOCIAL';\n  if (/e-?mail|newsletter/.test(med)) return 'EMAIL_MARKETING';\n  if (/social/.test(med)) return 'SOCIAL_MEDIA';\n  if (med || src) return 'OTHER_CAMPAIGNS';\n  if (/chatgpt|openai|perplexity|claude|gemini|copilot/.test(ref)) return 'AI_REFERRALS';\n  if (/google\\.|bing\\.|duckduckgo|ecosia|yahoo\\./.test(ref)) return 'ORGANIC_SEARCH';\n  if (/linkedin|facebook|instagram|twitter|x\\.com|t\\.co|youtube|tiktok/.test(ref)) return 'SOCIAL_MEDIA';\n  if (ref) return 'REFERRALS';\n  return 'DIRECT_TRAFFIC';\n}\n\nconst eur = (n) => (typeof n === 'number' ? n.toLocaleString('es-ES') + ' €' : '—');\nconst resumenCalc = Object.keys(calc).length\n  ? `Sector: ${calc.sector || '—'} · ${calc.personas ?? '—'} personas · ${calc.horas ?? '—'} h/sem · ${calc.coste ?? '—'} €/h · Áreas: ${(calc.areas || []).join(', ') || '—'} · Ahorro ${eur(calc.ahorro_min)}–${eur(calc.ahorro_max)}/año · Precio ${eur(calc.precio_min)}–${eur(calc.precio_max)}`\n  : '';\nconst contexto = [resumenCalc && 'Calculadora: ' + resumenCalc, asis.motivo && 'Asistente: ' + asis.motivo].filter(Boolean).join('\\n');\nconst detalleOrigen = [\n  o.landing && 'entrada=' + o.landing, o.referrer && 'referrer=' + o.referrer, o.pagina && 'pagina=' + o.pagina,\n  utm.utm_term && 'utm_term=' + utm.utm_term, utm.utm_content && 'utm_content=' + utm.utm_content,\n].filter(Boolean).join(' | ');\n\n// Propiedades que se escriben siempre (alta y actualización).\nconst comunes = {\n  email,\n  firstname: corta(partes[0], 100),\n  lastname: corta(partes.slice(1).join(' '), 100),\n  phone: corta(lead.telefono, 40),\n  company: corta(lead.empresa, 200),\n  company_size: corta(lead.tamano, 60),\n  message: corta(lead.mensaje, 4000),\n  hs_legal_basis: 'Freely given consent from contact',\n  sobtree_tipo_formulario: ['contacto', 'calculadora', 'asistente'].includes(lead.tipo_formulario) ? lead.tipo_formulario : 'contacto',\n  sobtree_interes: corta(lead.interes, 100),\n  sobtree_utm_source: corta(utm.utm_source, 150),\n  sobtree_utm_medium: corta(utm.utm_medium, 150),\n  sobtree_utm_campaign: corta(utm.utm_campaign, 150),\n  sobtree_origen_detalle: corta(detalleOrigen, 1000),\n  sobtree_contexto_lead: corta(contexto, 2000),\n};\nif (lead.cargo) comunes.jobtitle = corta(lead.cargo, 120);\nif (calc.sector) comunes.industry = corta(calc.sector, 80);\n// No borrar datos buenos con vacíos al actualizar.\nfor (const k of Object.keys(comunes)) if (comunes[k] === '') delete comunes[k];\n\n// Solo en el alta: etapa, estado y fuente (no se pisan en contactos que ya avanzaron).\nconst soloAlta = { lifecyclestage: 'lead', hs_lead_status: 'NEW', hs_analytics_source: fuente() };\n\nconst esc = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);\nconst nota = [\n  `<p><strong>Lead web (${esc(comunes.sobtree_tipo_formulario)})</strong> · ${esc(lead.fecha)} · id ${esc(lead.id)}</p>`,\n  `<p><strong>Interés:</strong> ${esc(lead.interes)} · <strong>Tamaño:</strong> ${esc(lead.tamano)}</p>`,\n  `<p><strong>Mensaje:</strong><br>${esc(lead.mensaje).replace(/\\n/g, '<br>')}</p>`,\n  contexto && `<p>${esc(contexto).replace(/\\n/g, '<br>')}</p>`,\n  `<p><strong>Origen:</strong> ${esc(detalleOrigen || '—')} · UTM: ${esc([utm.utm_source, utm.utm_medium, utm.utm_campaign].filter(Boolean).join(' / ') || '—')}</p>`,\n  `<p><strong>Consentimiento:</strong> ${esc((lead.consentimiento || {}).texto)} (${esc((lead.consentimiento || {}).fecha)})</p>`,\n].filter(Boolean).join('');\n\n// Si la web ya envió su correo de RESPALDO (n8n falló antes), no se repite el aviso.\nconst avisoNecesario = !(lead.envio && lead.envio.respaldo_enviado === true);\n\nreturn [{ json: {\n  valido: true,\n  aviso_necesario: avisoNecesario,\n  lead_id: corta(lead.id, 64),\n  email,\n  props_alta: { ...comunes, ...soloAlta },\n  props_actualizacion: comunes,\n  nota_html: nota,\n  aviso_asunto: `Lead en HubSpot (${comunes.sobtree_tipo_formulario}): ${corta(lead.empresa, 80)} · ${corta(lead.interes, 60)}`,\n  aviso_texto: `${lead.nombre} (${lead.cargo || 'sin cargo'}) de ${lead.empresa}\\n${email} · ${lead.telefono}\\nInterés: ${lead.interes} · Tamaño: ${lead.tamano}\\n\\n${lead.mensaje}\\n\\n${contexto ? contexto + '\\n\\n' : ''}Origen: ${detalleOrigen || '—'}\\nUTM: ${[utm.utm_source, utm.utm_medium, utm.utm_campaign].filter(Boolean).join(' / ') || '—'}\\nId lead: ${lead.id}`,\n} }];\n"
       }
     },
     {
@@ -244,20 +244,36 @@
       "onError": "continueErrorOutput"
     },
     {
-      "id": "30019049-4a47-531c-8426-da4722d770a1",
-      "name": "Responder 200",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
+      "id": "1b071f3a-2829-51ae-8993-b9224ee61210",
+      "name": "¿Enviar aviso?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
       "position": [
         1540,
         200
       ],
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ ok: true, lead_id: $('Verificar firma y mapear').first().json.lead_id }) }}",
-        "options": {
-          "responseCode": 200
-        }
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "8a39ad07-14d8-5427-894e-4ead92915831",
+              "leftValue": "={{ $('Verificar firma y mapear').first().json.aviso_necesario }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       }
     },
     {
@@ -267,13 +283,13 @@
       "typeVersion": 2.1,
       "position": [
         1760,
-        200
+        100
       ],
       "parameters": {
         "sendTo": "info@sobtree.com",
         "subject": "={{ $('Verificar firma y mapear').first().json.aviso_asunto }}",
         "emailType": "text",
-        "message": "={{ $('Verificar firma y mapear').first().json.aviso_texto }}\n\nFicha en HubSpot: https://app.hubspot.com/contacts/REEMPLAZAR_PORTAL_ID/record/0-1/{{ ($('Actualizar contacto').isExecuted ? $('Actualizar contacto').first().json.id : $('Crear contacto').first().json.id) }}",
+        "message": "={{ $('Verificar firma y mapear').first().json.aviso_texto }}\n\nFicha en HubSpot: https://app-eu1.hubspot.com/contacts/149616589/record/0-1/{{ ($('Actualizar contacto').isExecuted ? $('Actualizar contacto').first().json.id : $('Crear contacto').first().json.id) }}",
         "options": {
           "appendAttribution": false
         }
@@ -284,7 +300,44 @@
           "name": "Gmail Sobtree (info@)"
         }
       },
-      "onError": "continueRegularOutput"
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "419dba41-0c10-51b9-8243-deb58112c95d",
+      "name": "Responder 200 (aviso enviado)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1980,
+        40
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, aviso: true, lead_id: $('Verificar firma y mapear').first().json.lead_id }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "6b60c662-f6de-5d51-b7cb-f78654636fa4",
+      "name": "Responder 200 (sin aviso)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1980,
+        300
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, aviso: false, motivo: $('Verificar firma y mapear').first().json.aviso_necesario ? 'aviso_fallo' : 'respaldo_ya_enviado', lead_id: $('Verificar firma y mapear').first().json.lead_id }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
     },
     {
       "id": "5181cedf-2a13-5fd1-bfd4-d1f34939881a",
@@ -313,7 +366,7 @@
         0
       ],
       "parameters": {
-        "content": "## Sobtree · Lead web → HubSpot\nLa web (contact.php) ya guardó el lead y avisó por correo antes de llamar aquí.\n- 401: firma o timestamp no válidos (la web reintenta y queda registro).\n- 502: HubSpot falló → la web lo reintenta por cron (máx. 8 intentos).\n- 200: contacto creado/actualizado por email (sin duplicados) + nota.\nSecretos y credenciales solo dentro de n8n, nunca en el repo.",
+        "content": "## Sobtree · Lead web → HubSpot\nLa web (contact.php) ya guardó el lead. ESTE workflow envía el aviso PRINCIPAL a info@.\n- La web solo manda correo de respaldo si aquí hay 401/502/timeout o aviso:false.\n- 401: firma o timestamp no válidos (la web reintenta y queda registro).\n- 502: HubSpot falló → la web lo reintenta por cron (máx. 8 intentos).\n- 200: contacto creado/actualizado por email (sin duplicados) + nota.\nSecretos y credenciales solo dentro de n8n, nunca en el repo.",
         "height": 220,
         "width": 420
       }
@@ -436,7 +489,7 @@
       "main": [
         [
           {
-            "node": "Responder 200",
+            "node": "¿Enviar aviso?",
             "type": "main",
             "index": 0
           }
@@ -450,11 +503,36 @@
         ]
       ]
     },
-    "Responder 200": {
+    "¿Enviar aviso?": {
       "main": [
         [
           {
             "node": "Aviso a info@",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 200 (sin aviso)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aviso a info@": {
+      "main": [
+        [
+          {
+            "node": "Responder 200 (aviso enviado)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 200 (sin aviso)",
             "type": "main",
             "index": 0
           }
