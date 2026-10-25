@@ -69,12 +69,17 @@
   calc();
 
   // El formulario de contacto está en la portada: dejamos el cálculo escrito para que llegue con el lead.
-  // (Cuando haya CRM/n8n, este es el punto para enviar también el lead al webhook.)
+  // Además del texto, viajan los datos estructurados para guardarlos con el lead (contact.php → n8n → HubSpot).
   $("#calc-cta").addEventListener("click", () => {
     if (!last) return;
     try {
       sessionStorage.setItem("sobtree_prefill", JSON.stringify({
         interes: "Diagnóstico IA exprés",
+        tipo: "calculadora",
+        calculadora: {
+          sector: last.sector, personas: last.personas, horas: last.horas, coste: last.coste, areas: last.areas,
+          ahorro_min: round(last.saveLo, 100), ahorro_max: round(last.saveHi, 100), precio_min: last.feeLo, precio_max: last.feeHi
+        },
         mensaje: `He usado la calculadora. Sector: ${last.sector}. ${last.personas} personas, ${last.horas} h/semana en tareas repetitivas, ${last.coste} €/h. Quiero automatizar: ${last.areas.join(", ") || "por decidir"}. Ahorro estimado: ${eur.format(round(last.saveLo, 100))}–${eur.format(round(last.saveHi, 100))} al año. Precio cerrado orientativo: ${eur.format(last.feeLo)}–${eur.format(last.feeHi)}.`
       }));
     } catch (e) {}

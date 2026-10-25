@@ -50,13 +50,25 @@
     if (chat.open) chat.close();
     setCard(false);
     const f = $("#contact");
-    if (!f) { location.href = "/#contacto"; return; }
+    if (!f) {
+      // Fuera de la portada: dejamos el contexto para que main.js lo cargue en el formulario.
+      try {
+        sessionStorage.setItem("sobtree_prefill", JSON.stringify({
+          interes: "Aún no lo sé", tipo: "asistente", motivo,
+          mensaje: motivo ? `Vengo del asistente de la web. Me gustaría resolver: ${motivo}` : ""
+        }));
+      } catch (e) {}
+      location.href = "/#contacto"; return;
+    }
+    // Marca el lead como llegado desde el asistente, con el motivo detectado.
+    if (f.elements.tipo_formulario) f.elements.tipo_formulario.value = "asistente";
+    if (f.elements.motivo_asistente && motivo) f.elements.motivo_asistente.value = String(motivo).slice(0, 300);
     const nombre = $('input[name="nombre"]', f), interes = $("#f-interes"), msg = $('textarea[name="mensaje"]', f);
     if (nombre && name && !nombre.value) nombre.value = name;
     if (interes && !interes.value) interes.value = "Aún no lo sé";
     if (msg && !msg.value.trim() && motivo) msg.value = `Vengo del asistente de la web. Me gustaría resolver: ${motivo}`;
     $("#contacto").scrollIntoView({ behavior: "smooth" });
-    setTimeout(() => (nombre && !nombre.value ? nombre : $('input[name="cargo"]', f))?.focus({ preventScroll: true }), 500);
+    setTimeout(() => (nombre && !nombre.value ? nombre : $('input[name="telefono"]', f))?.focus({ preventScroll: true }), 500);
   }
 
   function offer(motivo) {

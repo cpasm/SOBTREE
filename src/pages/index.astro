@@ -227,14 +227,15 @@ const jsonld = graph(organization(), website(), person(), faqPage());
     </div>
     <form class="contact" id="contact" action="/contact.php" method="post" novalidate>
       <div class="row-2">
-        <label>Nombre y apellidos<input name="nombre" autocomplete="name" required></label>
-        <label>Teléfono<input name="cargo" type="tel" autocomplete="tel" required></label>
+        <label>Nombre y apellidos<input name="nombre" autocomplete="name" maxlength="200" required></label>
+        <label>Cargo <span class="opt">(opcional)</span><input name="cargo" autocomplete="organization-title" maxlength="120"></label>
       </div>
       <div class="row-2">
-        <label>Empresa<input name="empresa" autocomplete="organization" required></label>
-        <label>Email<input name="email" type="email" autocomplete="email" required></label>
+        <label>Empresa<input name="empresa" autocomplete="organization" maxlength="200" required></label>
+        <label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label>
       </div>
       <div class="row-2">
+        <label>Teléfono<input name="telefono" type="tel" autocomplete="tel" inputmode="tel" maxlength="25" required></label>
         <label>Tamaño de la empresa
           <select name="tamano" required>
             <option value="">Selecciona</option>
@@ -244,19 +245,32 @@ const jsonld = graph(organization(), website(), person(), faqPage());
             <option>250 o más personas</option>
           </select>
         </label>
-        <label>¿Qué te interesa?
-          <select name="interes" id="f-interes" required>
-            <option value="">Selecciona</option>
-            <option>Diagnóstico IA exprés</option>
-            <option>Primer caso de uso</option>
-            <option>Formación del equipo</option>
-            <option>Acompañamiento mensual</option>
-            <option>Aún no lo sé</option>
-          </select>
-        </label>
       </div>
+      <label>¿Qué te interesa?
+        <select name="interes" id="f-interes" required>
+          <option value="">Selecciona</option>
+          <option>Diagnóstico IA exprés</option>
+          <option>Primer caso de uso</option>
+          <option>Formación del equipo</option>
+          <option>Acompañamiento mensual</option>
+          <option>Aún no lo sé</option>
+        </select>
+      </label>
       <label>¿Qué quieres conseguir?<textarea name="mensaje" rows="4" required></textarea></label>
       <label class="hp" aria-hidden="true">No rellenar<input name="web" tabindex="-1" autocomplete="off"></label>
+      <!-- Origen del lead: lo rellena /assets/main.js (con /assets/origen.js) al enviar. -->
+      <input type="hidden" name="tipo_formulario" value="contacto">
+      <input type="hidden" name="origen_pagina">
+      <input type="hidden" name="origen_landing">
+      <input type="hidden" name="origen_referrer">
+      <input type="hidden" name="utm_source">
+      <input type="hidden" name="utm_medium">
+      <input type="hidden" name="utm_campaign">
+      <input type="hidden" name="utm_term">
+      <input type="hidden" name="utm_content">
+      <input type="hidden" name="datos_calculadora">
+      <input type="hidden" name="motivo_asistente">
+      <input type="hidden" name="t0">
       <label class="consent"><input type="checkbox" name="consentimiento" value="si" required><span>Acepto la <a href="/privacidad">política de privacidad</a> y que Sobtree use estos datos para responder a mi solicitud.</span></label>
       <button class="btn btn-primary" type="submit">Solicitar conversación</button>
       <p class="form-status" id="contact-status" role="status"></p>

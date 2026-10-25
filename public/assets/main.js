@@ -8,9 +8,15 @@
   /* ---------- Preselección del formulario desde los CTA ---------- */
   const interest = $("#f-interes");
   const message = $('#contact textarea[name="mensaje"]');
-  function prefill(opt, text) {
+  // extra: { tipo: "calculadora" | "asistente", calculadora: {...}, motivo: "..." } → campos ocultos de origen.
+  function prefill(opt, text, extra) {
     if (opt && interest) interest.value = opt;
     if (text && message && !message.value.trim()) message.value = text;
+    const f = $("#contact");
+    if (!f || !extra) return;
+    if (extra.tipo) f.elements.tipo_formulario.value = extra.tipo;
+    if (extra.calculadora) f.elements.datos_calculadora.value = JSON.stringify(extra.calculadora).slice(0, 2000);
+    if (extra.motivo) f.elements.motivo_asistente.value = String(extra.motivo).slice(0, 300);
   }
   $$("[data-interest]").forEach((a) => a.addEventListener("click", () => prefill(a.dataset.interest)));
 
@@ -42,7 +48,7 @@
   /* ---------- Datos que llegan de otra página (calculadora) ---------- */
   try {
     const pending = JSON.parse(sessionStorage.getItem("sobtree_prefill") || "null");
-    if (pending) { prefill(pending.interes, pending.mensaje); sessionStorage.removeItem("sobtree_prefill"); }
+    if (pending) { prefill(pending.interes, pending.mensaje, pending); sessionStorage.removeItem("sobtree_prefill"); }
   } catch (e) {}
 
   /* ---------- Autodiagnóstico (una pregunta cada vez) ---------- */
@@ -110,7 +116,7 @@
   renderQ();
 
   /* ---------- Formulario de contacto ---------- */
-  // En Hostinger se envía a contact.php (llega a info@sobtree.com).
+  // En Hostinger se envía a contact.php: guarda el lead, avisa a info@sobtree.com y lo reenvía a n8n/HubSpot.
   // Si el PHP no está disponible (p. ej. abriendo el fichero en local), abre el correo del visitante.
   const contact = $("#contact");
   const status = $("#contact-status");
@@ -118,15 +124,30 @@
 
   function mailtoFallback(d) {
     const subject = `Solicitud de conversación — ${d.get("empresa")}`;
-    const body = [["nombre", "nombre"], ["teléfono", "cargo"], ["empresa", "empresa"], ["email", "email"], ["tamaño", "tamano"], ["interés", "interes"]].map(([label, k]) => `${label}: ${d.get(k)}`).join("\n") + `\n\n${d.get("mensaje")}`;
+    const body = [["nombre", "nombre"], ["cargo", "cargo"], ["teléfono", "telefono"], ["empresa", "empresa"], ["email", "email"], ["tamaño", "tamano"], ["interés", "interes"]].map(([label, k]) => `${label}: ${d.get(k)}`).join("\n") + `\n\n${d.get("mensaje")}`;
     window.location.href = `mailto:info@sobtree.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     setStatus("Se ha abierto tu correo con la solicitud preparada. Envíala desde allí.", "ok");
+  }
+
+  // Momento de carga del formulario (antispam: los envíos instantáneos se descartan en el servidor).
+  const stamp = () => { contact.elements.t0.value = String(Date.now()); };
+  stamp();
+
+  // Copia el origen de la visita (origen.js) en los campos ocultos justo antes de enviar.
+  function fillOrigin() {
+    const f = contact.elements;
+    let o = {};
+    try { o = JSON.parse(sessionStorage.getItem("sobtree_origen") || "{}") || {}; } catch (e) {}
+    f.origen_pagina.value = location.href.split("#")[0].slice(0, 500);
+    f.origen_landing.value = o.landing || "";
+    f.origen_referrer.value = o.referrer || "";
+    ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"].forEach((k) => { f[k].value = (o.utm && o.utm[k]) || ""; });
   }
 
   contact.addEventListener("submit", async (e) => {
     e.preventDefault();
     let firstInvalid = null;
-    $$("input:not([type=checkbox]):not([name=web]), select, textarea", contact).forEach((el) => {
+    $$("input[required]:not([type=checkbox]), select[required], textarea[required]", contact).forEach((el) => {
       const ok = el.checkValidity() && el.value.trim() !== "";
       el.setAttribute("aria-invalid", String(!ok));
       if (!ok && !firstInvalid) firstInvalid = el;
@@ -139,6 +160,7 @@
       firstInvalid.focus();
       return;
     }
+    fillOrigin();
     const data = new FormData(contact);
     const btn = $("button[type=submit]", contact);
     btn.disabled = true; btn.textContent = "Enviando…";
@@ -148,6 +170,10 @@
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.ok) throw new Error(json.error || "server");
       contact.reset();
+      // Los campos ocultos no vuelven a su valor inicial con reset(): los limpiamos a mano.
+      $$('input[type=hidden]', contact).forEach((el) => { el.value = ""; });
+      contact.elements.tipo_formulario.value = "contacto";
+      stamp();
       setStatus("Solicitud enviada. Te responderemos en menos de 24 horas laborables.", "ok");
     } catch (err) {
       if (err.message === "local" || err.message === "server" || err instanceof TypeError) mailtoFallback(data);

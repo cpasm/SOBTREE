@@ -405,6 +405,7 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .consent a { color: #fff; }
 .consent.invalid span { color: #ffb4ab; }
 .hp { position: absolute !important; left: -9999px; }
+.opt { font-weight: 400; opacity: .7; }
 .contact .btn { justify-self: start; }
 .form-status { font-size: 15px; min-height: 1.5em; color: var(--text-2); }
 .form-status.ok { color: var(--ok); }
