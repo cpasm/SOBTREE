@@ -6,6 +6,28 @@ RewriteCond %{HTTP_HOST} ^btc\.sobtree\.com$ [NC]
 RewriteRule ^ https://sobtree.com/ [R=301,L]
 RewriteRule ^(btc|principles)(/.*)?$ https://sobtree.com/ [R=301,L,NC]
 
+# URLs del sitio anterior sin equivalente en la web actual (IA para pymes).
+# 410 Gone para que Google las retire. No van a la home: sería un soft 404.
+# - infraestructura-slida-...: entrada antigua sobre Bitcoin. No hay artículo ni sección equivalente.
+# - /invest: página de inversión o tesoro. No es /#servicios ni la calculadora.
+# - /principles-sobtree: la sección de principios se retiró. /principles (regla de arriba)
+#   ya va a la home; este slug no corresponde a ninguna página de ahora.
+# - /index_en.html y /en/index.html: no existe versión en inglés.
+RewriteRule ^infraestructura-slida-para-el-futuro-de-bitcoin/?$ - [G,L,NC]
+RewriteRule ^invest/?$ - [G,L,NC]
+RewriteRule ^principles-sobtree/?$ - [G,L,NC]
+RewriteRule ^index_en\.html$ - [G,L,NC]
+RewriteRule ^en/index\.html$ - [G,L,NC]
+
+# /index.html (portada o cualquier subpágina) sirve el mismo HTML que la URL de
+# directorio y Google lo cuenta como canónica alternativa. THE_REQUEST evita
+# un bucle con el DirectoryIndex interno.
+RewriteCond %{THE_REQUEST} /index\.html[\s?] [NC]
+RewriteRule ^(.*)index\.html$ https://sobtree.com/$1 [R=301,L]
+
+# No hay página /contacto: el formulario está en la portada, ancla #contacto.
+RewriteRule ^contacto/?$ https://sobtree.com/#contacto [R=301,L,NE,NC,QSD]
+
 # Forzar HTTPS
 RewriteCond %{HTTPS} off
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
