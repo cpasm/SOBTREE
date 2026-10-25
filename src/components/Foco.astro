@@ -12,7 +12,7 @@ const NODOS = [
 ];
 const COMO = [
   { n: "2–3 sem", dot: true, b: "Primer caso de uso", t: "Funcionando, no en un PowerPoint", href: "#metodo", go: "Cómo" },
-  { n: "60 €/h", dot: false, b: "Precio transparente", t: "Sabes las horas antes de empezar", href: "#servicios", go: "Precios" },
+  { n: "360 €", dot: false, b: "Precio cerrado", t: "Sabes lo que pagas antes de empezar", href: "#servicios", go: "Precios" },
   { n: "0 €", dot: false, b: "En comisiones", t: "No revendemos licencias", href: "#por-que", go: "Por qué" }
 ];
 // Logo oficial si existe en public/img/logos/ia/; si no, el nombre en texto.
@@ -24,7 +24,7 @@ const ias = IAS.map((i) => ({ ...i, logo: logoDe(i.slug) }));
   <div class="foco-spot" aria-hidden="true"></div>
   <div class="wrap">
     <div class="foco-copy">
-      <p class="kicker">IA para pymes · precio transparente: 60 €/h</p>
+      <p class="kicker">IA para pymes · precio cerrado, sin sorpresas</p>
       <h1 id="foco-title">Implanta IA en tu empresa <span class="hl">sin pagar pastizales<svg viewBox="0 0 300 20" preserveAspectRatio="none" aria-hidden="true"><path d="M3 14 C 60 4, 120 4, 180 10 S 270 16, 297 6"></path></svg></span>.</h1>
       <p class="foco-sub">Antes de empezar te decimos cuánto vas a ahorrar y cuánto te va a costar. Tu primer caso de uso, funcionando en 2–3 semanas con herramientas que ya existen.</p>
       <div class="foco-actions">

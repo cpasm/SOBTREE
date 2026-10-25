@@ -19,14 +19,14 @@ export const GET: APIRoute = async () => {
     text: lines(
       SITE.description,
       "Sobtree ayuda a pequeñas y medianas empresas a implantar IA en su día a día: atención al cliente, presupuestos, facturas, marketing e informes. Usa herramientas que ya existen (ChatGPT, Claude, Gemini, Microsoft Copilot y automatizaciones sencillas) y las deja funcionando, con el equipo formado.",
-      `Precio transparente: ${SITE.rate} €/hora, IVA no incluido. Las horas se cierran antes de empezar. Sobtree no cobra comisiones por las licencias de IA: las paga el cliente directamente al proveedor.`,
-      "Cobra menos porque trabaja casi todo con IA: menos horas de trabajo, menos factura.",
+      `Precio cerrado, IVA no incluido: se fija antes de empezar y no hay extras. Sobtree no cobra comisiones por las licencias de IA: las paga el cliente directamente al proveedor.`,
+      "Cobra menos porque trabaja casi todo con IA: tarda menos y eso se nota en el precio. Sobtree no publica ni factura por horas.",
       "Sede en Madrid; trabaja en remoto para toda España, en español e inglés. No está afiliada a Anthropic, OpenAI, Google ni Microsoft.",
       "",
       "Servicios:",
       ...SERVICES.map((s) => `- ${s.name} (${s.duration}): ${s.description}`),
       "",
-      "El punto de entrada recomendado es el Diagnóstico IA exprés: 1 semana, 6 horas, 360 €. Dice qué tareas automatizar primero, cuánto ahorrarías y cuánto costaría ponerlo en marcha."
+      "El punto de entrada recomendado es el Diagnóstico IA exprés: 1 semana, 360 € precio cerrado. Dice qué tareas automatizar primero, cuánto ahorrarías y cuánto costaría ponerlo en marcha."
     )
   });
 
@@ -63,7 +63,7 @@ export const GET: APIRoute = async () => {
     text: lines(
       "La calculadora de la web (sobtree.com/calculadora/) hace 5 preguntas: sector, número de personas, horas por persona y semana en tareas repetitivas, coste medio por hora y qué áreas automatizar (atención al cliente, presupuestos y ventas, facturas y administración, marketing y contenidos, informes y documentos).",
       "Horas repetitivas al año = personas × horas por semana × 46 semanas. La IA puede ahorrar de un 20–38 % de ese tiempo (una sola área) a un 40–65 % (las cinco áreas). Ahorro = horas ahorradas × coste por hora.",
-      `Lo que cobraría Sobtree: diagnóstico (6 h) + puesta en marcha de cada área (8–20 h) + formación (2–6 h), a ${SITE.rate} €/h, un 25 % más si la empresa tiene más de 50 personas. Por ejemplo, 8 personas y dos áreas: entre 1.560 € y 2.640 € aproximadamente.`,
+      `Precio cerrado orientativo de Sobtree: diagnóstico 360 € + puesta en marcha 600–1.200 € la primera área y 480–840 € cada área adicional + formación 120–360 €, un 25 % más si la empresa tiene más de 50 personas. Por ejemplo, 8 personas y dos áreas: entre 1.560 € y 2.640 € aproximadamente.`,
       "Licencias de IA: unos 20–30 € por usuario y mes, para aproximadamente la mitad de la plantilla; las paga el cliente al proveedor.",
       "También calcula en cuántos meses se recupera la inversión con el escenario prudente. Es una estimación orientativa, sin IVA; el diagnóstico la ajusta a cada caso."
     )

@@ -1,12 +1,13 @@
-// Calculadora para pymes (/calculadora/): horquilla de ahorro anual con IA y de lo que cobraríamos (60 €/h).
-// Mismo modelo de horas que los servicios publicados (src/data/site.ts). Todos los supuestos se muestran en la página.
+// Calculadora para pymes (/calculadora/): horquilla de ahorro anual con IA y precio cerrado orientativo.
+// Mismas tarifas que los servicios publicados (src/data/site.ts). Todos los supuestos se muestran en la página.
 (() => {
   "use strict";
   const $ = (s) => document.querySelector(s);
   const form = $("#calc");
   if (!form) return;
 
-  const RATE = 60;          // €/hora
+  // Precio cerrado por pieza, en euros [bajo, alto], sin IVA
+  const PRICE = { diag: [360, 360], first: [600, 1200], extra: [480, 840], train: [[120, 240], [240, 360]] };
   const WEEKS = 46;         // semanas efectivas al año
   const eur = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0, useGrouping: "always" });
   const nf = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0, useGrouping: "always" });
@@ -31,11 +32,11 @@
     const horasAno = personas * horas * WEEKS;
     const saveLo = horasAno * shareLo * coste, saveHi = horasAno * shareHi * coste;
 
-    // Nuestro trabajo: diagnóstico + primera área + áreas adicionales + formación (más grande si la plantilla crece)
+    // Precio cerrado: diagnóstico + primera área + áreas adicionales + formación (más si la plantilla crece)
     const big = personas > 50 ? 1.25 : 1;
-    const hLo = Math.round((6 + 10 + 8 * (n - 1) + (personas > 25 ? 4 : 2)) * big);
-    const hHi = Math.round((6 + 20 + 14 * (n - 1) + (personas > 25 ? 6 : 4)) * big);
-    const feeLo = round(hLo * RATE, 30), feeHi = round(hHi * RATE, 30);
+    const train = PRICE.train[personas > 25 ? 1 : 0];
+    const fee = (i) => round((PRICE.diag[i] + PRICE.first[i] + PRICE.extra[i] * (n - 1) + train[i]) * big, 10);
+    const feeLo = fee(0), feeHi = fee(1);
 
     // Licencias de IA: ~20–30 €/usuario/mes para la mitad de la plantilla
     const users = Math.max(1, Math.ceil(personas * 0.5));
@@ -50,7 +51,6 @@
     $("#r-hours").textContent = `${nf.format(horasAno * shareLo / 12)}–${nf.format(horasAno * shareHi / 12)}`;
     $("#r-fee-lo").textContent = eur.format(feeLo);
     $("#r-fee-hi").textContent = eur.format(feeHi);
-    $("#r-fee-h").textContent = `${hLo}–${hHi} horas`;
     $("#r-lic").textContent = `${eur.format(licLo)}–${eur.format(licHi)}`;
     $("#a-share").textContent = `entre un ${Math.round(shareLo * 100)} % y un ${Math.round(shareHi * 100)} %`;
     $("#r-payback").textContent = !isFinite(payback) ? "más de un año" : payback < 1 ? "menos de 1 mes" : payback > 12 ? "más de un año" : `unos ${Math.ceil(payback)} ${Math.ceil(payback) === 1 ? "mes" : "meses"}`;
@@ -61,7 +61,7 @@
     $("#b-save").style.width = `${(save1 / max) * 100}%`;
     $("#b-cost").style.width = `${(cost1 / max) * 100}%`;
 
-    last = { sector, personas, horas, coste, areas: areas.map((a) => a.dataset.name), saveLo, saveHi, feeLo, feeHi, hLo, hHi };
+    last = { sector, personas, horas, coste, areas: areas.map((a) => a.dataset.name), saveLo, saveHi, feeLo, feeHi };
   }
 
   form.addEventListener("input", calc);
@@ -75,7 +75,7 @@
     try {
       sessionStorage.setItem("sobtree_prefill", JSON.stringify({
         interes: "Diagnóstico IA exprés",
-        mensaje: `He usado la calculadora. Sector: ${last.sector}. ${last.personas} personas, ${last.horas} h/semana en tareas repetitivas, ${last.coste} €/h. Quiero automatizar: ${last.areas.join(", ") || "por decidir"}. Ahorro estimado: ${eur.format(round(last.saveLo, 100))}–${eur.format(round(last.saveHi, 100))} al año. Presupuesto orientativo: ${eur.format(last.feeLo)}–${eur.format(last.feeHi)} (${last.hLo}–${last.hHi} h).`
+        mensaje: `He usado la calculadora. Sector: ${last.sector}. ${last.personas} personas, ${last.horas} h/semana en tareas repetitivas, ${last.coste} €/h. Quiero automatizar: ${last.areas.join(", ") || "por decidir"}. Ahorro estimado: ${eur.format(round(last.saveLo, 100))}–${eur.format(round(last.saveHi, 100))} al año. Precio cerrado orientativo: ${eur.format(last.feeLo)}–${eur.format(last.feeHi)}.`
       }));
     } catch (e) {}
   });

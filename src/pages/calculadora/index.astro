@@ -1,6 +1,6 @@
 ---
 import Base from "../../layouts/Base.astro";
-import { SITE, BUILD_VERSION } from "../../data/site";
+import { BUILD_VERSION } from "../../data/site";
 import { graph, organization, website } from "../../data/schema";
 
 const SECTORES = ["Comercio", "Hostelería", "Despacho o asesoría", "Clínica o salud", "Industria o distribución", "Inmobiliaria", "Otro"];
@@ -12,7 +12,7 @@ const AREAS = [
   { id: "informes", name: "Informes y documentos", hint: "Resúmenes, actas, informes, búsquedas" }
 ];
 ---
-<Base title="Calcula tu ahorro con IA (y cuánto te costaría) | Sobtree" description="Calculadora gratuita para pymes: en 5 preguntas, cuánto puedes ahorrar implantando IA en tu empresa y cuánto te costaría, con precios transparentes a 60 €/hora." jsonld={graph(organization(), website())}>
+<Base title="Calcula tu ahorro con IA (y cuánto te costaría) | Sobtree" description="Calculadora gratuita para pymes: en 5 preguntas, cuánto puedes ahorrar implantando IA en tu empresa y cuánto te costaría, a precio cerrado y sin letra pequeña." jsonld={graph(organization(), website())}>
 <main id="main" class="section page-tight calc-page">
   <div class="wrap">
     <div class="section-head">
@@ -68,9 +68,9 @@ const AREAS = [
           <p class="res-sub"><span id="r-hours">—</span> horas recuperadas al mes</p>
         </div>
         <div class="res res-cost">
-          <p class="res-k">Lo que te cobraríamos</p>
+          <p class="res-k">Lo que te costaría (precio cerrado)</p>
           <p class="res-v sm"><span id="r-fee-lo">—</span> – <span id="r-fee-hi">—</span></p>
-          <p class="res-sub"><span id="r-fee-h">—</span> a {SITE.rate} €/h, una sola vez · sin IVA</p>
+          <p class="res-sub">Pago único · sin IVA · te lo cerramos tras el diagnóstico</p>
         </div>
         <div class="res res-lic">
           <p class="res-k">Licencias de IA (las pagas tú al proveedor)</p>
@@ -87,7 +87,7 @@ const AREAS = [
           <ul>
             <li>Horas repetitivas al año = personas × horas por semana × 46 semanas.</li>
             <li>La IA puede ahorrar <span id="a-share">—</span> de ese tiempo según cuántas áreas automatices. Es una estimación orientativa: el diagnóstico la ajusta a tu caso.</li>
-            <li>Nuestro trabajo: diagnóstico (6 h) + puesta en marcha de cada área (8–20 h) + formación (2–6 h), a {SITE.rate} €/h.</li>
+            <li>Nuestro precio: diagnóstico (360 €) + puesta en marcha de la primera área (600–1.200 €) y de cada área más (480–840 €) + formación del equipo (120–360 €). Más de 50 personas: +25 %. El precio final, cerrado, te lo damos tras el diagnóstico.</li>
             <li>Licencias: unos 20–30 € por usuario y mes según proveedor y plan (ChatGPT, Claude, Gemini o Copilot), para la mitad de la plantilla aprox.</li>
             <li>No incluye IVA ni el impacto en ventas o satisfacción de clientes, que suele sumar más.</li>
           </ul>

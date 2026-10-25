@@ -2,7 +2,7 @@
 
 Dirección elegida: **F · Foco** (octubre de 2026). Azul marino y blanco, tipografía Open Sans, bordes redondeados, movimiento que responde al ratón y un tono directo, agresivo con el precio de las grandes consultoras.
 
-Posicionamiento (octubre de 2026): **IA para pymes con precio transparente**. 60 €/hora, horas cerradas antes de empezar, 0 € en comisiones de licencias. Lectores: dueños y gerentes de pequeñas y medianas empresas, no técnicos. Nada de Salesforce.
+Posicionamiento (octubre de 2026): **IA para pymes con precio transparente**. Siempre **precio cerrado** (nunca se muestran tarifas por hora ni horas de trabajo; la tarifa interna no sale en la web), 0 € en comisiones de licencias. Lectores: dueños y gerentes de pequeñas y medianas empresas, no técnicos. Nada de Salesforce.
 
 Todo lo que se añada a la web sigue esta guía. Los valores viven en `public/assets/styles.css` (`:root`); si cambias uno, cámbialo aquí también.
 
@@ -19,7 +19,7 @@ Todo lo que se añada a la web sigue esta guía. Los valores viven en `public/as
 
 ### Tono
 - Directo, agresivo con el sobrecoste y nunca con personas o empresas concretas: «¿Cansado de consultoras que cobran pastizales?» sí; nombres de competidores, no.
-- Se habla de tú. Frases cortas. Cifras siempre verificables (60 €/h, 360 € el diagnóstico, 2–3 semanas, 0 € en comisiones, ejemplos de los análisis). Transparencia total en coste y ahorro: si damos un ahorro, damos también lo que cuesta.
+- Se habla de tú. Frases cortas. Cifras siempre verificables (360 € el diagnóstico a precio cerrado, 2–3 semanas, 0 € en comisiones, ejemplos de los análisis). Transparencia total en coste y ahorro: si damos un ahorro, damos también lo que cuesta.
 - Lenguaje de pyme: tareas, horas, euros. Sin jerga técnica; si hace falta un término, se explica.
 - Nada de promesas no medibles («resultados garantizados»). Si no hay dato, no hay cifra.
 - La expresión destacada del titular (p. ej. «cobran pastizales») va en `--accent` con el subrayado dibujado.
@@ -86,16 +86,16 @@ Reglas:
 
 En escritorio (≥1280×800) la primera pantalla muestra, sin hacer scroll:
 1. Cabecera con el lockup, la pestaña destacada **«Calcula tu ahorro»** (píldora, `/calculadora/`) y «Reservar 25 min».
-2. Antetítulo («IA para pymes · precio transparente: 60 €/h»), titular y una frase de apoyo.
+2. Antetítulo («IA para pymes · precio cerrado, sin sorpresas»), titular y una frase de apoyo.
 3. Dos acciones: **Calcula tu ahorro** (primaria) y **Reservar 25 min**.
 4. Diagrama interactivo horizontal (Tus tareas → Caso de uso → IA → Tu equipo).
-5. «Cómo lo hacemos»: tres tarjetas (2–3 sem. · 60 €/h · 0 €).
+5. «Cómo lo hacemos»: tres tarjetas (2–3 sem. · 360 € precio cerrado · 0 €).
 6. Franja «Trabajamos con»: Claude, ChatGPT, Gemini y Copilot.
 
 Los artículos empiezan justo debajo, en una sección blanca con esquinas superiores redondeadas. La calculadora vive en `/calculadora/`, no en la portada.
 
 ### Calculadora (`/calculadora/`)
-Cinco preguntas visuales (sector en chips, personas, horas repetitivas y coste por hora con deslizadores, áreas a automatizar en tarjetas) y un panel de resultado fijo: ahorro anual (tarjeta oscura), lo que cobraríamos a 60 €/h con las horas, licencias al mes, barras ahorro frente a inversión del primer año, meses para recuperarlo y «Cómo lo calculamos» desplegable. El modelo está en `public/assets/roi.js` y se explica en la propia página. El botón final rellena el formulario de contacto con los números (punto de enganche para el futuro CRM vía n8n).
+Cinco preguntas visuales (sector en chips, personas, horas repetitivas y coste por hora con deslizadores, áreas a automatizar en tarjetas) y un panel de resultado fijo: ahorro anual (tarjeta oscura), lo que costaría a precio cerrado (sin horas), licencias al mes, barras ahorro frente a inversión del primer año, meses para recuperarlo y «Cómo lo calculamos» desplegable. El modelo está en `public/assets/roi.js` y se explica en la propia página. El botón final rellena el formulario de contacto con los números (punto de enganche para el futuro CRM vía n8n).
 
 ---
 

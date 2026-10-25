@@ -6,7 +6,7 @@ import { getAnalisis, getRadar } from "./content";
 
 const STEPS = [
   "Llamada de 25 minutos, gratis: entendemos tu empresa y te decimos si la IA te compensa.",
-  "Diagnóstico IA exprés (1 semana, 6 h, 360 €): qué tareas automatizar, cuánto ahorras y cuánto cuesta.",
+  "Diagnóstico IA exprés (1 semana, 360 € precio cerrado): qué tareas automatizar, cuánto ahorras y cuánto cuesta.",
   "Puesta en marcha (2–3 semanas): el primer caso de uso funcionando y tu equipo formado.",
   "Cada mes, si quieres: medimos el ahorro y vamos a por la siguiente tarea."
 ];
@@ -19,8 +19,8 @@ export async function buildLlms(full: boolean) {
   out.push(`# ${SITE.name}`, "", `> ${SITE.description}`, "");
   out.push(
     "Sobtree ayuda a pequeñas y medianas empresas a implantar IA (ChatGPT, Claude, Gemini, Microsoft Copilot y automatizaciones). " +
-    "Precio transparente: 60 €/hora, con las horas cerradas antes de empezar, y sin comisiones de licencias. Trabaja casi todo con IA, por eso cobra menos. " +
-    "El punto de entrada es un diagnóstico IA exprés de 1 semana (6 h, 360 €). Sede en Madrid; trabaja en remoto para toda España.",
+    "Precio cerrado antes de empezar, sin extras, y sin comisiones de licencias. Trabaja casi todo con IA, por eso cobra menos. " +
+    "El punto de entrada es un diagnóstico IA exprés de 1 semana (360 €). Sede en Madrid; trabaja en remoto para toda España.",
     ""
   );
 
@@ -30,7 +30,7 @@ export async function buildLlms(full: boolean) {
 
   out.push("## Páginas", "");
   out.push(`- [Inicio](${SITE.url}/): servicios, casos de uso por sector, método de trabajo, autodiagnóstico, FAQ y contacto.`);
-  out.push(`- [Calculadora de ahorro](${SITE.url}/calculadora/): en 5 preguntas, horquilla de ahorro anual con IA y presupuesto orientativo de implantación a 60 €/hora.`);
+  out.push(`- [Calculadora de ahorro](${SITE.url}/calculadora/): en 5 preguntas, horquilla de ahorro anual con IA y precio cerrado orientativo de la implantación.`);
   if (posts.length) out.push(`- [Análisis](${SITE.url}/analisis/): guías para implantar IA en una pyme: por dónde empezar, costes, ahorro y ley de IA.`);
   if (radar.length) out.push(`- [Radar](${SITE.url}/radar/): entrega semanal con las novedades de IA que importan a una pyme.`);
   out.push("");

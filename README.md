@@ -10,7 +10,7 @@ src/components/Foco.astro      Primera pantalla: titular, diagrama interactivo, 
 src/components/Articulos.astro Artículo destacado con portada y resumen + lista
 src/components/Asistente.astro Burbuja «Deja tu nombre y comienza a ahorrar» y diálogo del asistente
 src/components/Cover.astro     Portada de artículo (imagen o ilustración generada)
-src/pages/calculadora/         Calculadora: ahorro con IA y presupuesto a 60 €/h (modelo en public/assets/roi.js)
+src/pages/calculadora/         Calculadora: ahorro con IA y precio cerrado orientativo (tarifas en public/assets/roi.js)
 src/data/confianza.ts          IA de la franja «Trabajamos con» (logos opcionales en public/img/logos/ia/)
 src/pages/analisis/            Listado y página de cada análisis
 src/pages/radar/               Listado y página de cada entrega del Radar
@@ -18,7 +18,7 @@ src/pages/privacidad.astro     Privacidad y aviso legal
 src/pages/llms.txt.ts          /llms.txt y /llms-full.txt, generados desde los datos de la web
 src/content/analisis/          Análisis en .md/.mdx (ver plantilla.mdx)
 src/content/radar/             Radar semanal en .md/.mdx (ver plantilla.mdx)
-src/data/site.ts               Datos de la empresa, tarifa (60 €/h), servicios con horas y precio, y autor
+src/data/site.ts               Datos de la empresa, servicios con precio cerrado y autor
 src/data/faq.ts                Preguntas frecuentes (alimentan el FAQ visible, el JSON-LD y llms.txt)
 src/data/schema.ts             Datos estructurados schema.org
 src/layouts/Base.astro         <head>, cabecera y pie comunes
