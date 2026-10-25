@@ -1,4 +1,4 @@
-// Prueba opcional en navegador (local): requiere puppeteer-core y Chrome. Ver README de tests/leads.
+// Prueba opcional en navegador (local): requiere `npm i puppeteer-core`, Chrome y la web compilada (dist/) servida con php -S en 127.0.0.1:18090 junto al webhook simulado en 18091.
 import puppeteer from "puppeteer-core";
 const B = "http://127.0.0.1:18090";
 const browser = await puppeteer.launch({ executablePath: "/usr/bin/google-chrome", args: ["--no-sandbox"], headless: true });
