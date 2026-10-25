@@ -6,12 +6,12 @@ import { graph, organization, website } from "../../data/schema";
 
 const items = await getAnalisis();
 ---
-<Base title="Análisis de IA y Salesforce | Sobtree" description="Análisis independientes sobre Agentforce, Data 360 y cómo sacar retorno de la IA en Salesforce." jsonld={graph(organization(), website())}>
+<Base title="Artículos sobre IA para pymes | Sobtree" description="Guías prácticas para implantar IA en tu empresa: por dónde empezar, cuánto cuesta, cuánto ahorras y qué dice la ley." jsonld={graph(organization(), website())}>
   <main id="main" class="section page-tight">
     <div class="wrap">
       <div class="section-head">
         <p class="eyebrow">Análisis</p>
-        <h1 class="page-title">Lo que vemos en los proyectos de IA y Salesforce</h1>
+        <h1 class="page-title">Guías para implantar IA en tu pyme</h1>
       </div>
       {items.length === 0
         ? <p class="section-sub">Pronto publicaremos los primeros análisis.</p>

@@ -82,7 +82,7 @@
     setCard(false);
     if (!chat.open) chat.showModal();
     if (!log.childElementCount) {
-      bubble("bot", `<p><strong>${name ? `Hola, ${esc(name)}.` : "Hola."}</strong> Vamos a por ese ahorro. ¿Dónde crees que estás pagando de más: licencias, integrador o un piloto que no avanza?</p>`);
+      bubble("bot", `<p><strong>${name ? `Hola, ${esc(name)}.` : "Hola."}</strong> Vamos a por ese ahorro. ¿En qué tareas se os va más tiempo cada semana: emails, presupuestos, facturas…?</p>`);
     }
     $("#chat-q").focus();
   }

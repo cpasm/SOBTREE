@@ -1,6 +1,6 @@
 ---
 // Portada de artículo (DESIGN.md §9): la imagen del frontmatter o, si no hay, una ilustración
-// de marca según el tema: ahorro, radar, agentes de IA o dato unificado (Salesforce + IA).
+// de marca según el tema: ahorro, radar, IA o datos.
 interface Props { title: string; src?: string; alt?: string; tema?: "ahorro" | "radar" | "ia" | "datos" }
 const { title, src, alt = "", tema = "datos" } = Astro.props;
 

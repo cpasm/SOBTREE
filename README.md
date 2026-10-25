@@ -1,4 +1,4 @@
-# Sobtree — web de servicios IA × Salesforce
+# Sobtree — IA para pymes con precio transparente
 
 Sitio estático generado con [Astro](https://astro.build). **Diseño y maquetación: [DESIGN.md](DESIGN.md)** (colores, tipografía, componentes, movimiento, responsive y línea editorial). El contenido se escribe en Markdown/MDX y cada push a `main` compila la web y la sube a Hostinger.
 
@@ -10,15 +10,15 @@ src/components/Foco.astro      Primera pantalla: titular, diagrama interactivo, 
 src/components/Articulos.astro Artículo destacado con portada y resumen + lista
 src/components/Asistente.astro Burbuja «Deja tu nombre y comienza a ahorrar» y diálogo del asistente
 src/components/Cover.astro     Portada de artículo (imagen o ilustración generada)
-src/pages/calculadora/         Calculadora de ahorro
-src/data/confianza.ts          Logos de la franja de confianza (solo con permiso)
+src/pages/calculadora/         Calculadora: ahorro con IA y presupuesto a 60 €/h (modelo en public/assets/roi.js)
+src/data/confianza.ts          IA de la franja «Trabajamos con» (logos opcionales en public/img/logos/ia/)
 src/pages/analisis/            Listado y página de cada análisis
 src/pages/radar/               Listado y página de cada entrega del Radar
 src/pages/privacidad.astro     Privacidad y aviso legal
 src/pages/llms.txt.ts          /llms.txt y /llms-full.txt, generados desde los datos de la web
 src/content/analisis/          Análisis en .md/.mdx (ver plantilla.mdx)
 src/content/radar/             Radar semanal en .md/.mdx (ver plantilla.mdx)
-src/data/site.ts               Datos de la empresa, servicios y autor
+src/data/site.ts               Datos de la empresa, tarifa (60 €/h), servicios con horas y precio, y autor
 src/data/faq.ts                Preguntas frecuentes (alimentan el FAQ visible, el JSON-LD y llms.txt)
 src/data/schema.ts             Datos estructurados schema.org
 src/layouts/Base.astro         <head>, cabecera y pie comunes
@@ -58,7 +58,7 @@ Zapier recibe `email`, `consentimiento`, `texto_consentimiento`, `origen` (pági
 
 ## Radar y artículo semanal
 
-Cada lunes a las 8:00 (hora de Madrid) una rutina en la nube prepara el Radar de la semana y un artículo para CIOs, y abre un pull request «¿Publicar? …» con el texto completo. Te llega un email.
+Cada lunes a las 8:00 (hora de Madrid) una rutina en la nube prepara el Radar de la semana y un artículo práctico de IA para pymes, y abre un pull request «¿Publicar? …» con el texto completo. Te llega un email.
 
 - **Publicar:** abre el PR y escribe **OK** en un comentario (vale también «publicar» o «súbelo»). La acción `publicar-con-ok.yml` fusiona el PR y despliega la web en 1–2 minutos. Pulsar «Merge» en GitHub hace lo mismo.
 - **Descartar:** cierra el PR.

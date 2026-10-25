@@ -5,10 +5,10 @@ import { FAQ } from "./faq";
 import { getAnalisis, getRadar } from "./content";
 
 const STEPS = [
-  "Diagnóstico (semanas 1–3): entrevistas con negocio y auditoría de la org y del dato.",
-  "Business case (semana 4): uno o dos casos priorizados con KPI de negocio, coste y plazo aprobados por dirección.",
-  "Construcción (semanas 5–12): entregas cada dos semanas en entorno real con métricas visibles.",
-  "Escala (mes 4 en adelante): lo que funciona se extiende y el equipo del cliente se queda con el conocimiento."
+  "Llamada de 25 minutos, gratis: entendemos tu empresa y te decimos si la IA te compensa.",
+  "Diagnóstico IA exprés (1 semana, 6 h, 360 €): qué tareas automatizar, cuánto ahorras y cuánto cuesta.",
+  "Puesta en marcha (2–3 semanas): el primer caso de uso funcionando y tu equipo formado.",
+  "Cada mes, si quieres: medimos el ahorro y vamos a por la siguiente tarea."
 ];
 
 export async function buildLlms(full: boolean) {
@@ -18,9 +18,9 @@ export async function buildLlms(full: boolean) {
 
   out.push(`# ${SITE.name}`, "", `> ${SITE.description}`, "");
   out.push(
-    "Sobtree es una consultora independiente: no revende licencias ni cobra comisiones de Salesforce ni de otros fabricantes. " +
-    "Trabaja en español e inglés para empresas de España, Europa y Latinoamérica. Sede en Madrid. " +
-    "El punto de entrada es un diagnóstico de valor de 3 semanas a precio cerrado.",
+    "Sobtree ayuda a pequeñas y medianas empresas a implantar IA (ChatGPT, Claude, Gemini, Microsoft Copilot y automatizaciones). " +
+    "Precio transparente: 60 €/hora, con las horas cerradas antes de empezar, y sin comisiones de licencias. Trabaja casi todo con IA, por eso cobra menos. " +
+    "El punto de entrada es un diagnóstico IA exprés de 1 semana (6 h, 360 €). Sede en Madrid; trabaja en remoto para toda España.",
     ""
   );
 
@@ -30,9 +30,9 @@ export async function buildLlms(full: boolean) {
 
   out.push("## Páginas", "");
   out.push(`- [Inicio](${SITE.url}/): servicios, casos de uso por sector, método de trabajo, autodiagnóstico, FAQ y contacto.`);
-  out.push(`- [Calculadora de ahorro](${SITE.url}/calculadora/): ahorro operativo estimado de un agente de IA en atención al cliente.`);
-  if (posts.length) out.push(`- [Análisis](${SITE.url}/analisis/): artículos sobre IA y Salesforce.`);
-  if (radar.length) out.push(`- [Radar](${SITE.url}/radar/): entrega semanal con las noticias de Salesforce e IA que importan y su lectura.`);
+  out.push(`- [Calculadora de ahorro](${SITE.url}/calculadora/): en 5 preguntas, horquilla de ahorro anual con IA y presupuesto orientativo de implantación a 60 €/hora.`);
+  if (posts.length) out.push(`- [Análisis](${SITE.url}/analisis/): guías para implantar IA en una pyme: por dónde empezar, costes, ahorro y ley de IA.`);
+  if (radar.length) out.push(`- [Radar](${SITE.url}/radar/): entrega semanal con las novedades de IA que importan a una pyme.`);
   out.push("");
 
   if (posts.length) {

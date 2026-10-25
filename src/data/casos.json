@@ -1,163 +1,50 @@
 {
-  "seguros": {
-    "nombre": "Seguros",
+  "comercio": {
+    "nombre": "Comercio y tienda online",
     "casos": [
-      {
-        "area": "Servicio",
-        "titulo": "Primer aviso de siniestro",
-        "descripcion": "Un agente registra el parte por cualquier canal, recoge la documentación, abre el expediente y mantiene informado al cliente. El tramitador entra solo en los casos complejos.",
-        "kpis": [
-          "Tiempo de apertura",
-          "Contactos evitados",
-          "NPS"
-        ]
-      },
-      {
-        "area": "Ventas",
-        "titulo": "Renovaciones y retención",
-        "descripcion": "Data 360 detecta señales de riesgo de baja y Agentforce lanza la acción adecuada: oferta personalizada, revisión de coberturas o llamada del mediador.",
-        "kpis": [
-          "Tasa de retención",
-          "Prima retenida"
-        ]
-      },
-      {
-        "area": "Red comercial",
-        "titulo": "Copiloto del mediador",
-        "descripcion": "Antes de cada visita, el mediador recibe un resumen del cliente, su cartera y las oportunidades de venta cruzada con argumentario.",
-        "kpis": [
-          "Pólizas por cliente",
-          "Tiempo de preparación"
-        ]
-      }
+      { "area": "Atención al cliente", "titulo": "Respuestas a clientes 24/7", "descripcion": "Un asistente responde por web, WhatsApp o email las preguntas de siempre (envíos, devoluciones, tallas, horarios) y pasa a una persona solo lo que lo necesita.", "kpis": ["Consultas resueltas sin intervención", "Tiempo de respuesta"] },
+      { "area": "Ventas", "titulo": "Fichas de producto en minutos", "descripcion": "La IA redacta descripciones, títulos y textos para redes a partir de una foto y cuatro datos del producto.", "kpis": ["Horas por catálogo", "Productos publicados"] },
+      { "area": "Gestión", "titulo": "Pedidos e inventario sin teclear", "descripcion": "Albaranes y pedidos de proveedores leídos automáticamente y pasados a tu hoja o programa de gestión.", "kpis": ["Errores de introducción", "Horas administrativas"] }
     ]
   },
-  "retail": {
-    "nombre": "Retail",
+  "hosteleria": {
+    "nombre": "Hostelería y turismo",
     "casos": [
-      {
-        "area": "Atención",
-        "titulo": "Pedidos, cambios y devoluciones",
-        "descripcion": "Un agente resuelve el estado del pedido, gestiona cambios y devoluciones y emite reembolsos dentro de la política, sin pasar por el contact center.",
-        "kpis": [
-          "Resolución sin agente",
-          "Coste por contacto"
-        ]
-      },
-      {
-        "area": "Marketing",
-        "titulo": "Personalización en tiempo real",
-        "descripcion": "Señales de navegación y compra unificadas activan journeys de carrito abandonado, reposición y recomendación en el canal correcto.",
-        "kpis": [
-          "Conversión",
-          "Ticket medio"
-        ]
-      },
-      {
-        "area": "Fidelización",
-        "titulo": "Programa que premia el valor",
-        "descripcion": "Loyalty Management con ofertas personalizadas por socio y un agente que explica saldo, beneficios y próximos niveles.",
-        "kpis": [
-          "Frecuencia de compra",
-          "Tasa de canje"
-        ]
-      }
+      { "area": "Reservas", "titulo": "Reservas y dudas atendidas solas", "descripcion": "Un asistente atiende reservas, alérgenos y horarios en varios idiomas, y avisa al equipo de los casos especiales.", "kpis": ["Llamadas atendidas", "Reservas fuera de horario"] },
+      { "area": "Marketing", "titulo": "Reseñas respondidas cada día", "descripcion": "Respuestas personalizadas a las reseñas de Google y plataformas, revisadas en un clic.", "kpis": ["Reseñas respondidas", "Valoración media"] },
+      { "area": "Operaciones", "titulo": "Escandallos y pedidos a proveedores", "descripcion": "Cálculo de costes por plato y propuestas de pedido según ventas y stock.", "kpis": ["Margen por plato", "Merma"] }
     ]
   },
-  "transporte": {
-    "nombre": "Transporte y viajes",
+  "despachos": {
+    "nombre": "Despachos y asesorías",
     "casos": [
-      {
-        "area": "Operaciones",
-        "titulo": "Incidencias gestionadas de forma proactiva",
-        "descripcion": "Ante retrasos o cancelaciones, el agente avisa al cliente, propone alternativas y tramita compensaciones antes de que llegue la reclamación.",
-        "kpis": [
-          "Reclamaciones",
-          "Tiempo de respuesta"
-        ]
-      },
-      {
-        "area": "Fidelización",
-        "titulo": "Beneficios dinámicos por valor",
-        "descripcion": "Programa de fidelización conectado al dato de viaje que adapta beneficios y ofertas al valor real y potencial de cada socio.",
-        "kpis": [
-          "Socios activos",
-          "Gasto por socio"
-        ]
-      },
-      {
-        "area": "Ventas B2B",
-        "titulo": "Cuentas corporativas",
-        "descripcion": "Un agente atiende tarifas, reservas de grupo y consultas de empresas, y deriva al gestor de cuenta las negociaciones.",
-        "kpis": [
-          "Tiempo de cotización",
-          "Ingreso corporativo"
-        ]
-      }
+      { "area": "Administración", "titulo": "Facturas y documentos clasificados solos", "descripcion": "La IA lee facturas, tickets y contratos, extrae los datos y los deja ordenados para contabilidad.", "kpis": ["Horas de introducción", "Errores"] },
+      { "area": "Clientes", "titulo": "Primeras respuestas a consultas", "descripcion": "Borradores de respuesta a consultas habituales de clientes, que el profesional revisa y envía.", "kpis": ["Tiempo por consulta", "Consultas al día"] },
+      { "area": "Productividad", "titulo": "Resúmenes de reuniones y documentos", "descripcion": "Actas, resúmenes de normativa y borradores de informes en minutos.", "kpis": ["Horas por informe", "Reuniones documentadas"] }
     ]
   },
-  "energia": {
-    "nombre": "Energía y utilities",
+  "salud": {
+    "nombre": "Clínicas y salud",
     "casos": [
-      {
-        "area": "Servicio",
-        "titulo": "Autoservicio de altas y cambios",
-        "descripcion": "Altas, cambios de tarifa, lecturas y facturas resueltos por un agente con acceso al contrato y a la normativa aplicable.",
-        "kpis": [
-          "Coste por gestión",
-          "Tiempo de alta"
-        ]
-      },
-      {
-        "area": "Retención",
-        "titulo": "Prevención del cambio de comercializadora",
-        "descripcion": "Modelos de propensión en Data 360 identifican clientes en riesgo y activan una oferta o contacto personalizado a tiempo.",
-        "kpis": [
-          "Tasa de baja",
-          "Margen retenido"
-        ]
-      },
-      {
-        "area": "Comunicación",
-        "titulo": "Incidencias de suministro",
-        "descripcion": "Comunicación omnicanal y automática durante cortes e incidencias, con respuestas consistentes y trazables.",
-        "kpis": [
-          "Llamadas en incidencia",
-          "Satisfacción"
-        ]
-      }
+      { "area": "Citas", "titulo": "Citas y recordatorios automáticos", "descripcion": "Gestión de citas, cambios y recordatorios por WhatsApp o SMS para reducir ausencias.", "kpis": ["Ausencias", "Llamadas en recepción"] },
+      { "area": "Recepción", "titulo": "Preguntas frecuentes de pacientes", "descripcion": "Un asistente informa de horarios, preparación para pruebas y precios, sin datos clínicos.", "kpis": ["Consultas resueltas", "Carga de recepción"] },
+      { "area": "Marketing", "titulo": "Contenido para redes y web", "descripcion": "Calendario de publicaciones y textos revisados por el profesional, siempre sin datos de pacientes.", "kpis": ["Publicaciones al mes", "Horas de marketing"] }
     ]
   },
-  "automocion": {
-    "nombre": "Automoción",
+  "industria": {
+    "nombre": "Industria y distribución",
     "casos": [
-      {
-        "area": "Ventas",
-        "titulo": "Cualificación de leads y prueba de conducción",
-        "descripcion": "Un agente responde al lead en minutos, cualifica la necesidad y agenda la prueba en el concesionario más cercano.",
-        "kpis": [
-          "Tiempo de respuesta",
-          "Conversión a prueba"
-        ]
-      },
-      {
-        "area": "Posventa",
-        "titulo": "Mantenimiento y cita de taller",
-        "descripcion": "Recordatorios basados en el uso del vehículo y reserva de cita automática según la disponibilidad del taller.",
-        "kpis": [
-          "Ocupación de taller",
-          "Retención posventa"
-        ]
-      },
-      {
-        "area": "Datos",
-        "titulo": "Cliente único entre marca y red",
-        "descripcion": "Perfil unificado entre marca, financiera y concesionarios para que cada interacción conozca toda la relación.",
-        "kpis": [
-          "Recompra",
-          "Valor de vida del cliente"
-        ]
-      }
+      { "area": "Ventas", "titulo": "Presupuestos en minutos", "descripcion": "La IA prepara presupuestos a partir de la petición del cliente y tus tarifas, listos para revisar y enviar.", "kpis": ["Tiempo por presupuesto", "Presupuestos enviados"] },
+      { "area": "Compras", "titulo": "Lectura de pedidos y albaranes", "descripcion": "Pedidos recibidos por email o PDF pasados automáticamente a tu sistema de gestión.", "kpis": ["Horas administrativas", "Errores de pedido"] },
+      { "area": "Equipo", "titulo": "Manuales y procedimientos que se consultan", "descripcion": "Un asistente interno responde dudas del equipo con tus propios manuales y fichas técnicas.", "kpis": ["Tiempo de formación", "Consultas resueltas"] }
+    ]
+  },
+  "inmobiliaria": {
+    "nombre": "Inmobiliarias y servicios",
+    "casos": [
+      { "area": "Captación", "titulo": "Leads atendidos en minutos", "descripcion": "Cada contacto recibe respuesta inmediata, se cualifica y se agenda la visita en tu calendario.", "kpis": ["Tiempo de respuesta", "Visitas agendadas"] },
+      { "area": "Marketing", "titulo": "Anuncios redactados solos", "descripcion": "Descripciones de inmuebles y textos para portales a partir de fotos y características.", "kpis": ["Horas por anuncio", "Anuncios publicados"] },
+      { "area": "Gestión", "titulo": "Documentación revisada", "descripcion": "Resumen y control de contratos, notas simples y documentación del cliente.", "kpis": ["Horas de revisión", "Expedientes al mes"] }
     ]
   }
 }

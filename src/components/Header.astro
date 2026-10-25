@@ -1,24 +1,30 @@
 ---
 import Brand from "./Brand.astro";
+import { getAnalisis, getRadar } from "../data/content";
 
+const [analisis, radar] = await Promise.all([getAnalisis(), getRadar()]);
+const path = Astro.url.pathname;
+// «Calcula tu ahorro» va destacada como pestaña (DESIGN.md §6).
 const NAV = [
   { href: "/#servicios", label: "Servicios" },
-  { href: "/radar/", label: "Radar" },
-  { href: "/analisis/", label: "Artículos" },
-  { href: "/calculadora/", label: "Calculadora" },
+  { href: "/#casos", label: "Casos de uso" },
+  ...(analisis.length ? [{ href: "/analisis/", label: "Artículos" }] : []),
+  ...(radar.length ? [{ href: "/radar/", label: "Radar" }] : []),
   { href: "/#faq", label: "FAQ" }
 ];
 ---
 <header class="site-header" id="top">
   <div class="wrap header-inner">
-    <Brand label="Sobtree, IA y Salesforce, inicio" tag />
+    <Brand label="Sobtree, IA para pymes, inicio" tag />
     <nav class="nav" aria-label="Principal">
       {NAV.map((n) => <a href={n.href}>{n.label}</a>)}
+      <a class="nav-tab" href="/calculadora/" aria-current={path.startsWith("/calculadora") ? "page" : undefined}>Calcula tu ahorro</a>
     </nav>
     <a class="btn btn-primary btn-sm header-cta" href="/#contacto">Reservar 25 min</a>
     <button class="menu-toggle" aria-expanded="false" aria-controls="mobile-nav" aria-label="Abrir menú"><span></span><span></span></button>
   </div>
   <nav class="mobile-nav" id="mobile-nav" aria-label="Principal móvil" hidden>
+    <a class="mobile-tab" href="/calculadora/">Calcula tu ahorro</a>
     {NAV.map((n) => <a href={n.href}>{n.label}</a>)}
     <a class="btn btn-primary" href="/#contacto">Reservar 25 min</a>
   </nav>

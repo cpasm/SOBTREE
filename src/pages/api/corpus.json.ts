@@ -14,19 +14,19 @@ export const GET: APIRoute = async () => {
   const docs: Doc[] = [];
 
   docs.push({
-    title: "Sobtree: quiénes somos y qué servicios ofrecemos",
+    title: "Sobtree: quiénes somos, servicios y precios",
     url: `${SITE.url}/#servicios`,
     text: lines(
       SITE.description,
-      "Sobtree es una consultora independiente: no revende licencias ni cobra comisiones de Salesforce ni de otros fabricantes. Trabaja en español e inglés, en remoto y con presencia cuando el proyecto lo requiere, para empresas de España, Europa y Latinoamérica. Sede en Madrid.",
-      "Sobtree no está afiliada a Salesforce, Inc.",
+      "Sobtree ayuda a pequeñas y medianas empresas a implantar IA en su día a día: atención al cliente, presupuestos, facturas, marketing e informes. Usa herramientas que ya existen (ChatGPT, Claude, Gemini, Microsoft Copilot y automatizaciones sencillas) y las deja funcionando, con el equipo formado.",
+      `Precio transparente: ${SITE.rate} €/hora, IVA no incluido. Las horas se cierran antes de empezar. Sobtree no cobra comisiones por las licencias de IA: las paga el cliente directamente al proveedor.`,
+      "Cobra menos porque trabaja casi todo con IA: menos horas de trabajo, menos factura.",
+      "Sede en Madrid; trabaja en remoto para toda España, en español e inglés. No está afiliada a Anthropic, OpenAI, Google ni Microsoft.",
       "",
       "Servicios:",
       ...SERVICES.map((s) => `- ${s.name} (${s.duration}): ${s.description}`),
       "",
-      "El punto de entrada recomendado es el Diagnóstico de valor IA + Salesforce: 3 semanas, precio cerrado, perfil senior en cada sesión. Incluye auditoría técnica de la org y del modelo de datos, mapa de casos de uso de IA priorizado por impacto y esfuerzo, business case con KPIs de partida y objetivo, hoja de ruta a 90 días y a 12 meses, y revisión de licencias (qué sobra, qué falta y qué negociar).",
-      "",
-      "Plataformas en las que trabajamos: Agentforce, Data 360, Marketing Cloud Next, Loyalty Management, Sales Cloud, Service Cloud, MuleSoft y Tableau."
+      "El punto de entrada recomendado es el Diagnóstico IA exprés: 1 semana, 6 horas, 360 €. Dice qué tareas automatizar primero, cuánto ahorrarías y cuánto costaría ponerlo en marcha."
     )
   });
 
@@ -34,12 +34,11 @@ export const GET: APIRoute = async () => {
     title: "Cómo trabajamos",
     url: `${SITE.url}/#metodo`,
     text: lines(
-      "Riesgo acotado, retorno abierto: cada fase termina con algo útil y se puede parar sin perder la inversión.",
-      "1. Diagnóstico (semanas 1–3): entrevistas con negocio, auditoría de la org y del dato.",
-      "2. Business case (semana 4): uno o dos casos priorizados, con KPI de negocio, coste y plazo aprobados por dirección.",
-      "3. Construcción (semanas 5–12): entregas cada dos semanas en entorno real, con usuarios reales y métricas visibles desde el primer sprint.",
-      "4. Escala (mes 4 en adelante): lo que funciona se extiende y el equipo del cliente se queda con el conocimiento y la documentación.",
-      "Objetivo habitual: primer agente en producción en 90 días."
+      "1. Llamada de 25 minutos, gratis: entendemos tu empresa y te decimos si la IA te compensa.",
+      "2. Diagnóstico IA exprés (1 semana): qué tareas automatizar, cuánto ahorras y cuánto cuesta, por escrito.",
+      "3. Puesta en marcha (2–3 semanas): el primer caso de uso funcionando y tu equipo formado.",
+      "4. Cada mes, si quieres: medimos el ahorro y vamos a por la siguiente tarea.",
+      "Se empieza siempre por una sola tarea, la que más horas quita. Si no hay ahorro claro, se dice antes de gastar más."
     )
   });
 
@@ -59,13 +58,14 @@ export const GET: APIRoute = async () => {
   });
 
   docs.push({
-    title: "Calculadora de ahorro de un agente de IA",
+    title: "Calculadora: cuánto ahorras con IA y cuánto te costaría",
     url: `${SITE.url}/calculadora/`,
     text: lines(
-      "La calculadora de la web (sobtree.com/calculadora) estima el ahorro operativo anual de un agente de IA en atención al cliente.",
-      "Fórmula: horas liberadas al año = casos al mes × 12 × (minutos por caso / 60) × % de casos que resuelve el agente. Ahorro = horas × coste por hora. Jornadas completas equivalentes = horas / 1.720.",
-      "Valores por defecto: 10.000 casos al mes, 12 minutos por caso, 28 € por hora y un 35 % resuelto por el agente, que dan unos 235.200 € al año.",
-      "Es una estimación orientativa del ahorro operativo, antes de contar el impacto en satisfacción y ventas, y no incluye el coste de la plataforma ni de la implantación."
+      "La calculadora de la web (sobtree.com/calculadora/) hace 5 preguntas: sector, número de personas, horas por persona y semana en tareas repetitivas, coste medio por hora y qué áreas automatizar (atención al cliente, presupuestos y ventas, facturas y administración, marketing y contenidos, informes y documentos).",
+      "Horas repetitivas al año = personas × horas por semana × 46 semanas. La IA puede ahorrar de un 20–38 % de ese tiempo (una sola área) a un 40–65 % (las cinco áreas). Ahorro = horas ahorradas × coste por hora.",
+      `Lo que cobraría Sobtree: diagnóstico (6 h) + puesta en marcha de cada área (8–20 h) + formación (2–6 h), a ${SITE.rate} €/h, un 25 % más si la empresa tiene más de 50 personas. Por ejemplo, 8 personas y dos áreas: entre 1.560 € y 2.640 € aproximadamente.`,
+      "Licencias de IA: unos 20–30 € por usuario y mes, para aproximadamente la mitad de la plantilla; las paga el cliente al proveedor.",
+      "También calcula en cuántos meses se recupera la inversión con el escenario prudente. Es una estimación orientativa, sin IVA; el diagnóstico la ajusta a cada caso."
     )
   });
 

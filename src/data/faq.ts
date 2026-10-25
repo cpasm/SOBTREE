@@ -1,9 +1,9 @@
 // Una sola fuente para el FAQ visible, el JSON-LD FAQPage y llms.txt.
 export const FAQ = [
-  { q: "¿Trabajáis con nuestro integrador actual?", a: "Sí. A menudo nuestro papel es dar criterio a la empresa frente al integrador: revisar lo que se propone, validar estimaciones y asegurar que cada desarrollo responde a un objetivo de negocio." },
-  { q: "¿Necesitamos Data 360 para usar Agentforce?", a: "No siempre para empezar, pero sí para escalar. Un agente sin contexto unificado se queda corto cuando el caso se complica. En el diagnóstico te decimos si puedes arrancar sin él y cuándo lo vas a necesitar." },
-  { q: "¿Cómo se fija el precio?", a: "El diagnóstico tiene precio cerrado. Las fases siguientes se presupuestan con alcance, plazo y entregables definidos, para que cada una se justifique por sí sola." },
-  { q: "¿Recibís comisiones de Salesforce u otros fabricantes?", a: "No. No revendemos licencias ni cobramos por recomendar productos. Nuestro único incentivo es que tu inversión funcione." },
-  { q: "¿Qué pasa con la seguridad y el cumplimiento normativo?", a: "Diseñamos los agentes con permisos mínimos, límites explícitos, auditoría y supervisión humana en las decisiones sensibles, alineados con el RGPD y el Reglamento Europeo de IA." },
-  { q: "¿Trabajáis fuera de España?", a: "Sí. Trabajamos en español e inglés, en remoto y con presencia cuando el proyecto lo requiere, en Europa y Latinoamérica." }
+  { q: "¿Cuánto cuesta implantar IA en una pyme?", a: "Trabajamos a 60 €/hora (IVA no incluido) y te decimos las horas antes de empezar. Un diagnóstico exprés son 6 horas (360 €) y poner en marcha un primer caso de uso suele llevar entre 10 y 20 horas (600–1.200 €). En la calculadora de la web tienes una horquilla para tu caso." },
+  { q: "¿Necesito saber de tecnología o tener un departamento de informática?", a: "No. Usamos herramientas que ya existen (ChatGPT, Claude, Gemini, Microsoft Copilot y automatizaciones sencillas) y las dejamos funcionando. Tu equipo solo tiene que aprender a usarlas, y eso también lo hacemos." },
+  { q: "¿En cuánto tiempo veo resultados?", a: "El primer caso de uso suele estar en marcha en 2 o 3 semanas. Empezamos siempre por la tarea que más tiempo os quita, para que el ahorro se note pronto." },
+  { q: "¿Qué pasa con mis datos y el RGPD?", a: "Elegimos planes de empresa de los proveedores de IA que no usan tus datos para entrenar sus modelos, limitamos qué información se comparte y dejamos por escrito qué hace cada herramienta. Si un caso de uso no es seguro para tus datos, no lo hacemos." },
+  { q: "¿Y si la IA no me sirve?", a: "Por eso empezamos con un diagnóstico corto y un solo caso de uso. Si no vemos ahorro claro, te lo decimos antes de que gastes más." },
+  { q: "¿Por qué sois tan baratos?", a: "Porque hacemos lo que predicamos: casi todo nuestro trabajo, incluida esta web, lo hacemos con IA. Menos horas para nosotros es menos factura para ti." }
 ];

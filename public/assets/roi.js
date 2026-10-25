@@ -1,39 +1,81 @@
-// Calculadora de ahorro (/calculadora/): estimación del ahorro operativo de un agente de IA en atención al cliente.
+// Calculadora para pymes (/calculadora/): horquilla de ahorro anual con IA y de lo que cobraríamos (60 €/h).
+// Mismo modelo de horas que los servicios publicados (src/data/site.ts). Todos los supuestos se muestran en la página.
 (() => {
   "use strict";
   const $ = (s) => document.querySelector(s);
-  if (!$("#roi-form")) return;
-  const nf = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0 });
-  const eur = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
-  const R = {
-    cases: [$("#r-cases"), $("#o-cases"), (v) => nf.format(v)],
-    min: [$("#r-min"), $("#o-min"), (v) => `${v} min`],
-    cost: [$("#r-cost"), $("#o-cost"), (v) => `${v} €`],
-    auto: [$("#r-auto"), $("#o-auto"), (v) => `${v} %`]
-  };
-  const HOURS_PER_FTE = 1720; // horas efectivas por jornada completa al año
+  const form = $("#calc");
+  if (!form) return;
+
+  const RATE = 60;          // €/hora
+  const WEEKS = 46;         // semanas efectivas al año
+  const eur = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0, useGrouping: "always" });
+  const nf = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0, useGrouping: "always" });
+  const round = (v, step) => Math.round(v / step) * step;
   let last = null;
+
   function calc() {
-    Object.values(R).forEach(([inp, out, fmt]) => {
-      out.textContent = fmt(Number(inp.value));
+    const personas = +$("#c-personas").value, horas = +$("#c-horas").value, coste = +$("#c-coste").value;
+    const areas = [...form.querySelectorAll('input[name="area"]:checked')];
+    const n = Math.max(1, areas.length);
+    const sector = form.querySelector('input[name="sector"]:checked')?.value || "";
+
+    // Pinta los controles deslizantes
+    [["#c-personas", "#o-personas", (v) => (v >= 100 ? "100 o más" : nf.format(v))], ["#c-horas", "#o-horas", (v) => `${v} h`], ["#c-coste", "#o-coste", (v) => `${v} €/h`]].forEach(([i, o, f]) => {
+      const inp = $(i);
+      $(o).textContent = f(+inp.value);
       inp.style.setProperty("--p", `${((inp.value - inp.min) / (inp.max - inp.min)) * 100}%`);
     });
-    const cases = +R.cases[0].value, min = +R.min[0].value, cost = +R.cost[0].value, auto = +R.auto[0].value / 100;
-    const hours = cases * 12 * (min / 60) * auto;
-    const savings = hours * cost;
-    $("#roi-eur").textContent = eur.format(savings);
-    $("#roi-hours").textContent = nf.format(hours);
-    $("#roi-fte").textContent = nf.format(hours / HOURS_PER_FTE);
-    last = { cases, min, cost, auto: auto * 100, savings };
+
+    // Ahorro: parte del tiempo repetitivo que la IA puede quitar, según cuántas áreas se automatizan
+    const shareLo = Math.min(0.40, 0.15 + 0.05 * n), shareHi = Math.min(0.65, 0.30 + 0.08 * n);
+    const horasAno = personas * horas * WEEKS;
+    const saveLo = horasAno * shareLo * coste, saveHi = horasAno * shareHi * coste;
+
+    // Nuestro trabajo: diagnóstico + primera área + áreas adicionales + formación (más grande si la plantilla crece)
+    const big = personas > 50 ? 1.25 : 1;
+    const hLo = Math.round((6 + 10 + 8 * (n - 1) + (personas > 25 ? 4 : 2)) * big);
+    const hHi = Math.round((6 + 20 + 14 * (n - 1) + (personas > 25 ? 6 : 4)) * big);
+    const feeLo = round(hLo * RATE, 30), feeHi = round(hHi * RATE, 30);
+
+    // Licencias de IA: ~20–30 €/usuario/mes para la mitad de la plantilla
+    const users = Math.max(1, Math.ceil(personas * 0.5));
+    const licLo = users * 20, licHi = users * 30;
+
+    // Recuperación de la inversión, con escenario prudente (ahorro bajo, coste alto)
+    const netMonth = saveLo / 12 - licHi;
+    const payback = netMonth > 0 ? feeHi / netMonth : Infinity;
+
+    $("#r-save-lo").textContent = eur.format(round(saveLo, 100));
+    $("#r-save-hi").textContent = eur.format(round(saveHi, 100));
+    $("#r-hours").textContent = `${nf.format(horasAno * shareLo / 12)}–${nf.format(horasAno * shareHi / 12)}`;
+    $("#r-fee-lo").textContent = eur.format(feeLo);
+    $("#r-fee-hi").textContent = eur.format(feeHi);
+    $("#r-fee-h").textContent = `${hLo}–${hHi} horas`;
+    $("#r-lic").textContent = `${eur.format(licLo)}–${eur.format(licHi)}`;
+    $("#a-share").textContent = `entre un ${Math.round(shareLo * 100)} % y un ${Math.round(shareHi * 100)} %`;
+    $("#r-payback").textContent = !isFinite(payback) ? "más de un año" : payback < 1 ? "menos de 1 mes" : payback > 12 ? "más de un año" : `unos ${Math.ceil(payback)} ${Math.ceil(payback) === 1 ? "mes" : "meses"}`;
+
+    // Barras: ahorro del primer año (medio) frente a inversión del primer año (trabajo + licencias, medio)
+    const save1 = (saveLo + saveHi) / 2, cost1 = (feeLo + feeHi) / 2 + ((licLo + licHi) / 2) * 12;
+    const max = Math.max(save1, cost1, 1);
+    $("#b-save").style.width = `${(save1 / max) * 100}%`;
+    $("#b-cost").style.width = `${(cost1 / max) * 100}%`;
+
+    last = { sector, personas, horas, coste, areas: areas.map((a) => a.dataset.name), saveLo, saveHi, feeLo, feeHi, hLo, hHi };
   }
-  Object.values(R).forEach(([inp]) => inp.addEventListener("input", calc));
+
+  form.addEventListener("input", calc);
+  form.addEventListener("change", calc);
   calc();
-  // El formulario está en la portada: dejamos el cálculo preparado para rellenarlo allí.
-  $("#roi-cta").addEventListener("click", () => {
+
+  // El formulario de contacto está en la portada: dejamos el cálculo escrito para que llegue con el lead.
+  // (Cuando haya CRM/n8n, este es el punto para enviar también el lead al webhook.)
+  $("#calc-cta").addEventListener("click", () => {
+    if (!last) return;
     try {
       sessionStorage.setItem("sobtree_prefill", JSON.stringify({
-        interes: "Agentforce a producción",
-        mensaje: `He usado la calculadora: ${nf.format(last.cases)} casos al mes, ${last.min} min por caso, ${last.cost} €/h y un ${last.auto} % automatizable. Ahorro estimado: ${eur.format(last.savings)} al año. Me gustaría validarlo con nuestros datos.`
+        interes: "Diagnóstico IA exprés",
+        mensaje: `He usado la calculadora. Sector: ${last.sector}. ${last.personas} personas, ${last.horas} h/semana en tareas repetitivas, ${last.coste} €/h. Quiero automatizar: ${last.areas.join(", ") || "por decidir"}. Ahorro estimado: ${eur.format(round(last.saveLo, 100))}–${eur.format(round(last.saveHi, 100))} al año. Presupuesto orientativo: ${eur.format(last.feeLo)}–${eur.format(last.feeHi)} (${last.hLo}–${last.hHi} h).`
       }));
     } catch (e) {}
   });

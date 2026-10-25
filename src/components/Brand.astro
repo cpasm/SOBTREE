@@ -1,15 +1,10 @@
 ---
-// Marca en pantalla (DESIGN.md §1): wordmark «Sobtree.». El monograma «S.» se usa solo como favicon.
-import { existsSync } from "node:fs";
-
+// Marca en pantalla (DESIGN.md §1): wordmark «Sobtree.» y, en la cabecera, la etiqueta «IA». El monograma «S.» se usa solo como favicon.
 interface Props { label: string; href?: string; tag?: boolean }
 const { label, href = "/", tag = false } = Astro.props;
-// Logo de Salesforce en PNG: aparece solo si existe public/img/logos/salesforce.png (ver LEEME.md de esa carpeta).
-const sfLogo = existsSync(new URL("../../public/img/logos/salesforce.png", import.meta.url)) ? "/img/logos/salesforce.png" : null;
 ---
 <a class="brand" href={href} aria-label={label}>
   <span class="brand-word" aria-hidden="true">Sobtree<span class="dot-accent">.</span></span>
   {tag && <span class="brand-bar" aria-hidden="true"></span>}
-  {tag && sfLogo && <img class="brand-sf" src={sfLogo} alt="Salesforce" width="46" height="46">}
-  {tag && <span class="brand-tag" aria-hidden="true">{sfLogo ? "× IA" : "IA × Salesforce"}</span>}
+  {tag && <span class="brand-tag" aria-hidden="true">IA</span>}
 </a>

@@ -36,7 +36,7 @@
       next.focus(); next.click();
     });
   });
-  renderCases("seguros");
+  renderCases(Object.keys(CASES)[0]);
   $$("[data-goto-sector]").forEach((a) => a.addEventListener("click", () => renderCases(a.dataset.gotoSector)));
 
   /* ---------- Datos que llegan de otra página (calculadora) ---------- */
@@ -47,18 +47,18 @@
 
   /* ---------- Autodiagnóstico (una pregunta cada vez) ---------- */
   const QUESTIONS = [
-    { q: "¿Dónde vive hoy el dato de tus clientes?", o: ["Repartido en sistemas que no se hablan", "En el CRM, pero incompleto", "Unificado en parte, con esfuerzo manual", "Un perfil único actualizado en tiempo real"] },
-    { q: "¿Qué uso hacéis de la IA dentro de Salesforce?", o: ["Ninguno todavía", "Pruebas y demos aisladas", "Un caso en producción", "Varios agentes en producción"] },
-    { q: "¿Cómo medís el valor de Salesforce?", o: ["No lo medimos", "Por adopción y licencias", "Por KPIs de proceso", "Por impacto en ingresos y coste"] },
-    { q: "¿Quién decide las prioridades de la plataforma?", o: ["Tecnología, en solitario", "Negocio pide y tecnología ejecuta", "Un comité conjunto", "Un dueño de producto con roadmap propio"] },
-    { q: "¿Cómo gobernáis el uso de la IA?", o: ["No está definido", "Se está discutiendo", "Hay políticas básicas", "Límites, auditoría y supervisión operativos"] },
-    { q: "¿Cada cuánto llega una mejora a los usuarios?", o: ["Una vez al año o menos", "Cada trimestre", "Cada mes", "De forma continua"] }
+    { q: "¿Cuánto usáis hoy la IA en el trabajo?", o: ["Nada", "Alguien la prueba por su cuenta", "Varios la usan a diario sin un criterio común", "La usamos en procesos concretos y medimos el ahorro"] },
+    { q: "¿Cuánto tiempo se va en tareas repetitivas (emails, presupuestos, facturas, datos)?", o: ["Muchísimo, nos ahoga", "Bastante", "Algo", "Poco, ya está casi todo automatizado"] },
+    { q: "¿Dónde está la información de clientes y ventas?", o: ["En papel, cabezas y correos", "En hojas de cálculo sueltas", "En un programa de gestión o CRM", "En un sistema conectado con el resto"] },
+    { q: "¿Quién decidiría implantar IA en la empresa?", o: ["Nadie lo ha planteado", "Lo hemos hablado, sin responsable", "Hay alguien interesado", "Hay un responsable y presupuesto"] },
+    { q: "¿Cómo protegéis los datos al usar herramientas online?", o: ["No lo hemos pensado", "Cada uno hace lo que puede", "Tenemos algunas normas", "Normas claras y planes de empresa"] },
+    { q: "¿Cuándo os gustaría ver resultados?", o: ["Algún día", "Este año", "Este trimestre", "Este mes"] }
   ];
   const LEVELS = [
-    { max: 5, title: "Nivel 1 · Cimientos", text: "La IA todavía tendría poco con lo que trabajar. La buena noticia: puedes construir bien desde el principio, sin rehacer nada.", rec: "un diagnóstico de valor y un primer bloque de datos unificados, con un caso de uso acotado que demuestre retorno en semanas." },
-    { max: 11, title: "Nivel 2 · Experimentación", text: "Hay interés y alguna prueba, pero la IA aún no mueve indicadores de negocio. El riesgo es acumular pilotos que nunca llegan a producción.", rec: "elegir un caso con retorno claro y llevarlo a producción con Agentforce, con métricas y supervisión desde el primer día." },
-    { max: 15, title: "Nivel 3 · Escalado", text: "Ya tienes casos que funcionan. El reto es repetir el éxito sin multiplicar el coste ni el riesgo.", rec: "un modelo operativo para agentes: gobierno, catálogo de casos priorizado y un dato unificado que sirva a todos." },
-    { max: 18, title: "Nivel 4 · Liderazgo", text: "Estás por delante de la mayoría del mercado. El valor está ahora en mantener el criterio cuando todos te ofrecen más.", rec: "asesoría a dirección para revisar la hoja de ruta, las renovaciones y las propuestas de terceros con una mirada independiente." }
+    { max: 5, title: "Nivel 1 · Punto de partida", text: "Tienes todo por ganar: las primeras automatizaciones suelen ser las que más tiempo ahorran.", rec: "un diagnóstico exprés para elegir la tarea que más tiempo os quita y tenerla automatizada en 2–3 semanas." },
+    { max: 11, title: "Nivel 2 · Curiosidad", text: "Ya hay interés, pero cada uno va por su lado y el ahorro no se nota en la cuenta de resultados.", rec: "poner orden: un caso de uso con ahorro medible y una formación corta para todo el equipo." },
+    { max: 15, title: "Nivel 3 · En marcha", text: "Usáis IA de verdad. El reto es extenderla sin multiplicar herramientas ni riesgos.", rec: "un plan de casos de uso por área y normas sencillas de uso y datos." },
+    { max: 18, title: "Nivel 4 · Por delante", text: "Estás por delante de la mayoría de pymes. El valor está en automatizar procesos completos.", rec: "acompañamiento mensual para ir a por los procesos de punta a punta." }
   ];
   const answers = new Array(QUESTIONS.length).fill(null);
   let idx = 0;
@@ -105,7 +105,7 @@
     result.hidden = true; form.hidden = false; renderQ();
   });
   $("#r-cta").addEventListener("click", (e) => {
-    prefill("Diagnóstico de valor", `He hecho el autodiagnóstico y estamos en «${e.currentTarget.dataset.level}». Me gustaría comentarlo.`);
+    prefill("Diagnóstico IA exprés", `He hecho el autodiagnóstico y estamos en «${e.currentTarget.dataset.level}». Me gustaría comentarlo.`);
   });
   renderQ();
 
@@ -118,7 +118,7 @@
 
   function mailtoFallback(d) {
     const subject = `Solicitud de conversación — ${d.get("empresa")}`;
-    const body = ["nombre", "cargo", "empresa", "email", "tamano", "interes"].map((k) => `${k}: ${d.get(k)}`).join("\n") + `\n\n${d.get("mensaje")}`;
+    const body = [["nombre", "nombre"], ["teléfono", "cargo"], ["empresa", "empresa"], ["email", "email"], ["tamaño", "tamano"], ["interés", "interes"]].map(([label, k]) => `${label}: ${d.get(k)}`).join("\n") + `\n\n${d.get("mensaje")}`;
     window.location.href = `mailto:info@sobtree.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     setStatus("Se ha abierto tu correo con la solicitud preparada. Envíala desde allí.", "ok");
   }

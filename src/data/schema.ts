@@ -23,7 +23,7 @@ export function organization() {
     ...(AUTHOR && { founder: { "@id": PERSON_ID } }),
     hasOfferCatalog: {
       "@type": "OfferCatalog",
-      name: "Servicios de IA y Salesforce",
+      name: "Implantación de IA para pymes",
       itemListElement: SERVICES.map((s) => ({
         "@type": "Offer",
         itemOffered: { "@type": "Service", name: s.name, description: s.description, provider: { "@id": ORG_ID } }

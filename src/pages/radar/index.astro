@@ -6,13 +6,13 @@ import { graph, organization, website } from "../../data/schema";
 
 const items = await getRadar();
 ---
-<Base title="Radar de Salesforce e IA | Sobtree" description="Cada semana, lo que importa en Salesforce, Agentforce y Data 360, y qué significa para tu empresa." jsonld={graph(organization(), website())}>
+<Base title="Radar de IA para pymes | Sobtree" description="Cada semana, las novedades de IA que importan a una pequeña o mediana empresa y qué puedes hacer con ellas." jsonld={graph(organization(), website())}>
   <main id="main" class="section page-tight">
     <div class="wrap">
       <div class="section-head">
         <p class="eyebrow">Radar</p>
-        <h1 class="page-title">Lo que importa esta semana en Salesforce e IA</h1>
-        <p class="section-sub">Pocas noticias, filtradas y con nuestra lectura: qué cambia para quien tiene que decidir.</p>
+        <h1 class="page-title">Lo que importa esta semana en IA para tu pyme</h1>
+        <p class="section-sub">Pocas noticias, filtradas y con nuestra lectura: qué puede hacer con ello una pyme.</p>
       </div>
       {items.length === 0
         ? <p class="section-sub">La primera entrega está en camino.</p>

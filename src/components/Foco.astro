@@ -1,32 +1,35 @@
 ---
 // Portada «Foco» (DESIGN.md §5): todo lo importante en la primera pantalla.
 // El foco que sigue al ratón y el diagrama los anima public/assets/foco.js.
-import { LOGOS, PLATAFORMAS } from "../data/confianza";
+import { existsSync } from "node:fs";
+import { IAS } from "../data/confianza";
 
 const NODOS = [
-  { k: "01", name: "Fuentes", text: "ERP, e-commerce, app y contact center. Conectamos lo que ya pagas antes de comprar nada nuevo." },
-  { k: "02", name: "Data 360", text: "Perfil único de cliente y señales en tiempo real: sin dato limpio, la IA solo acierta en la demo." },
-  { k: "03", name: "Agentforce", text: "Agentes que resuelven casos reales en ventas, servicio y marketing, con el coste por acción medido." },
-  { k: "04", name: "Personas", text: "Tu equipo deja lo repetitivo y decide lo importante. Supervisión humana, RGPD y Ley de IA." }
+  { k: "01", name: "Tus tareas", text: "Emails, presupuestos, facturas, atención al cliente: todo lo que hoy hacéis a mano y os come horas." },
+  { k: "02", name: "Caso de uso", text: "Elegimos la tarea que más tiempo os quita y calculamos cuánto vais a ahorrar antes de tocar nada." },
+  { k: "03", name: "IA", text: "Claude, ChatGPT, Gemini o Copilot: la que mejor encaje con lo que ya usáis. Sin desarrollos a medida caros." },
+  { k: "04", name: "Tu equipo", text: "Deja lo repetitivo y dedica ese tiempo a vender y a atender. Con formación y sin depender de nadie." }
 ];
 const COMO = [
-  { n: "3 sem", dot: true, b: "Diagnóstico", t: "A precio cerrado, sin sorpresas", href: "#servicios", go: "Qué incluye" },
-  { n: "90 días", dot: false, b: "Primer agente", t: "En producción, no en un PowerPoint", href: "#metodo", go: "Cómo" },
-  { n: "0 €", dot: false, b: "En comisiones", t: "No ganamos si compras de más", href: "#por-que", go: "Por qué" }
+  { n: "2–3 sem", dot: true, b: "Primer caso de uso", t: "Funcionando, no en un PowerPoint", href: "#metodo", go: "Cómo" },
+  { n: "60 €/h", dot: false, b: "Precio transparente", t: "Sabes las horas antes de empezar", href: "#servicios", go: "Precios" },
+  { n: "0 €", dot: false, b: "En comisiones", t: "No revendemos licencias", href: "#por-que", go: "Por qué" }
 ];
-// La cinta se duplica para que el desplazamiento sea continuo.
-const cinta = LOGOS.length ? LOGOS : PLATAFORMAS.map((p) => ({ src: "", alt: p }));
+// Logo oficial si existe en public/img/logos/ia/; si no, el nombre en texto.
+const logoDe = (slug: string) => ["svg", "png"].map((ext) => `/img/logos/ia/${slug}.${ext}`)
+  .find((f) => existsSync(new URL(`../../public${f}`, import.meta.url))) ?? null;
+const ias = IAS.map((i) => ({ ...i, logo: logoDe(i.slug) }));
 ---
 <section class="foco" id="foco" aria-labelledby="foco-title">
   <div class="foco-spot" aria-hidden="true"></div>
   <div class="wrap">
     <div class="foco-copy">
-      <p class="kicker">Para CIOs hartos de pagar de más</p>
-      <h1 id="foco-title">¿Cansado de consultoras que <span class="hl">cobran pastizales<svg viewBox="0 0 300 20" preserveAspectRatio="none" aria-hidden="true"><path d="M3 14 C 60 4, 120 4, 180 10 S 270 16, 297 6"></path></svg></span>?</h1>
-      <p class="foco-sub">Nosotros no. En 3 semanas y a precio cerrado te decimos qué licencias estás tirando, qué IA te hace ganar dinero y qué es puro humo.</p>
+      <p class="kicker">IA para pymes · precio transparente: 60 €/h</p>
+      <h1 id="foco-title">Implanta IA en tu empresa <span class="hl">sin pagar pastizales<svg viewBox="0 0 300 20" preserveAspectRatio="none" aria-hidden="true"><path d="M3 14 C 60 4, 120 4, 180 10 S 270 16, 297 6"></path></svg></span>.</h1>
+      <p class="foco-sub">Antes de empezar te decimos cuánto vas a ahorrar y cuánto te va a costar. Tu primer caso de uso, funcionando en 2–3 semanas con herramientas que ya existen.</p>
       <div class="foco-actions">
-        <a class="btn btn-primary" href="#contacto" data-interest="Diagnóstico de valor">Reservar diagnóstico</a>
-        <a class="btn btn-ghost" href="/calculadora/">Calcular mi ahorro</a>
+        <a class="btn btn-primary" href="/calculadora/">Calcula tu ahorro</a>
+        <a class="btn btn-ghost" href="#contacto" data-interest="Diagnóstico IA exprés">Reservar 25 min</a>
       </div>
     </div>
 
@@ -55,15 +58,15 @@ const cinta = LOGOS.length ? LOGOS : PLATAFORMAS.map((p) => ({ src: "", alt: p }
       ))}
     </div>
 
-    <div class="trust">
-      <p class="trust-label">{LOGOS.length ? "Confían en nosotros" : "Especialistas en"}</p>
-      <div class="trust-track">
-        <ul class="trust-list">
-          {[...cinta, ...cinta].map((l, i) => (
-            <li aria-hidden={i >= cinta.length ? "true" : undefined}>{l.src ? <img src={l.src} alt={l.alt} loading="lazy" /> : l.alt}</li>
-          ))}
-        </ul>
-      </div>
+    <div class="trust trust-ia">
+      <p class="trust-label">Trabajamos con</p>
+      <ul class="ia-list">
+        {ias.map((i) => (
+          <li title={`${i.name} · ${i.by}`}>
+            {i.logo ? <img src={i.logo} alt={`${i.name} (${i.by})`} loading="lazy" /> : <><span class="ia-name">{i.name}</span><span class="ia-by">{i.by}</span></>}
+          </li>
+        ))}
+      </ul>
     </div>
   </div>
 </section>

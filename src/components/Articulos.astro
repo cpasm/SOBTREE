@@ -17,7 +17,7 @@ const resto = todos.filter((t) => t !== destacado).slice(0, 3);
   <section class="reads" id="articulos" aria-labelledby="reads-title">
     <div class="wrap">
       <div class="reads-head">
-        <h2 id="reads-title">Para el CIO que quiere gastar menos y ganar más<span class="dot-accent">.</span></h2>
+        <h2 id="reads-title">Para la pyme que quiere ahorrar con IA<span class="dot-accent">.</span></h2>
         <a href="/analisis/">Todos los artículos →</a>
       </div>
       <div class="reads-grid">
@@ -29,7 +29,7 @@ const resto = todos.filter((t) => t !== destacado).slice(0, 3);
         </a>
         {resto.length > 0 && (
           <div class="reads-list">
-            <p>Más para el CIO</p>
+            <p>Más para tu pyme</p>
             {resto.map((r) => (
               <a class="item" href={r.url}>
                 <span class="thumb"><Cover title={r.title} src={r.img} alt={r.alt} tema={r.tema} /></span>

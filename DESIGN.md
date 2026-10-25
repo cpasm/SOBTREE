@@ -2,6 +2,8 @@
 
 Dirección elegida: **F · Foco** (octubre de 2026). Azul marino y blanco, tipografía Open Sans, bordes redondeados, movimiento que responde al ratón y un tono directo, agresivo con el precio de las grandes consultoras.
 
+Posicionamiento (octubre de 2026): **IA para pymes con precio transparente**. 60 €/hora, horas cerradas antes de empezar, 0 € en comisiones de licencias. Lectores: dueños y gerentes de pequeñas y medianas empresas, no técnicos. Nada de Salesforce.
+
 Todo lo que se añada a la web sigue esta guía. Los valores viven en `public/assets/styles.css` (`:root`); si cambias uno, cámbialo aquí también.
 
 ---
@@ -11,14 +13,14 @@ Todo lo que se añada a la web sigue esta guía. Los valores viven en `public/as
 ### Logotipo
 - **Monograma:** «S.»: S blanca en Open Sans 800 y punto en `--accent`, sobre un cuadrado marino con radio 16/64 y borde blanco al 28 %. Se usa **solo como favicon**; en pantalla nunca. Juego de iconos: `favicon.svg`, `/favicon.ico` (16/32/48), `favicon-32.png`, `apple-touch-icon.png` (180, fondo marino) e `icon-192/512.png` en `site.webmanifest`.
 - **Wordmark:** `Sobtree.` en Open Sans 800, blanco sobre marino (o marino sobre blanco), con el **punto en el color de acento** (`--accent`).
-- **Lockup en cabecera:** `Sobtree.` · barra vertical fina (1 px, 26 px de alto, blanco al 30 %) · logo de Salesforce en PNG (`public/img/logos/salesforce.png`, 46 px de alto; 40 px en móvil) · `× IA` en versalitas, 13 px, 600, tracking 0,06 em. Sin el PNG, el texto es `IA × SALESFORCE`. Se ve igual en móvil, algo más pequeño.
-- **Logo de Salesforce:** solo si Sobtree es partner oficial y con el distintivo que Salesforce entregue a partners. Mientras no lo sea, el nombre «Salesforce» va solo en texto (uso nominativo) y el pie mantiene el aviso de no afiliación.
+- **Lockup en cabecera:** `Sobtree.` · barra vertical fina (1 px, 26 px de alto, blanco al 30 %) · `IA` en versalitas, 13 px, 600, tracking 0,06 em. Sin logos de terceros. Se ve igual en móvil, algo más pequeño.
 - **Favicon:** monograma «S.» blanco con punto de acento sobre marino (`public/assets/favicon.svg`).
 - **El punto de acento** es un recurso de marca: puede cerrar titulares cortos («Gana más con IA.»). Uno por bloque como máximo.
 
 ### Tono
 - Directo, agresivo con el sobrecoste y nunca con personas o empresas concretas: «¿Cansado de consultoras que cobran pastizales?» sí; nombres de competidores, no.
-- Se habla de tú. Frases cortas. Cifras siempre verificables (precio cerrado, 3 semanas, 90 días, 0 € en comisiones, ejemplos de los análisis).
+- Se habla de tú. Frases cortas. Cifras siempre verificables (60 €/h, 360 € el diagnóstico, 2–3 semanas, 0 € en comisiones, ejemplos de los análisis). Transparencia total en coste y ahorro: si damos un ahorro, damos también lo que cuesta.
+- Lenguaje de pyme: tareas, horas, euros. Sin jerga técnica; si hace falta un término, se explica.
 - Nada de promesas no medibles («resultados garantizados»). Si no hay dato, no hay cifra.
 - La expresión destacada del titular (p. ej. «cobran pastizales») va en `--accent` con el subrayado dibujado.
 
@@ -83,20 +85,23 @@ Reglas:
 ## 5. Portada: todo de un vistazo
 
 En escritorio (≥1280×800) la primera pantalla muestra, sin hacer scroll:
-1. Cabecera con el lockup y «Reservar 25 min».
-2. Antetítulo, titular y una frase de apoyo.
-3. Dos acciones: **Reservar diagnóstico** (primaria) y **Calcular mi ahorro**.
-4. Diagrama interactivo horizontal (Fuentes → Data 360 → Agentforce → Personas).
-5. «Cómo lo hacemos»: tres tarjetas (3 sem. · 90 días · 0 €), cada una con su botón de reservar.
-6. Franja de confianza.
+1. Cabecera con el lockup, la pestaña destacada **«Calcula tu ahorro»** (píldora, `/calculadora/`) y «Reservar 25 min».
+2. Antetítulo («IA para pymes · precio transparente: 60 €/h»), titular y una frase de apoyo.
+3. Dos acciones: **Calcula tu ahorro** (primaria) y **Reservar 25 min**.
+4. Diagrama interactivo horizontal (Tus tareas → Caso de uso → IA → Tu equipo).
+5. «Cómo lo hacemos»: tres tarjetas (2–3 sem. · 60 €/h · 0 €).
+6. Franja «Trabajamos con»: Claude, ChatGPT, Gemini y Copilot.
 
 Los artículos empiezan justo debajo, en una sección blanca con esquinas superiores redondeadas. La calculadora vive en `/calculadora/`, no en la portada.
+
+### Calculadora (`/calculadora/`)
+Cinco preguntas visuales (sector en chips, personas, horas repetitivas y coste por hora con deslizadores, áreas a automatizar en tarjetas) y un panel de resultado fijo: ahorro anual (tarjeta oscura), lo que cobraríamos a 60 €/h con las horas, licencias al mes, barras ahorro frente a inversión del primer año, meses para recuperarlo y «Cómo lo calculamos» desplegable. El modelo está en `public/assets/roi.js` y se explica en la propia página. El botón final rellena el formulario de contacto con los números (punto de enganche para el futuro CRM vía n8n).
 
 ---
 
 ## 6. Componentes
 
-**Llamadas a reservar:** como máximo **dos** en la primera pantalla: «Reservar 25 min» (cabecera) y «Reservar diagnóstico» (titular). El resto de tarjetas enlazan a su explicación con una flecha («Qué incluye →», «Cómo →», «Por qué →»). Más abajo: el formulario de contacto y la oferta del asistente.
+**Llamadas a reservar:** como máximo **dos** en la primera pantalla: «Reservar 25 min» (cabecera y titular). El resto de tarjetas enlazan a su explicación con una flecha («Qué incluye →», «Cómo →», «Por qué →»). Más abajo: el formulario de contacto y la oferta del asistente.
 
 - **Botón primario:** píldora, blanco sobre marino, 700, 15–16 px, padding 15×26. Hover: sube 2 px.
 - **Botón fantasma:** píldora, borde `--line-strong`, texto blanco.
@@ -106,7 +111,7 @@ Los artículos empiezan justo debajo, en una sección blanca con esquinas superi
 - **Lista de artículos:** miniatura 88×64, línea temática y titular.
 - **Asistente:** burbuja fija abajo a la derecha. A los 3,5 s se abre una tarjeta con «Deja tu nombre y comienza a ahorrar.», un campo, un botón y una **cruz para cerrar** (cerrada, no vuelve a abrirse sola en la visita). Indica siempre que es una IA. El nombre no se envía al modelo: solo saluda y rellena el formulario de contacto.
 - **Newsletter:** al final de cada análisis y Radar (`src/components/Newsletter.astro`, en `Post.astro`), a todo el ancho del artículo, en tarjeta `--panel` con radio 28 px. Título «¿Quieres más análisis como este?», email + casilla de consentimiento (obligatoria) + «Suscribirme». Envía a `/api/newsletter.php`, que reenvía a Zapier; la URL del webhook va en `sobtree-secrets.php`, nunca en la página. Sin webhook configurado, no se muestra.
-- **Franja de confianza:** logos reales (`src/data/confianza.ts`). Sin logos aprobados, muestra las plataformas en texto. Nunca logos de clientes sin permiso escrito ni de proyectos hechos para otra empresa.
+- **Franja «Trabajamos con»:** las IA que usamos (`src/data/confianza.ts`): Claude, ChatGPT, Gemini y Copilot, en píldoras con nombre y fabricante. Si se sube el logo oficial a `public/img/logos/ia/<slug>.svg|png`, se usa el logo. Nunca logos de clientes sin permiso escrito.
 
 ---
 
@@ -134,8 +139,8 @@ Probar siempre a 1440×900, 1280×800, 1024×768, 768×1024 y 375×812, sin scro
 
 ## 9. Contenido y artículos
 
-- Cada artículo responde a una pregunta de un **CIO**: cómo ahorra dinero, cómo gana más o cómo ayuda a su gente.
-- Tres líneas (`linea` en el frontmatter): **Salesforce**, **IA**, **Salesforce + IA**.
+- Cada artículo responde a una pregunta real de un **dueño o gerente de pyme** sobre usar IA: cómo ahorra tiempo y dinero, cómo vende más o cómo quita trabajo pesado a su equipo. Título y slug con las palabras que buscaría en Google («IA para pymes», «cuánto cuesta implantar IA»…).
+- Línea (`linea` en el frontmatter): **IA**. El contenido antiguo sobre Salesforce queda en `draft: true`.
 - Portada: `imagen` (con licencia de uso, en `public/img/`) y `imagenAlt`. Sin imagen, se dibuja una **ilustración de marca** según el tema (`src/components/Cover.astro`): **ahorro** (columnas que bajan y flecha), **radar** (barrido con señales), **IA** (burbujas de conversación y agente) y **datos** (fuentes que convergen en un perfil y ventas que suben). Solo azul marino, `--panel-2`, blanco y acento; sin texto dentro.
 - La **misma portada** sale en la portada de la web, en los listados de Artículos y Radar (tarjetas con imagen, tema, fecha, título y resumen) y dentro de cada pieza, bajo el título. El tema se calcula en un solo sitio (`temaDe` en `src/data/content.ts`).
 - Las páginas de listados y de artículo usan poco espacio superior (`.page-tight`).

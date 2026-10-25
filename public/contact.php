@@ -53,7 +53,7 @@ $subject = '=?UTF-8?B?' . base64_encode('Nuevo lead web — ' . $single($data['e
 
 $body  = "Nueva solicitud desde la web\n\n";
 $body .= "Nombre:   {$data['nombre']}\n";
-$body .= "Cargo:    {$data['cargo']}\n";
+$body .= "Teléfono: {$data['cargo']}\n";
 $body .= "Empresa:  {$data['empresa']}\n";
 $body .= "Email:    {$data['email']}\n";
 $body .= "Tamaño:   {$data['tamano']}\n";

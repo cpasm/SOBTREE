@@ -1,4 +1,4 @@
-/* Sobtree — Consultoría IA × Salesforce
+/* Sobtree — IA para pymes
    Dirección «Foco»: azul marino y blanco, Open Sans, bordes redondeados. Guía completa en DESIGN.md. */
 :root {
   --bg: #050F2C;
@@ -79,7 +79,6 @@ p { margin: 0; }
 .brand-word { font-size: 26px; font-weight: 800; letter-spacing: -0.035em; line-height: 1; }
 .brand-word .dot-accent { color: var(--accent); }
 .brand-bar { width: 1px; height: 26px; background: rgba(255, 255, 255, .3); }
-.brand-sf { height: 46px; width: auto; margin: -8px -4px; }
 .brand-tag { font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); white-space: nowrap; }
 .nav { display: flex; gap: 26px; margin-left: auto; font-size: 15px; font-weight: 600; }
 .nav a { text-decoration: none; color: var(--text-2); transition: color .15s; }
@@ -452,7 +451,6 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
   .brand { gap: 10px; }
   .brand-word { font-size: 23px; }
   .brand-bar { height: 22px; }
-  .brand-sf { height: 40px; margin: -8px -4px; }
   .brand-tag { font-size: 12px; }
   .header-cta { display: none; }
   .menu-toggle { margin-left: auto; }
@@ -556,3 +554,66 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .prose h1 { margin-top: 10px; }
 @media (max-width: 960px) { .post-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .post-grid { grid-template-columns: 1fr; } .post-cover { margin-top: 16px; border-radius: var(--r); } }
+
+/* Franja «Trabajamos con» (IA) */
+.trust-ia { flex-wrap: wrap; }
+.ia-list { list-style: none; margin: 0; padding: 0; flex: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.ia-list li { display: flex; align-items: baseline; justify-content: center; gap: 8px; padding: 12px 16px; border: 1px solid var(--line-strong); border-radius: 999px; transition: border-color .2s ease, transform .2s ease; }
+.ia-list li:hover { border-color: var(--accent); transform: translateY(-2px); }
+.ia-list img { height: 26px; width: auto; filter: brightness(0) invert(1); opacity: .85; }
+.ia-name { font-size: 17px; font-weight: 800; letter-spacing: -0.02em; color: var(--white); }
+.ia-by { font-size: 12px; color: var(--text-3); }
+@media (max-width: 640px) { .ia-list { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; } }
+
+/* Pestaña destacada «Calcula tu ahorro» */
+.nav { align-items: center; }
+.nav .nav-tab { padding: 8px 14px; border-radius: 999px; color: var(--white); background: rgba(var(--accent-rgb), .18); border: 1px solid rgba(var(--accent-rgb), .55); transition: background-color .2s ease; }
+.nav .nav-tab:hover, .nav .nav-tab[aria-current="page"] { background: rgba(var(--accent-rgb), .32); color: var(--white); }
+.mobile-nav a.mobile-tab { color: var(--accent-2); }
+
+/* ---------- Calculadora para pymes ---------- */
+.calc { margin-top: 28px; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.calc-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; }
+.calc-q { margin: 0; padding: 22px 24px; border: 1px solid #18306B; border-radius: var(--r-lg); background: var(--panel); min-width: 0; }
+.calc-q legend, .calc-qhead label { font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.calc-q legend { float: left; width: 100%; margin-bottom: 14px; }
+.calc-q legend + * { clear: both; }
+.calc-qhead { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+.calc-qhead output { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; color: var(--accent-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.calc-n { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 800; background: var(--accent); color: var(--ink); }
+.calc-hint { margin-top: 10px; font-size: 14px; color: var(--text-3); }
+.calc-hint-inline { font-size: 13px; font-weight: 500; color: var(--text-3); margin-left: auto; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { position: relative; }
+.chip input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.chip span { display: inline-block; padding: 9px 16px; border-radius: 999px; border: 1px solid var(--line-strong); font-size: 15px; font-weight: 600; color: var(--text-2); transition: background-color .15s, color .15s, border-color .15s; }
+.chip input:checked + span { background: var(--white); color: var(--ink); border-color: var(--white); }
+.chip input:focus-visible + span { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+.area-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.area { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 14px 16px 14px 44px; border: 1px solid var(--line-strong); border-radius: var(--r); cursor: pointer; transition: border-color .15s, background-color .15s; }
+.area input { position: absolute; left: 16px; top: 17px; width: 18px; height: 18px; accent-color: var(--accent); }
+.area:has(input:checked) { border-color: var(--accent); background: rgba(var(--accent-rgb), .12); }
+.area-name { font-weight: 700; font-size: 15.5px; }
+.area-hint { font-size: 13px; color: var(--text-3); line-height: 1.4; }
+.calc-out { position: sticky; top: 96px; padding: 24px; border-radius: var(--r-lg); background: var(--paper); color: var(--ink); display: grid; gap: 14px; box-shadow: var(--shadow); }
+.res { padding: 16px 18px; border-radius: var(--r); background: var(--paper-2); }
+.res-save { background: var(--ink); color: var(--white); }
+.res-k { font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #1F4FA8; }
+.res-save .res-k { color: var(--accent-2); }
+.res-v { margin-top: 4px; font-size: clamp(28px, 3vw, 38px); font-weight: 800; letter-spacing: -0.035em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.res-v.sm { font-size: clamp(22px, 2.3vw, 28px); }
+.res-v.xs { font-size: 19px; }
+.res-sub { margin-top: 4px; font-size: 14px; color: var(--ink-2); }
+.res-save .res-sub { color: var(--text-2); }
+.res-bars { display: grid; gap: 8px; }
+.bar-row { display: grid; grid-template-columns: 130px 1fr; align-items: center; gap: 10px; font-size: 13px; color: var(--ink-2); }
+.bar { height: 12px; border-radius: 999px; background: #DCE4F4; overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 999px; background: var(--accent); transition: width .5s var(--ease); }
+.bar-cost i { background: var(--ink); }
+.res-payback { font-size: 17px; text-align: center; }
+.res-payback strong { color: #1F4FA8; }
+.res-assume { font-size: 14px; color: var(--ink-2); }
+.res-assume summary { cursor: pointer; font-weight: 700; color: var(--ink); }
+.res-assume ul { margin: 10px 0 0; padding-left: 1.2em; display: grid; gap: 6px; }
+@media (max-width: 960px) { .calc { grid-template-columns: minmax(0, 1fr); } .calc-out { position: static; } }
+@media (max-width: 640px) { .area-grid { grid-template-columns: 1fr; } .calc-q { padding: 18px; } .bar-row { grid-template-columns: 110px 1fr; } }

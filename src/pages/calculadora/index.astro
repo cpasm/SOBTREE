@@ -1,48 +1,100 @@
 ---
 import Base from "../../layouts/Base.astro";
-import { BUILD_VERSION } from "../../data/site";
+import { SITE, BUILD_VERSION } from "../../data/site";
 import { graph, organization, website } from "../../data/schema";
----
-<Base title="Calculadora de ahorro con IA en Salesforce | Sobtree" description="Calcula cuánto puede ahorrar un agente de IA en tu servicio de atención al cliente: casos, minutos por caso, coste por hora y porcentaje automatizable." jsonld={graph(organization(), website())}>
-<main id="main">
-<section class="section" id="roi">
-  <div class="wrap roi-grid">
-    <div class="section-head">
-      <p class="eyebrow">Calculadora de ahorro</p>
-      <h1 class="page-title">¿Cuánto dinero estás dejando en la mesa?</h1>
-      <p class="section-sub">Mueve los valores con los datos de tu servicio de atención. Es una estimación del ahorro operativo de un agente de IA, antes de contar el impacto en satisfacción y ventas, y sin el coste de la plataforma: para eso está el <a href="/analisis/cuanto-cuesta-un-agente-de-agentforce/">análisis de costes de Agentforce</a>.</p>
-    </div>
-    <form class="roi-card" id="roi-form" aria-label="Calculadora de ahorro">
-      <div class="field-range">
-        <label for="r-cases">Casos de cliente al mes</label>
-        <output id="o-cases" for="r-cases"></output>
-        <input type="range" id="r-cases" min="1000" max="100000" step="1000" value="10000">
-      </div>
-      <div class="field-range">
-        <label for="r-min">Minutos de gestión por caso</label>
-        <output id="o-min" for="r-min"></output>
-        <input type="range" id="r-min" min="2" max="45" step="1" value="12">
-      </div>
-      <div class="field-range">
-        <label for="r-cost">Coste por hora de agente (€)</label>
-        <output id="o-cost" for="r-cost"></output>
-        <input type="range" id="r-cost" min="15" max="70" step="1" value="28">
-      </div>
-      <div class="field-range">
-        <label for="r-auto">Casos que puede resolver un agente de IA</label>
-        <output id="o-auto" for="r-auto"></output>
-        <input type="range" id="r-auto" min="10" max="70" step="5" value="35">
-      </div>
-      <div class="roi-out">
-        <div><span class="roi-k">Ahorro anual estimado</span><span class="roi-v" id="roi-eur">—</span></div>
-        <div><span class="roi-k">Horas liberadas al año</span><span class="roi-v sm" id="roi-hours">—</span></div>
-        <div><span class="roi-k">Equivalente a jornadas completas</span><span class="roi-v sm" id="roi-fte">—</span></div>
-      </div>
-      <a class="btn btn-primary btn-block" href="/#contacto" id="roi-cta">Validar este cálculo con mis datos</a>
-    </form>
-  </div>
-</section>
 
+const SECTORES = ["Comercio", "Hostelería", "Despacho o asesoría", "Clínica o salud", "Industria o distribución", "Inmobiliaria", "Otro"];
+const AREAS = [
+  { id: "atencion", name: "Atención al cliente", hint: "Emails, WhatsApp, llamadas, dudas de siempre" },
+  { id: "ventas", name: "Presupuestos y ventas", hint: "Ofertas, seguimiento de clientes, propuestas" },
+  { id: "admin", name: "Facturas y administración", hint: "Facturas, albaranes, papeleo, datos" },
+  { id: "marketing", name: "Marketing y contenidos", hint: "Redes, web, newsletters, anuncios" },
+  { id: "informes", name: "Informes y documentos", hint: "Resúmenes, actas, informes, búsquedas" }
+];
+---
+<Base title="Calcula tu ahorro con IA (y cuánto te costaría) | Sobtree" description="Calculadora gratuita para pymes: en 5 preguntas, cuánto puedes ahorrar implantando IA en tu empresa y cuánto te costaría, con precios transparentes a 60 €/hora." jsonld={graph(organization(), website())}>
+<main id="main" class="section page-tight calc-page">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">Calculadora para pymes</p>
+      <h1 class="page-title">Calcula tu ahorro con IA <span class="dot-accent">y cuánto te costaría</span></h1>
+      <p class="section-sub">Cinco preguntas, un minuto. Te damos una horquilla honesta de lo que puedes ahorrar y de lo que te cobraríamos, con todos los supuestos a la vista.</p>
+    </div>
+
+    <div class="calc">
+      <form class="calc-form" id="calc" aria-label="Calculadora de ahorro con IA">
+        <fieldset class="calc-q">
+          <legend><span class="calc-n">1</span> ¿A qué se dedica tu empresa?</legend>
+          <div class="chip-row">
+            {SECTORES.map((s, i) => <label class="chip"><input type="radio" name="sector" value={s} checked={i === 0} /><span>{s}</span></label>)}
+          </div>
+        </fieldset>
+
+        <div class="calc-q">
+          <div class="calc-qhead"><label for="c-personas"><span class="calc-n">2</span> ¿Cuántas personas trabajan en ella?</label><output id="o-personas" for="c-personas"></output></div>
+          <input type="range" id="c-personas" min="1" max="100" step="1" value="8">
+        </div>
+
+        <div class="calc-q">
+          <div class="calc-qhead"><label for="c-horas"><span class="calc-n">3</span> Horas por persona y semana en tareas repetitivas</label><output id="o-horas" for="c-horas"></output></div>
+          <input type="range" id="c-horas" min="1" max="20" step="1" value="6">
+          <p class="calc-hint">Contestar emails, hacer presupuestos, pasar facturas, copiar datos de un sitio a otro…</p>
+        </div>
+
+        <div class="calc-q">
+          <div class="calc-qhead"><label for="c-coste"><span class="calc-n">4</span> Coste medio por hora de un empleado</label><output id="o-coste" for="c-coste"></output></div>
+          <input type="range" id="c-coste" min="12" max="50" step="1" value="20">
+          <p class="calc-hint">Truco: sueldo bruto anual + Seguridad Social, dividido entre 1.700 horas.</p>
+        </div>
+
+        <fieldset class="calc-q">
+          <legend><span class="calc-n">5</span> ¿Qué te gustaría automatizar? <span class="calc-hint-inline">Elige una o varias</span></legend>
+          <div class="area-grid">
+            {AREAS.map((a, i) => (
+              <label class="area">
+                <input type="checkbox" name="area" value={a.id} data-name={a.name} checked={i < 2} />
+                <span class="area-name">{a.name}</span>
+                <span class="area-hint">{a.hint}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      </form>
+
+      <aside class="calc-out" aria-live="polite" aria-label="Resultado">
+        <div class="res res-save">
+          <p class="res-k">Podrías ahorrar al año</p>
+          <p class="res-v"><span id="r-save-lo">—</span> – <span id="r-save-hi">—</span></p>
+          <p class="res-sub"><span id="r-hours">—</span> horas recuperadas al mes</p>
+        </div>
+        <div class="res res-cost">
+          <p class="res-k">Lo que te cobraríamos</p>
+          <p class="res-v sm"><span id="r-fee-lo">—</span> – <span id="r-fee-hi">—</span></p>
+          <p class="res-sub"><span id="r-fee-h">—</span> a {SITE.rate} €/h, una sola vez · sin IVA</p>
+        </div>
+        <div class="res res-lic">
+          <p class="res-k">Licencias de IA (las pagas tú al proveedor)</p>
+          <p class="res-v xs"><span id="r-lic">—</span> al mes</p>
+        </div>
+        <div class="res-bars" aria-hidden="true">
+          <div class="bar-row"><span>Ahorro 1.er año</span><div class="bar"><i id="b-save"></i></div></div>
+          <div class="bar-row"><span>Inversión 1.er año</span><div class="bar bar-cost"><i id="b-cost"></i></div></div>
+        </div>
+        <p class="res-payback">Se paga en <strong id="r-payback">—</strong></p>
+        <a class="btn btn-primary btn-block" href="/#contacto" id="calc-cta">Quiero mi plan con estos números</a>
+        <details class="res-assume">
+          <summary>Cómo lo calculamos</summary>
+          <ul>
+            <li>Horas repetitivas al año = personas × horas por semana × 46 semanas.</li>
+            <li>La IA puede ahorrar <span id="a-share">—</span> de ese tiempo según cuántas áreas automatices. Es una estimación orientativa: el diagnóstico la ajusta a tu caso.</li>
+            <li>Nuestro trabajo: diagnóstico (6 h) + puesta en marcha de cada área (8–20 h) + formación (2–6 h), a {SITE.rate} €/h.</li>
+            <li>Licencias: unos 20–30 € por usuario y mes según proveedor y plan (ChatGPT, Claude, Gemini o Copilot), para la mitad de la plantilla aprox.</li>
+            <li>No incluye IVA ni el impacto en ventas o satisfacción de clientes, que suele sumar más.</li>
+          </ul>
+        </details>
+      </aside>
+    </div>
+  </div>
 </main>
 <script is:inline src={`/assets/roi.js?v=${BUILD_VERSION}`} defer></script>
 </Base>
