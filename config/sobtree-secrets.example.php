@@ -19,5 +19,5 @@ return [
     // Opcionales:
     // 'LEADS_DIR' => '/home/<usuario>/domains/sobtree.com/sobtree-leads',
     // 'LEADS_NOTIFY_TO' => 'info@sobtree.com',
-    // 'LEADS_NOTIFY_FROM' => 'web@sobtree.com',
+    // 'LEADS_NOTIFY_FROM' => 'info@sobtree.com',   // por defecto; usa solo un buzón o alias que exista
 ];

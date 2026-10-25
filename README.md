@@ -92,7 +92,7 @@ La caja de la home envía la pregunta a `/api/asistente.php`, que llama a Claude
 
 ## Antes de publicar
 
-- Formulario: ver «Captura de leads» más abajo. Crea en hPanel el buzón `web@sobtree.com` (remitente del aviso) o cambia `LEADS_NOTIFY_FROM`.
+- Formulario: ver «Captura de leads» más abajo. El correo de respaldo sale con remitente `info@sobtree.com` (buzón real en Google Workspace); se puede cambiar con `LEADS_NOTIFY_FROM` si se crea otro buzón o alias.
 - `privacidad`: texto base de privacidad y aviso legal. Revísalo con tu asesor antes de publicar.
 - Revisa la compatibilidad con tu contrato laboral actual antes de hacer pública la web.
 

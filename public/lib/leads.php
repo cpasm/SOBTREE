@@ -11,7 +11,7 @@
 //   N8N_LEADS_WEBHOOK_SECRET  secreto compartido para la firma HMAC-SHA256
 //   LEADS_DIR                 carpeta del registro (por defecto domains/sobtree.com/sobtree-leads)
 //   LEADS_NOTIFY_TO           destinatario del aviso por correo (por defecto info@sobtree.com)
-//   LEADS_NOTIFY_FROM         remitente del aviso (por defecto web@sobtree.com)
+//   LEADS_NOTIFY_FROM         remitente del aviso (por defecto info@sobtree.com, buzón real de Google Workspace)
 declare(strict_types=1);
 
 const LEADS_SCHEMA_VERSION = 1;
@@ -59,7 +59,7 @@ function leads_config(): array {
         'webhook_url' => preg_match('#^https://#', $url) || getenv('LEADS_ALLOW_HTTP_WEBHOOK') === '1' ? $url : '',
         'webhook_secret' => $get('N8N_LEADS_WEBHOOK_SECRET'),
         'notify_to' => $get('LEADS_NOTIFY_TO', 'info@sobtree.com'),
-        'notify_from' => $get('LEADS_NOTIFY_FROM', 'web@sobtree.com'),
+        'notify_from' => $get('LEADS_NOTIFY_FROM', 'info@sobtree.com'),
     ];
     return $cfg;
 }

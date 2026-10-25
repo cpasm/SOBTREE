@@ -138,5 +138,9 @@ check "ningún secreto en el payload enviado a n8n" '! grep -q "$SECRET" "$RECV"
 echo "9. Firma: el mock rechaza una firma falsa"
 check "firma inválida → 401" '[ "$(curl -s -o /dev/null -w %{http_code} -X POST -H "X-Sobtree-Timestamp: $(date +%s)" -H "X-Sobtree-Signature: sha256=00" -d "{}" $WEBHOOK)" = 401 ]'
 
+echo "10. Remitente del correo de respaldo"
+check "remitente por defecto = info@sobtree.com" '[ "$(php -r "require \"$ROOT/public/lib/leads.php\"; echo leads_config()[\"notify_from\"];")" = info@sobtree.com ]'
+check "LEADS_NOTIFY_FROM lo sustituye" '[ "$(LEADS_NOTIFY_FROM=otro@sobtree.com php -r "require \"$ROOT/public/lib/leads.php\"; echo leads_config()[\"notify_from\"];")" = otro@sobtree.com ]'
+
 echo; echo "Resultado: $PASS correctas, $FAIL fallidas"
 [ "$FAIL" = 0 ]
