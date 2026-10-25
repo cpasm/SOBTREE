@@ -107,7 +107,7 @@
       "credentials": {
         "hubspotAppToken": {
           "id": "REEMPLAZAR_ID_CREDENCIAL",
-          "name": "HubSpot Sobtree"
+          "name": "HubSpot Service Key account"
         }
       },
       "retryOnFail": true,
@@ -171,7 +171,7 @@
       "credentials": {
         "hubspotAppToken": {
           "id": "REEMPLAZAR_ID_CREDENCIAL",
-          "name": "HubSpot Sobtree"
+          "name": "HubSpot Service Key account"
         }
       },
       "retryOnFail": true,
@@ -203,7 +203,7 @@
       "credentials": {
         "hubspotAppToken": {
           "id": "REEMPLAZAR_ID_CREDENCIAL",
-          "name": "HubSpot Sobtree"
+          "name": "HubSpot Service Key account"
         }
       },
       "retryOnFail": true,
@@ -235,7 +235,7 @@
       "credentials": {
         "hubspotAppToken": {
           "id": "REEMPLAZAR_ID_CREDENCIAL",
-          "name": "HubSpot Sobtree"
+          "name": "HubSpot Service Key account"
         }
       },
       "retryOnFail": true,

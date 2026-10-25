@@ -4,7 +4,8 @@
 Uso: python3 integraciones/n8n/build-workflow.py
 Importar en n8n: Workflows → Import from File. Después, dentro de n8n:
   1) pegar el secreto en el nodo «Verificar firma y mapear» (SECRET);
-  2) elegir las credenciales «HubSpot Sobtree» (app privada) y «Gmail Sobtree (info@)»;
+  2) elegir las credenciales «HubSpot Service Key account» (tipo nativo «HubSpot Service Key»,
+     nombre interno hubspotAppToken) y «Gmail Sobtree (info@)» (OAuth2 de info@sobtree.com);
   3) (el enlace a la ficha ya apunta al portal 149616589, región EU1);
   4) en Settings del workflow, Error workflow = «Sobtree · Errores de workflows».
 """
@@ -12,7 +13,9 @@ import json, pathlib, uuid
 
 HERE = pathlib.Path(__file__).parent
 CODE = (HERE / "verificar-y-mapear.js").read_text(encoding="utf-8")
-HUBSPOT = {"hubspotAppToken": {"id": "REEMPLAZAR_ID_CREDENCIAL", "name": "HubSpot Sobtree"}}
+# Tipo nativo de n8n «HubSpot Service Key»: su nombre interno sigue siendo hubspotAppToken
+# (packages/nodes-base/credentials/HubspotAppToken.credentials.ts) y envía Authorization: Bearer <key>.
+HUBSPOT = {"hubspotAppToken": {"id": "REEMPLAZAR_ID_CREDENCIAL", "name": "HubSpot Service Key account"}}
 GMAIL = {"gmailOAuth2": {"id": "REEMPLAZAR_ID_CREDENCIAL", "name": "Gmail Sobtree (info@)"}}
 MAP = "$('Verificar firma y mapear').first().json"
 

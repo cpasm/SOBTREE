@@ -24,9 +24,9 @@ La web solo envía su propio correo (de respaldo) si este workflow responde 401/
 
 ## Pasos manuales en n8n (los hace el fundador o FORGE con su OK)
 
-1. Credencial **HubSpot Sobtree**: tipo *HubSpot App Token* con el token de la app privada. Permisos: `crm.objects.contacts.read`, `crm.objects.contacts.write`. Para las notas, comprobar al crear la app qué permiso exige la API de notas (está **[NV]**).
-2. Credencial **Gmail Sobtree (info@)**: OAuth2 con info@sobtree.com.
-3. Importar los dos JSON y elegir las credenciales en cada nodo.
+1. Credencial **HubSpot Service Key account**: tipo nativo de n8n **«HubSpot Service Key»** (nombre interno `hubspotAppToken`, el mismo que antes se llamaba «HubSpot App Token»; envía `Authorization: Bearer <key>`). Valor: la *service key* creada en HubSpot (Development → Keys → Service keys) con permisos `crm.objects.contacts.read`, `crm.objects.contacts.write` y `crm.schemas.contacts.read`. La key solo se pega en n8n, nunca en el repo ni en el chat. La usan los 4 nodos HTTP Request: «Buscar contacto por email», «Actualizar contacto», «Crear contacto» y «Crear nota en el contacto» (`authentication: predefinedCredentialType`, `nodeCredentialType: hubspotAppToken`).
+2. Credencial **Gmail Sobtree (info@)**: tipo *Gmail OAuth2 API* (`gmailOAuth2`), iniciando sesión con info@sobtree.com (OAuth del fundador). La usan el nodo «Aviso a info@» (workflow principal) y «Aviso de error a info@» (workflow de errores).
+3. Importar primero `sobtree-errores.json` y después `sobtree-lead-a-hubspot.json`. Los JSON llevan `REEMPLAZAR_ID_CREDENCIAL`: en cada nodo con credencial, elegir la credencial real en el desplegable.
 4. Pegar el secreto (`openssl rand -hex 32`) en `SECRET` del nodo Code. Debe ser el mismo valor que `N8N_LEADS_WEBHOOK_SECRET` en `sobtree-secrets.php`.
 5. El enlace del aviso ya apunta a la cuenta de HubSpot 149616589 (región EU1, `app-eu1.hubspot.com`).
 6. Settings del workflow principal → *Error workflow* = «Sobtree · Errores de workflows».
