@@ -6,7 +6,7 @@ import { graph, organization, website } from "../../data/schema";
 
 const items = await getRadar();
 ---
-<Base title="Radar de IA para pymes | Sobtree" description="Cada semana, las novedades de IA que importan a una pequeña o mediana empresa y qué puedes hacer con ellas." jsonld={graph(organization(), website())}>
+<Base title="Radar de IA para pymes | Sobtree" description="Cada semana, las novedades de IA que importan a una pequeña o mediana empresa y qué puedes hacer con ellas." jsonld={graph(organization(), website())} noindex={items.length === 0}>
   <main id="main" class="section page-tight">
     <div class="wrap">
       <div class="section-head">

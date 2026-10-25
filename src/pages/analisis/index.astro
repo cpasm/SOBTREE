@@ -6,7 +6,7 @@ import { graph, organization, website } from "../../data/schema";
 
 const items = await getAnalisis();
 ---
-<Base title="Artículos sobre IA para pymes | Sobtree" description="Guías prácticas para implantar IA en tu empresa: por dónde empezar, cuánto cuesta, cuánto ahorras y qué dice la ley." jsonld={graph(organization(), website())}>
+<Base title="Artículos sobre IA para pymes | Sobtree" description="Guías prácticas para implantar IA en tu empresa: por dónde empezar, cuánto cuesta, cuánto ahorras y qué dice la ley." jsonld={graph(organization(), website())} noindex={items.length === 0}>
   <main id="main" class="section page-tight">
     <div class="wrap">
       <div class="section-head">

@@ -10,11 +10,33 @@ const hasPublished = (name) => {
 };
 const empty = ["analisis", "radar"].filter((c) => !hasPublished(c));
 
+// URL de directorio, con barra final y sin index.html: es la que Apache responde 200.
+const canonicalPath = (page) => {
+  let path = new URL(page).pathname.replace(/index\.html$/, "");
+  if (path === "") path = "/";
+  if (!path.endsWith("/")) path += "/";
+  return path;
+};
+
+// Solo páginas públicas que deben indexarse. Nada de 404, gracias, /lib, /api
+// ni rutas internas de la calculadora (la portada /calculadora/ sí).
+const indexable = (page) => {
+  const raw = new URL(page).pathname;
+  const path = canonicalPath(page);
+  if (/(^|\/)404(\.html)?\/?$/.test(raw)) return false;
+  if (empty.some((c) => path.startsWith(`/${c}/`))) return false;
+  if (path.startsWith("/calculadora/") && path !== "/calculadora/") return false;
+  if (path.startsWith("/lib/") || path.startsWith("/api/")) return false;
+  if (/\/(gracias|thanks|thank-you|error)(\/|$)/i.test(path)) return false;
+  return true;
+};
+
 export default defineConfig({
   site: "https://sobtree.com",
-  trailingSlash: "ignore",
+  // En Hostinger un directorio sin barra responde 301 a la URL con barra. Esa es la canónica.
+  trailingSlash: "always",
   integrations: [
     mdx(),
-    sitemap({ filter: (page) => !page.includes("/privacidad") && !empty.some((c) => page.includes(`/${c}/`)) })
+    sitemap({ filter: indexable })
   ]
 });

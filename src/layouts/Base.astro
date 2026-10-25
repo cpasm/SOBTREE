@@ -13,7 +13,9 @@ interface Props {
   bare?: boolean; // sin cabecera ni pie (p. ej. páginas legales)
 }
 const { title = SITE.title, description = SITE.description, ogType = "website", jsonld, noindex = false, bare = false } = Astro.props;
-const canonical = new URL(Astro.url.pathname, SITE.url).href;
+// Absoluta, https (SITE.url), sin index.html y con la misma barra final que el sitemap.
+const canonicalPath = Astro.url.pathname.replace(/index\.html$/, "") || "/";
+const canonical = new URL(canonicalPath.endsWith("/") ? canonicalPath : `${canonicalPath}/`, SITE.url).href;
 // Cambia en cada build para que los navegadores no usen CSS/JS antiguos de su caché (7 días).
 const v = BUILD_VERSION;
 ---
