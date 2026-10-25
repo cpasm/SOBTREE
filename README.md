@@ -92,6 +92,24 @@ La caja de la home envía la pregunta a `/api/asistente.php`, que llama a Claude
 
 ## Antes de publicar
 
-- Formulario: `public/contact.php` envía cada solicitud a `info@sobtree.com` con `mail()` de Hostinger. Crea en hPanel el buzón `web@sobtree.com` (remitente) o cambia `$from` en el PHP.
+- Formulario: ver «Captura de leads» más abajo. Crea en hPanel el buzón `web@sobtree.com` (remitente del aviso) o cambia `LEADS_NOTIFY_FROM`.
 - `privacidad`: texto base de privacidad y aviso legal. Revísalo con tu asesor antes de publicar.
 - Revisa la compatibilidad con tu contrato laboral actual antes de hacer pública la web.
+
+## Captura de leads (formulario → registro local → n8n → HubSpot)
+
+`public/contact.php` recibe el formulario de la portada (también cuando llega desde la calculadora o el asistente) y, en este orden:
+
+1. Valida y filtra spam (honeypot `web`, envíos en menos de 3 s, 1 envío cada 30 s por IP).
+2. **Guarda el lead** en `domains/sobtree.com/sobtree-leads/leads.jsonl` (fuera de `public_html`, con bloqueo de escritura y permisos 600) **antes de cualquier envío**.
+3. Responde al visitante.
+4. Avisa por correo a `info@sobtree.com` y reenvía el lead al webhook de n8n firmado con HMAC-SHA256. Cada resultado queda en `estado.jsonl`.
+
+Lo que falle lo reenvía `public/lib/reintentar-leads.php` (cron cada 15 min en hPanel → Avanzado → Cron Jobs):
+`/usr/bin/php /home/<usuario>/domains/sobtree.com/public_html/lib/reintentar-leads.php`
+
+- **Configuración:** en `sobtree-secrets.php` (ver `config/sobtree-secrets.example.php`): `N8N_LEADS_WEBHOOK_URL`, `N8N_LEADS_WEBHOOK_SECRET` y opcionales `LEADS_DIR`, `LEADS_NOTIFY_TO`, `LEADS_NOTIFY_FROM`. Sin webhook, el reenvío se omite y los leads quedan guardados y avisados por correo.
+- **Firma:** cabeceras `X-Sobtree-Timestamp`, `X-Sobtree-Signature: sha256=hex(HMAC_SHA256(secreto, "<timestamp>.<cuerpo>"))` y `X-Sobtree-Lead-Id`.
+- **Origen:** `assets/origen.js` guarda en `sessionStorage` (sin cookies) la página de entrada, el referrer externo y las UTM; `main.js` las copia en campos ocultos al enviar.
+- **Workflow de n8n:** `integraciones/n8n/` (sin credenciales).
+- **Pruebas locales:** `bash tests/leads/run-tests.sh` (servidor PHP local + webhook simulado; no toca nada externo).
