@@ -18,13 +18,17 @@ La web solo envía su propio correo (de respaldo) si este workflow responde 401/
 3. Firma no válida → **401**. La web lo marca como error y lo reintenta, con registro.
 4. **Buscar contacto por email** (deduplicación): `POST /crm/v3/objects/contacts/search`.
 5. Si existe → **PATCH** (no pisa `lifecyclestage`, `hs_lead_status` ni la fuente, y no envía campos vacíos). Si no → **crear** con `lifecyclestage=lead`, `hs_lead_status=NEW`.
-6. **Nota** asociada al contacto con el mensaje completo, el origen, la calculadora o el asistente, el consentimiento y el id del lead.
+6. **Nota** asociada al contacto con el mensaje completo, el origen, la calculadora o el asistente, el consentimiento de privacidad, el de comunicaciones comerciales (si el lead lo trae) y el id del lead. No se llama a la API de suscripciones.
 7. **Aviso PRINCIPAL a info@sobtree.com** (Gmail) con enlace a la ficha, salvo que la web indique que ya envió su correo de respaldo (`envio.respaldo_enviado`). Después **200** con `aviso: true`; si el aviso falla, **200** con `aviso: false` y la web envía su correo de respaldo.
 8. Cualquier fallo de HubSpot (tras 3 intentos con 1 s de espera) → **502**. La web lo reintenta por cron, hasta 8 veces.
 
 ## Reimportar a mano
 
-Si cambia `verificar-y-mapear.js`, hay que regenerar el JSON (`python3 integraciones/n8n/build-workflow.py`) y **reimportar** `sobtree-lead-a-hubspot.json` en n8n. El despliegue de la web no actualiza el flujo. La firma HMAC y la cola de reintentos de la web no cambian: solo el texto de la nota y del contexto, que ahora desglosa diagnóstico, descuento, puesta en marcha y total neto. No se crean propiedades nuevas en HubSpot.
+Si cambia `verificar-y-mapear.js`, hay que regenerar el JSON (`python3 integraciones/n8n/build-workflow.py`) y **reimportar** `sobtree-lead-a-hubspot.json` en n8n. El despliegue de la web no actualiza el flujo. El JSON sigue con `"active": false`: importarlo no activa el workflow; hay que activarlo a mano en n8n cuando el fundador lo diga.
+
+La firma HMAC y la cola de reintentos de la web no cambian. La nota añade el consentimiento de comunicaciones comerciales (sí, con fecha ISO, texto aceptado y versión de la política; no, si la casilla iba sin marcar; «no consta» si el lead en cola es anterior y no trae el campo). El contexto de la calculadora sigue desglosando diagnóstico, descuento, puesta en marcha y total neto.
+
+No se crea ninguna propiedad nueva. No se reutiliza `sobtree_newsletter_consentimiento`: esa propiedad la define la rama `feat/newsletter-hubspot` para el alta de la newsletter (`fecha | origen | versión`) y pisarla desde un lead mezclaría dos consentimientos distintos. No se llama a `POST /communication-preferences/v3/subscribe` ni a ningún otro endpoint de suscripción: el scope `communication_preferences.write` no está concedido. Marcar la casilla solo deja constancia en la nota y en el aviso a info@. No suscribe al contacto.
 
 ## Pasos manuales en n8n (los hace el fundador o FORGE con su OK)
 
@@ -40,7 +44,7 @@ Si cambia `verificar-y-mapear.js`, hay que regenerar el JSON (`python3 integraci
 
 **Estado (25/10/2026):** las 7 propiedades personalizadas están **creadas** en la cuenta 149616589 (grupo «Custom information», `custom_information`; el conector no permite crear grupos).
 
-Plan gratuito: hasta **10 propiedades personalizadas en toda la cuenta** (según la comunidad de HubSpot; hay que confirmarlo en la cuenta). Este diseño usa **7** y deja 3 libres.
+Plan gratuito: hasta **10 propiedades personalizadas en toda la cuenta** (según la comunidad de HubSpot; hay que confirmarlo en la cuenta). Este diseño usa **7** y deja 3 libres. La rama `feat/newsletter-hubspot` añadirá 2 (`sobtree_newsletter_consentimiento` y `sobtree_newsletter_confirmado`) y dejaría 1 libre. El consentimiento comercial de este formulario no consume ninguna: vive en la nota del lead.
 
 Nativas que se reutilizan: `email`, `firstname`, `lastname`, `phone`, `jobtitle`, `company`, `company_size`, `message`, `industry`, `lifecyclestage`, `hs_lead_status`, `hs_legal_basis` y `hs_analytics_source` (solo en el alta; HubSpot indica que se puede editar manualmente).
 

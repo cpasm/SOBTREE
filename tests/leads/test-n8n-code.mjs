@@ -63,5 +63,28 @@ t("timestamp de hace 1 h → no válido (anti-replay)", stale.json.valido === fa
 const noSecret = new AsyncFn("$input", "require", fs.readFileSync(new URL("../../integraciones/n8n/verificar-y-mapear.js", import.meta.url), "utf8"));
 const [unset] = await noSecret.call({ helpers: { getBinaryDataBuffer: async () => Buffer.from(raw) } }, { first: () => ({ json: { headers: { "x-sobtree-timestamp": ts, "x-sobtree-signature": sig } } }) }, require);
 t("sin secreto configurado → rechaza todo", unset.json.valido === false);
+
+const sobtreeKeys = Object.keys(p).filter((k) => k.startsWith("sobtree_"));
+t("siguen siendo las 7 propiedades sobtree_", sobtreeKeys.length === 7 && !("sobtree_newsletter_consentimiento" in p));
+t("lead antiguo sin el campo: nota «no consta» y firma válida", good.json.valido === true && /no consta \(lead anterior a la casilla\)/.test(good.json.nota_html) && /Comunicaciones comerciales: no consta/.test(good.json.aviso_texto));
+
+const TEXTO = "Quiero recibir comunicaciones comerciales de Sobtree (novedades, análisis y ofertas) por email. Puedes darte de baja cuando quieras.";
+async function conComercial(cc) {
+  const body = { ...lead, consentimiento_comercial: cc };
+  const rawCc = execFileSync("php", ["-r", "echo json_encode(json_decode(stream_get_contents(STDIN), true), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);"], { input: JSON.stringify(body) }).toString();
+  const sigCc = "sha256=" + execFileSync("php", ["-r", `require "public/lib/leads.php"; echo leads_sign($argv[1], $argv[2], stream_get_contents(STDIN));`, SECRET, ts], { input: rawCc }).toString();
+  const [out] = await run(rawCc, { "x-sobtree-timestamp": ts, "x-sobtree-signature": sigCc });
+  return out.json;
+}
+const marcado = await conComercial({ acepta: true, fecha: "2026-10-26T10:00:00+00:00", texto: TEXTO, version_politica: "2026-10-26" });
+t("casilla marcada: nota con fecha, texto y versión, sin propiedad nueva", marcado.valido === true && /Comunicaciones comerciales:<\/strong> sí · 2026-10-26T10:00:00\+00:00 · política 2026-10-26/.test(marcado.nota_html) && marcado.nota_html.includes(TEXTO) && !("sobtree_newsletter_consentimiento" in marcado.props_alta) && Object.keys(marcado.props_alta).filter((k) => k.startsWith("sobtree_")).length === 7);
+t("casilla marcada: el aviso lo dice y no hay suscripción", /Comunicaciones comerciales: sí/.test(marcado.aviso_texto) && marcado.aviso_texto.includes(TEXTO) && !/subscribe|communication-preferences/i.test(JSON.stringify(marcado)));
+const sinMarcar = await conComercial({ acepta: false, fecha: "2026-10-26T10:00:00+00:00", texto: "", version_politica: "2026-10-26" });
+t("casilla sin marcar: la nota dice no y no copia un texto aceptado", sinMarcar.valido === true && /Comunicaciones comerciales:<\/strong> no</.test(sinMarcar.nota_html) && !sinMarcar.nota_html.includes(TEXTO));
+const raro = await conComercial({ acepta: "si", fecha: "2026-10-26T10:00:00+00:00", texto: TEXTO, version_politica: "2026-10-26" });
+t("acepta que no es el booleano true no cuenta como sí", raro.valido === true && /Comunicaciones comerciales:<\/strong> no</.test(raro.nota_html));
+const wf = fs.readFileSync(new URL("../../integraciones/n8n/sobtree-lead-a-hubspot.json", import.meta.url), "utf8");
+t("el flujo sigue inactivo y no suscribe por API", /"active": false/.test(wf) && !/communication-preferences|\/subscribe/.test(wf) && !/communication-preferences|\/subscribe/.test(src));
+
 console.log(`\nResultado: ${ok} correctas, ${ko} fallidas`);
 process.exit(ko ? 1 : 0);

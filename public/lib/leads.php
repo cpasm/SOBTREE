@@ -15,6 +15,10 @@
 declare(strict_types=1);
 
 const LEADS_SCHEMA_VERSION = 1;
+// Versión publicada en /privacidad/ (POLITICA_VERSION en src/data/site.ts). Va firmada con el lead.
+const LEADS_POLITICA_VERSION = '2026-10-26';
+// Texto exacto de la casilla opcional (COMERCIAL_CONSENT_TEXT en src/data/site.ts). Sin el enlace.
+const LEADS_COMERCIAL_TEXTO = 'Quiero recibir comunicaciones comerciales de Sobtree (novedades, análisis y ofertas) por email. Puedes darte de baja cuando quieras.';
 const LEADS_WEBHOOK_TIMEOUT = 10;       // segundos en total (el visitante ya tiene su respuesta)
 const LEADS_WEBHOOK_CONNECT_TIMEOUT = 2;
 const LEADS_MAX_ATTEMPTS = 8;           // intentos máximos de reenvío a n8n por lead
@@ -119,6 +123,33 @@ function leads_mark(string $id, string $canal, string $estado, string $detalle =
     ]);
 }
 
+/**
+ * Campo de formulario como booleano. Ausente lo resuelve quien llama.
+ * true: 1, true, si, sí, yes, on. false: vacío, 0, false, no, off. Cualquier otro valor → null.
+ */
+function leads_parse_bool(mixed $value): ?bool {
+    if (is_bool($value)) return $value;
+    if (is_int($value)) return $value === 0 ? false : ($value === 1 ? true : null);
+    if (!is_string($value)) return null;
+    $s = strtolower(trim($value));
+    if ($s === '' || in_array($s, ['0', 'false', 'no', 'off'], true)) return false;
+    if (in_array($s, ['1', 'true', 'si', 'sí', 'yes', 'on'], true)) return true;
+    return null;
+}
+
+/**
+ * Casilla opcional de comunicaciones comerciales, lista para el payload firmado.
+ * $acepta true solo si el visitante la marcó. La fecha es ISO 8601 (UTC).
+ */
+function leads_consentimiento_comercial(bool $acepta): array {
+    return [
+        'acepta' => $acepta,
+        'fecha' => gmdate('c'),
+        'texto' => $acepta ? LEADS_COMERCIAL_TEXTO : '',
+        'version_politica' => LEADS_POLITICA_VERSION,
+    ];
+}
+
 /** Firma: hex(HMAC-SHA256(secreto, "<timestamp>.<cuerpo>")). */
 function leads_sign(string $secret, string $timestamp, string $body): string {
     return hash_hmac('sha256', $timestamp . '.' . $body, $secret);
@@ -216,6 +247,18 @@ function leads_send_mail(array $lead, string $motivo = ''): bool {
     $b .= "Tamaño:    {$lead['tamano']}\n";
     $b .= "Interés:   {$lead['interes']}\n\n";
     $b .= "Mensaje:\n{$lead['mensaje']}\n\n";
+    // Los leads en cola anteriores a esta casilla no traen el campo: no se inventa un sí ni un no.
+    if (array_key_exists('consentimiento_comercial', $lead) && is_array($lead['consentimiento_comercial'])) {
+        $cc = $lead['consentimiento_comercial'];
+        $acepta = ($cc['acepta'] ?? false) === true;
+        $b .= 'Comunicaciones comerciales: ' . ($acepta ? 'sí' : 'no') . "\n";
+        if ($acepta) {
+            $b .= 'Texto aceptado: ' . (string)($cc['texto'] ?? '') . "\n";
+            $b .= 'Fecha: ' . (string)($cc['fecha'] ?? '') . "\n";
+            $b .= 'Versión de la política: ' . (string)($cc['version_politica'] ?? '') . "\n";
+        }
+        $b .= "\n";
+    }
     $b .= "— Origen —\n";
     $b .= "Formulario: $tipo\n";
     $b .= "Página:     " . ($o['pagina'] ?: '—') . "\n";

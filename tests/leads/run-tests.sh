@@ -142,5 +142,54 @@ echo "10. Remitente del correo de respaldo"
 check "remitente por defecto = info@sobtree.com" '[ "$(php -r "require \"$ROOT/public/lib/leads.php\"; echo leads_config()[\"notify_from\"];")" = info@sobtree.com ]'
 check "LEADS_NOTIFY_FROM lo sustituye" '[ "$(LEADS_NOTIFY_FROM=otro@sobtree.com php -r "require \"$ROOT/public/lib/leads.php\"; echo leads_config()[\"notify_from\"];")" = otro@sobtree.com ]'
 
+echo "11. Consentimiento comercial (opcional)"
+write_config "$WEBHOOK"
+echo 200 > "$MOCK/mode"
+TEXTO_CC='Quiero recibir comunicaciones comerciales de Sobtree (novedades, análisis y ofertas) por email. Puedes darte de baja cuando quieras.'
+check "texto y versión coinciden con la política (site.ts)" '[ "$(php -r "require \"$ROOT/public/lib/leads.php\"; echo LEADS_COMERCIAL_TEXTO;")" = "$TEXTO_CC" ] && grep -q "POLITICA_VERSION = \"$(php -r "require \"$ROOT/public/lib/leads.php\"; echo LEADS_POLITICA_VERSION;")\"" "$ROOT/src/data/site.ts" && grep -Fq "$TEXTO_CC" "$ROOT/src/data/site.ts"'
+CODE=$(post "${VALID[@]}" -d consentimiento_comercial=si)
+check "casilla marcada → 200" '[ "$CODE" = 200 ]'
+check "marcada: booleano true, texto, fecha ISO y versión en el registro" 'tail -1 "$LEADS" | TEXTO_CC="$TEXTO_CC" php -r "
+\$j=json_decode(stream_get_contents(STDIN), true); \$c=\$j[\"consentimiento_comercial\"] ?? null;
+\$ok=is_array(\$c) && \$c[\"acepta\"]===true && \$c[\"texto\"]===getenv(\"TEXTO_CC\")
+  && preg_match(\"/^[0-9]{4}-[0-9]{2}-[0-9]{2}T/\", (string)(\$c[\"fecha\"] ?? \"\"))
+  && \$c[\"version_politica\"]===\"2026-10-26\";
+exit(\$ok ? 0 : 1);"'
+check "marcada: el webhook recibe el campo dentro del cuerpo firmado" 'tail -1 "$RECV" | TEXTO_CC="$TEXTO_CC" php -r "
+\$j=json_decode(stream_get_contents(STDIN), true); \$c=\$j[\"body\"][\"consentimiento_comercial\"] ?? null;
+exit((\$j[\"valid_signature\"]===true && is_array(\$c) && \$c[\"acepta\"]===true && \$c[\"texto\"]===getenv(\"TEXTO_CC\")) ? 0 : 1);"'
+CODE=$(post "${VALID[@]}")
+check "sin marcar → 200 (el envío sigue igual)" '[ "$CODE" = 200 ]'
+check "sin marcar: acepta false y texto vacío" 'tail -1 "$LEADS" | php -r "
+\$j=json_decode(stream_get_contents(STDIN), true); \$c=\$j[\"consentimiento_comercial\"] ?? null;
+exit((is_array(\$c) && \$c[\"acepta\"]===false && (\$c[\"texto\"] ?? \"x\")===\"\" && \$c[\"version_politica\"]===\"2026-10-26\") ? 0 : 1);"'
+NLEADS=$(lines "$LEADS")
+CODE=$(post "${VALID[@]}" -d consentimiento_comercial=quizas)
+check "valor inválido → 422 y no se guarda" '[ "$CODE" = 422 ] && [ "$(lines "$LEADS")" = "$NLEADS" ]'
+CODE=$(post "${VALID[@]}" --data-urlencode "consentimiento_comercial[]=si")
+check "valor no escalar → 422 y no se guarda" '[ "$CODE" = 422 ] && [ "$(lines "$LEADS")" = "$NLEADS" ]'
+OLD=$(php -r "
+require \"$ROOT/public/lib/leads.php\";
+\$lead=json_decode(trim(stream_get_contents(STDIN)), true);
+unset(\$lead[\"consentimiento_comercial\"]);
+\$lead[\"id\"]=leads_uuid();
+\$lead[\"fecha\"]=gmdate(\"c\", time()-1200);
+\$lead[\"email\"]=\"antiguo@example.com\";
+if (!leads_save(\$lead)) exit(1);
+echo \$lead[\"id\"];
+" < <(tail -1 "$LEADS"))
+php "$ROOT/public/lib/reintentar-leads.php" >/dev/null 2>&1
+check "lead antiguo en cola sin el campo se reenvía" '[ -n "$OLD" ] && [ "$(last_state "$OLD" n8n)" = enviado ]'
+check "el reenvío no inventa consentimiento_comercial y la firma vale" 'tail -1 "$RECV" | OLD="$OLD" php -r "
+\$j=json_decode(stream_get_contents(STDIN), true);
+exit((\$j[\"valid_signature\"]===true && \$j[\"lead_id\"]===getenv(\"OLD\") && !array_key_exists(\"consentimiento_comercial\", \$j[\"body\"] ?? [])) ? 0 : 1);"'
+check "el correo de un lead antiguo no avisa por el campo ausente" 'OLD="$OLD" php -r "
+require \"$ROOT/public/lib/leads.php\";
+\$lead=json_decode(trim(stream_get_contents(STDIN)), true);
+unset(\$lead[\"consentimiento_comercial\"]);
+\$lead[\"id\"]=getenv(\"OLD\").\"-mail\";
+exit(leads_send_mail(\$lead, \"test\") ? 0 : 1);
+" < <(tail -1 "$LEADS")'
+
 echo; echo "Resultado: $PASS correctas, $FAIL fallidas"
 [ "$FAIL" = 0 ]
