@@ -24,7 +24,7 @@ export const AUTHOR: { name: string; jobTitle: string; url?: string; sameAs: str
 
 // Precios cerrados, IVA no incluido. La calculadora (public/assets/roi.js) usa las mismas tarifas.
 export const SERVICES = [
-  { name: "Diagnóstico IA exprés", duration: "1 semana · 360 € precio cerrado", description: "Revisamos cómo trabajáis, detectamos las tareas que más tiempo os comen y salís con 3 casos de uso priorizados, con su ahorro estimado y su coste." },
+  { name: "Diagnóstico IA exprés", duration: "1 semana · 490 € precio cerrado, descontables del proyecto si contratas", description: "Revisamos cómo trabajáis, detectamos las tareas que más tiempo os comen y salís con 3 casos de uso priorizados, con su ahorro estimado y su coste." },
   { name: "Primer caso de uso en marcha", duration: "2–3 semanas · 600–1.200 € según el caso, precio cerrado antes de empezar", description: "Implantamos un caso de uso completo (atención al cliente, presupuestos, facturas, contenidos…) con herramientas que ya existen, sin desarrollos a medida caros." },
   { name: "Formación de tu equipo", duration: "Desde 120 €", description: "Tu gente aprende a usar la IA en su día a día con ejemplos de vuestro propio trabajo, no con teoría." },
   { name: "Acompañamiento mensual", duration: "Desde 240 €/mes, cuota fija", description: "Un caso de uso nuevo cada mes, ajustes y soporte. Sin permanencia." }

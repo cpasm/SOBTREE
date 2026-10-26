@@ -7,7 +7,7 @@
   if (!form) return;
 
   // Precio cerrado por pieza, en euros [bajo, alto], sin IVA
-  const PRICE = { diag: [360, 360], first: [600, 1200], extra: [480, 840], train: [[120, 240], [240, 360]] };
+  const PRICE = { diag: [490, 490], first: [600, 1200], extra: [480, 840], train: [[120, 240], [240, 360]] };
   const WEEKS = 46;         // semanas efectivas al año
   const eur = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0, useGrouping: "always" });
   const nf = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0, useGrouping: "always" });

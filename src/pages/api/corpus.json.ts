@@ -26,7 +26,7 @@ export const GET: APIRoute = async () => {
       "Servicios:",
       ...SERVICES.map((s) => `- ${s.name} (${s.duration}): ${s.description}`),
       "",
-      "El punto de entrada recomendado es el Diagnóstico IA exprés: 1 semana, 360 € precio cerrado. Dice qué tareas automatizar primero, cuánto ahorrarías y cuánto costaría ponerlo en marcha."
+      "El punto de entrada recomendado es el Diagnóstico IA exprés: 1 semana, 490 € precio cerrado, descontables del proyecto si contratas. Dice qué tareas automatizar primero, cuánto ahorrarías y cuánto costaría ponerlo en marcha."
     )
   });
 
@@ -63,7 +63,7 @@ export const GET: APIRoute = async () => {
     text: lines(
       "La calculadora de la web (sobtree.com/calculadora/) hace 5 preguntas: sector, número de personas, horas por persona y semana en tareas repetitivas, coste medio por hora y qué áreas automatizar (atención al cliente, presupuestos y ventas, facturas y administración, marketing y contenidos, informes y documentos).",
       "Horas repetitivas al año = personas × horas por semana × 46 semanas. La IA puede ahorrar de un 20–38 % de ese tiempo (una sola área) a un 40–65 % (las cinco áreas). Ahorro = horas ahorradas × coste por hora.",
-      `Precio cerrado orientativo de Sobtree: diagnóstico 360 € + puesta en marcha 600–1.200 € la primera área y 480–840 € cada área adicional + formación 120–360 €, un 25 % más si la empresa tiene más de 50 personas. Por ejemplo, 8 personas y dos áreas: entre 1.560 € y 2.640 € aproximadamente.`,
+      `Precio cerrado orientativo de Sobtree: diagnóstico 490 € (descontables del proyecto si contratas) + puesta en marcha 600–1.200 € la primera área y 480–840 € cada área adicional + formación 120–360 €, un 25 % más si la empresa tiene más de 50 personas. Por ejemplo, 8 personas y dos áreas: entre 1.690 € y 2.770 € aproximadamente.`,
       "Licencias de IA: unos 20–30 € por usuario y mes, para aproximadamente la mitad de la plantilla; las paga el cliente al proveedor.",
       "También calcula en cuántos meses se recupera la inversión con el escenario prudente. Es una estimación orientativa, sin IVA; el diagnóstico la ajusta a cada caso."
     )
