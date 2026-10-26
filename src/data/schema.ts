@@ -48,9 +48,13 @@ export function faqPage() {
   };
 }
 
-export function article(a: { title: string; description: string; url: string; date: Date; updated?: Date; tags: string[]; image?: string }) {
+export function article(a: { title: string; description: string; url: string; date: Date; updated?: Date; tags: string[]; image?: string; autor?: string }) {
   // Solo la portada del frontmatter. La ilustración de marca no es un archivo: no se inventa una URL.
   const image = a.image ? new URL(a.image, SITE.url).href : undefined;
+  // El autor del análisis es la organización Sobtree (no una persona: AUTHOR sigue vacío).
+  const author = a.autor
+    ? { "@type": "Organization", name: a.autor, url: `${SITE.url}/`, parentOrganization: { "@id": ORG_ID } }
+    : AUTHOR ? { "@id": PERSON_ID } : { "@id": ORG_ID };
   return {
     "@type": "Article",
     headline: a.title,
@@ -62,7 +66,7 @@ export function article(a: { title: string; description: string; url: string; da
     inLanguage: "es-ES",
     keywords: a.tags.join(", "),
     ...(image ? { image } : {}),
-    author: AUTHOR ? { "@id": PERSON_ID } : { "@id": ORG_ID },
+    author,
     publisher: { "@id": ORG_ID },
     isPartOf: { "@id": SITE_ID }
   };

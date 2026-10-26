@@ -17,7 +17,7 @@ const lead = {
   nombre: "Ana María Prueba", cargo: "Gerente", telefono: "+34 600 000 000", empresa: "Acme SL", email: "Ana@Example.com",
   tamano: "10 a 49 personas", interes: "Diagnóstico IA exprés", mensaje: "Hola <b>", consentimiento: { acepta: true, texto: "Acepto…", fecha: "2026-10-25T16:00:00+00:00" },
   origen: { pagina: "https://sobtree.com/", landing: "https://sobtree.com/calculadora/?utm_source=google", referrer: "https://www.google.com/", utm: { utm_source: "google", utm_medium: "cpc", utm_campaign: "otono", utm_term: "", utm_content: "" } },
-  calculadora: { sector: "Comercio", personas: 8, horas: 6, coste: 20, ahorro_min: 11000, ahorro_max: 20300, precio_min: 1560, precio_max: 2640, areas: ["Presupuestos y ventas"] },
+  calculadora: { sector: "Comercio", personas: 8, horas: 6, coste: 20, ahorro_min: 11000, ahorro_max: 20300, precio_min: 1200, precio_max: 2280, diagnostico: 490, descuento: 490, puesta_min: 1200, puesta_max: 2280, neto_min: 1200, neto_max: 2280, areas: ["Presupuestos y ventas"] },
   asistente: { motivo: "" }, meta: {},
 };
 // Mismo JSON que produce PHP (json_encode con UNESCAPED_UNICODE|UNESCAPED_SLASHES) → aquí lo generamos con PHP para ser fieles.
@@ -39,6 +39,7 @@ t("fuente nativa deducida (cpc → PAID_SEARCH)", p.hs_analytics_source === "PAI
 t("alta: lifecyclestage=lead y hs_lead_status=NEW", p.lifecyclestage === "lead" && p.hs_lead_status === "NEW");
 t("actualización NO toca lifecyclestage/estado/fuente", !("lifecyclestage" in good.json.props_actualizacion) && !("hs_lead_status" in good.json.props_actualizacion) && !("hs_analytics_source" in good.json.props_actualizacion));
 t("contexto de calculadora", /Ahorro 11\.000/.test(p.sobtree_contexto_lead) || /Ahorro 11/.test(p.sobtree_contexto_lead));
+t("importes en la nota, sin propiedades nuevas", /Diagnóstico/.test(good.json.nota_html) && /Descuento/.test(good.json.nota_html) && /Puesta en marcha/.test(good.json.nota_html) && /Neto/.test(good.json.nota_html) && !/diagnostico/.test(JSON.stringify(p)));
 t("sector → industry", p.industry === "Comercio");
 t("nota HTML escapada", good.json.nota_html.includes("Hola &lt;b&gt;"));
 const raw2 = raw.replace(/"calculadora":\{.*?\]\}/, '"calculadora":[]');

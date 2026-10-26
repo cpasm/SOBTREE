@@ -48,8 +48,12 @@ function fuente() {
 }
 
 const eur = (n) => (typeof n === 'number' ? n.toLocaleString('es-ES') + ' €' : '—');
+// Importes por separado en el texto (nota y contexto). No son propiedades nuevas de HubSpot.
+const importes = typeof calc.diagnostico === 'number'
+  ? `Diagnóstico ${eur(calc.diagnostico)} · Descuento ${eur(calc.descuento)} · Puesta en marcha ${eur(calc.puesta_min)}–${eur(calc.puesta_max)} · Neto ${eur(calc.neto_min)}–${eur(calc.neto_max)}`
+  : `Precio ${eur(calc.precio_min)}–${eur(calc.precio_max)}`;
 const resumenCalc = Object.keys(calc).length
-  ? `Sector: ${calc.sector || '—'} · ${calc.personas ?? '—'} personas · ${calc.horas ?? '—'} h/sem · ${calc.coste ?? '—'} €/h · Áreas: ${(calc.areas || []).join(', ') || '—'} · Ahorro ${eur(calc.ahorro_min)}–${eur(calc.ahorro_max)}/año · Precio ${eur(calc.precio_min)}–${eur(calc.precio_max)}`
+  ? `Sector: ${calc.sector || '—'} · ${calc.personas ?? '—'} personas · ${calc.horas ?? '—'} h/sem · ${calc.coste ?? '—'} €/h · Áreas: ${(calc.areas || []).join(', ') || '—'} · Ahorro ${eur(calc.ahorro_min)}–${eur(calc.ahorro_max)}/año · ${importes}`
   : '';
 const contexto = [resumenCalc && 'Calculadora: ' + resumenCalc, asis.motivo && 'Asistente: ' + asis.motivo].filter(Boolean).join('\n');
 const detalleOrigen = [

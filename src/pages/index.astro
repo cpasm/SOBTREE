@@ -4,7 +4,7 @@ import Foco from "../components/Foco.astro";
 import Articulos from "../components/Articulos.astro";
 import Asistente from "../components/Asistente.astro";
 import { FAQ } from "../data/faq";
-import { BUILD_VERSION } from "../data/site";
+import { BUILD_VERSION, DIAGNOSTICO, TEXTOS } from "../data/site";
 import CASOS from "../data/casos.json";
 import { graph, organization, website, person, faqPage } from "../data/schema";
 
@@ -60,7 +60,7 @@ const jsonld = graph(organization(), website(), person(), faqPage());
       <div class="offer-main">
         <span class="badge">Por aquí se empieza</span>
         <h3>Diagnóstico IA exprés</h3>
-        <p>En una semana vemos cómo trabajáis, detectamos las tareas que más tiempo os comen y salís con un plan claro: qué automatizar, con qué herramienta, cuánto ahorra y cuánto cuesta. Esos 490 € se descuentan del proyecto si contratas.</p>
+        <p>En una semana vemos cómo trabajáis, detectamos las tareas que más tiempo os comen y salís con un plan claro: qué automatizar, con qué herramienta, cuánto ahorra y cuánto cuesta. {TEXTOS.cierreFicha}</p>
         <ul class="checks">
           <li>Entrevista con quien hace el trabajo de verdad</li>
           <li>3 casos de uso priorizados por ahorro y facilidad</li>
@@ -72,9 +72,11 @@ const jsonld = graph(organization(), website(), person(), faqPage());
       <div class="offer-side">
         <dl class="offer-facts">
           <div><dt>Duración</dt><dd>1 semana</dd></div>
-          <div><dt>Precio cerrado</dt><dd>490 €</dd></div>
+          <div><dt>Precio cerrado</dt><dd>{DIAGNOSTICO.precio} €</dd></div>
           <div><dt>Entregable</dt><dd>Plan con ahorro y coste</dd></div>
         </dl>
+        <p class="fine offer-discount">{TEXTOS.lineaCorta}</p>
+        {TEXTOS.condiciones && <p class="fine">{TEXTOS.condiciones}</p>}
         <a class="btn btn-primary btn-block" href="#contacto" data-interest="Diagnóstico IA exprés">Quiero mi diagnóstico</a>
         <p class="fine">¿Prefieres hacer números primero? <a href="/calculadora/">Calcula tu ahorro</a>.</p>
       </div>
@@ -206,7 +208,7 @@ const jsonld = graph(organization(), website(), person(), faqPage());
       <h2>Lo que nos preguntan antes de empezar</h2>
     </div>
     <div class="faqs">
-      {FAQ.map((f) => <details class="faq"><summary>{f.q}</summary><p>{f.a}</p></details>)}
+      {FAQ.map((f) => <details class="faq"><summary>{f.q}</summary><p>{f.a}</p>{f.nota && <p class="faq-note">{f.nota}</p>}</details>)}
     </div>
   </div>
 </section>

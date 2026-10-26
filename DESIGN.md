@@ -19,7 +19,7 @@ Todo lo que se añada a la web sigue esta guía. Los valores viven en `public/as
 
 ### Tono
 - Directo, agresivo con el sobrecoste y nunca con personas o empresas concretas: «¿Cansado de consultoras que cobran pastizales?» sí; nombres de competidores, no.
-- Se habla de tú. Frases cortas. Cifras siempre verificables (490 € el diagnóstico a precio cerrado, descontables del proyecto si contratas, 2–3 semanas, 0 € en comisiones, ejemplos de los análisis). Transparencia total en coste y ahorro: si damos un ahorro, damos también lo que cuesta.
+- Se habla de tú. Frases cortas. Cifras siempre verificables (490 € el diagnóstico a precio cerrado; si haces la puesta en marcha en los 30 días siguientes, te lo descontamos entero; 2–3 semanas, 0 € en comisiones, ejemplos de los análisis). Transparencia total en coste y ahorro: si damos un ahorro, damos también lo que cuesta. La frase sale de `DIAGNOSTICO` en `src/data/site.ts`.
 - Lenguaje de pyme: tareas, horas, euros. Sin jerga técnica; si hace falta un término, se explica.
 - Nada de promesas no medibles («resultados garantizados»). Si no hay dato, no hay cifra.
 - La expresión destacada del titular (p. ej. «cobran pastizales») va en `--accent` con el subrayado dibujado.
@@ -89,13 +89,13 @@ En escritorio (≥1280×800) la primera pantalla muestra, sin hacer scroll:
 2. Antetítulo («IA para pymes · precio cerrado, sin sorpresas»), titular y una frase de apoyo.
 3. Dos acciones: **Calcula tu ahorro** (primaria) y **Reservar 25 min**.
 4. Diagrama interactivo horizontal (Tus tareas → Caso de uso → IA → Tu equipo).
-5. «Cómo lo hacemos»: tres tarjetas (2–3 sem. · 490 € precio cerrado, descontable del proyecto si contratas · 0 €).
+5. «Cómo lo hacemos»: tres tarjetas (2–3 sem. · 490 € precio cerrado, descontado entero si haces la puesta en marcha en los 30 días siguientes · 0 €).
 6. Franja «Trabajamos con»: Claude, ChatGPT, Gemini y Copilot.
 
 Los artículos empiezan justo debajo, en una sección blanca con esquinas superiores redondeadas. La calculadora vive en `/calculadora/`, no en la portada.
 
 ### Calculadora (`/calculadora/`)
-Cinco preguntas visuales (sector en chips, personas, horas repetitivas y coste por hora con deslizadores, áreas a automatizar en tarjetas) y un panel de resultado fijo: ahorro anual (tarjeta oscura), lo que costaría a precio cerrado (sin horas), licencias al mes, barras ahorro frente a inversión del primer año, meses para recuperarlo y «Cómo lo calculamos» desplegable. El modelo está en `public/assets/roi.js` y se explica en la propia página. El botón final rellena el formulario de contacto con los números (punto de enganche para el futuro CRM vía n8n).
+Cinco preguntas visuales (sector en chips, personas, horas repetitivas y coste por hora con deslizadores, áreas a automatizar en tarjetas) y un panel de resultado fijo: ahorro anual (tarjeta oscura), diagnóstico en línea aparte, puesta en marcha, descuento de 30 días si `descuentoCondicionado` está activo, total neto, licencias al mes, barras ahorro frente a inversión del primer año, meses para recuperarlo (sobre el neto) y «Cómo lo calculamos» desplegable. El modelo está en `public/assets/roi.js` con los números de `src/data/site.ts`. El botón final rellena el formulario de contacto con los importes por separado (diagnóstico, descuento, puesta en marcha y neto); el flujo de n8n los escribe en la nota del lead.
 
 ---
 
@@ -140,13 +140,13 @@ Probar siempre a 1440×900, 1280×800, 1024×768, 768×1024 y 375×812, sin scro
 ## 9. Contenido y artículos
 
 - Cada artículo responde a una pregunta real de un **dueño o gerente de pyme** sobre usar IA: cómo ahorra tiempo y dinero, cómo vende más o cómo quita trabajo pesado a su equipo. Título y slug con las palabras que buscaría en Google («IA para pymes», «cuánto cuesta implantar IA»…).
-- Línea (`linea` en el frontmatter): **IA**. El contenido antiguo sobre Salesforce queda en `draft: true`.
+- Línea (`linea` en el frontmatter): **IA**, **Normativa** o **Caso de uso**. El valor por defecto es IA. No hay línea de Salesforce: los borradores antiguos están en `archivo/borradores/`, fuera de `src/content`, y no se publican.
 - Portada: `imagen` (con licencia de uso, en `public/img/`) y `imagenAlt`. Sin imagen, se dibuja una **ilustración de marca** según el tema (`src/components/Cover.astro`): **ahorro** (columnas que bajan y flecha), **radar** (barrido con señales), **IA** (burbujas de conversación y agente) y **datos** (fuentes que convergen en un perfil y ventas que suben). Solo azul marino, `--panel-2`, blanco y acento; sin texto dentro.
 - La **misma portada** sale en la portada de la web, en los listados de Artículos y Radar (tarjetas con imagen, tema, fecha, título y resumen) y dentro de cada pieza, bajo el título. El tema se calcula en un solo sitio (`temaDe` en `src/data/content.ts`).
 - Las páginas de listados y de artículo usan poco espacio superior (`.page-tight`).
 - Fotos reales, si se usan: escenas de trabajo reales y sobrias (equipos, pantallas, oficinas), retocadas a tonos fríos para casar con el marino. Nada de robots, cerebros brillantes ni manos humanas tocando circuitos.
 - El `description` es el resumen de la portada: 2–3 frases, con una cifra si la hay.
-- El Radar es semanal; cada noticia se convierte en una pregunta concreta de empresa («¿Tengo que renegociar Marketing Cloud tras la compra de Braze?»).
+- El Radar es semanal; cada noticia se convierte en una pregunta concreta de una pyme («¿Tengo que cambiar de herramienta de IA este mes?»).
 - **Publicación semanal:** cada lunes una rutina en la nube abre un pull request «¿Publicar? Radar semana NN + artículo» con el texto completo en la descripción. Llega un email con el enlace: **comentar «OK» en el PR = publicar** (la acción `publicar-con-ok.yml` fusiona y despliega); **cerrarlo = descartar**. Nada se publica sin esa decisión.
 
 ---

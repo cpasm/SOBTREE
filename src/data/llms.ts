@@ -1,12 +1,12 @@
 // Genera llms.txt (índice) y llms-full.txt (contenido completo) a partir de los mismos datos que la web.
 // Formato: https://llmstxt.org
-import { SITE, SERVICES } from "./site";
+import { SITE, SERVICES, TEXTOS } from "./site";
 import { FAQ } from "./faq";
 import { getAnalisis, getRadar } from "./content";
 
 const STEPS = [
   "Llamada de 25 minutos, gratis: entendemos tu empresa y te decimos si la IA te compensa.",
-  "Diagnóstico IA exprés (1 semana, 490 € precio cerrado, descontables del proyecto si contratas): qué tareas automatizar, cuánto ahorras y cuánto cuesta.",
+  TEXTOS.llmsPaso,
   "Puesta en marcha (2–3 semanas): el primer caso de uso funcionando y tu equipo formado.",
   "Cada mes, si quieres: medimos el ahorro y vamos a por la siguiente tarea."
 ];
@@ -20,7 +20,7 @@ export async function buildLlms(full: boolean) {
   out.push(
     "Sobtree ayuda a pequeñas y medianas empresas a implantar IA (ChatGPT, Claude, Gemini, Microsoft Copilot y automatizaciones). " +
     "Precio cerrado antes de empezar, sin extras, y sin comisiones de licencias. Trabaja casi todo con IA, por eso cobra menos. " +
-    "El punto de entrada es un diagnóstico IA exprés de 1 semana (490 €, descontables del proyecto si contratas). Sede en Madrid; trabaja en remoto para toda España.",
+    TEXTOS.llmsIntro,
     ""
   );
 

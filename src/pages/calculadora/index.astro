@@ -1,7 +1,9 @@
 ---
 import Base from "../../layouts/Base.astro";
-import { BUILD_VERSION } from "../../data/site";
+import { BUILD_VERSION, DIAGNOSTICO, TEXTOS, cfgPrecio } from "../../data/site";
 import { graph, organization, website } from "../../data/schema";
+
+const cfg = cfgPrecio();
 
 const SECTORES = ["Comercio", "Hostelería", "Despacho o asesoría", "Clínica o salud", "Industria o distribución", "Inmobiliaria", "Otro"];
 const AREAS = [
@@ -68,8 +70,14 @@ const AREAS = [
           <p class="res-sub"><span id="r-hours">—</span> horas recuperadas al mes</p>
         </div>
         <div class="res res-cost">
-          <p class="res-k">Lo que te costaría (precio cerrado)</p>
-          <p class="res-v sm"><span id="r-fee-lo">—</span> – <span id="r-fee-hi">—</span></p>
+          <p class="res-k">Diagnóstico</p>
+          <p class="res-v xs" id="r-diag">—</p>
+          <p class="res-k">Puesta en marcha</p>
+          <p class="res-v sm"><span id="r-puesta-lo">—</span> – <span id="r-puesta-hi">—</span></p>
+          {DIAGNOSTICO.descuentoCondicionado && <p class="res-off">{TEXTOS.calcDescuento}</p>}
+          <p class="res-k res-net">{DIAGNOSTICO.descuentoCondicionado ? "Total neto" : "Total"}</p>
+          <p class="res-v"><span id="r-fee-lo">—</span> – <span id="r-fee-hi">—</span></p>
+          {DIAGNOSTICO.descuentoCondicionado && <p class="res-sub">{TEXTOS.calcSinContratar}</p>}
           <p class="res-sub">Pago único · sin IVA · te lo cerramos tras el diagnóstico</p>
         </div>
         <div class="res res-lic">
@@ -87,7 +95,7 @@ const AREAS = [
           <ul>
             <li>Horas repetitivas al año = personas × horas por semana × 46 semanas.</li>
             <li>La IA puede ahorrar <span id="a-share">—</span> de ese tiempo según cuántas áreas automatices. Es una estimación orientativa: el diagnóstico la ajusta a tu caso.</li>
-            <li>Nuestro precio: diagnóstico (490 €, descontables del proyecto si contratas) + puesta en marcha de la primera área (600–1.200 €) y de cada área más (480–840 €) + formación del equipo (120–360 €). Más de 50 personas: +25 %. El precio final, cerrado, te lo damos tras el diagnóstico.</li>
+            <li>{TEXTOS.calcSupuesto}</li>
             <li>Licencias: unos 20–30 € por usuario y mes según proveedor y plan (ChatGPT, Claude, Gemini o Copilot), para la mitad de la plantilla aprox.</li>
             <li>No incluye IVA ni el impacto en ventas o satisfacción de clientes, que suele sumar más.</li>
           </ul>
@@ -96,5 +104,8 @@ const AREAS = [
     </div>
   </div>
 </main>
+<script is:inline define:vars={{ cfg }}>
+  window.__SOBTREE_PRECIO = cfg;
+</script>
 <script is:inline src={`/assets/roi.js?v=${BUILD_VERSION}`} defer></script>
 </Base>

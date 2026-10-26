@@ -6,8 +6,26 @@
   const form = $("#calc");
   if (!form) return;
 
-  // Precio cerrado por pieza, en euros [bajo, alto], sin IVA
-  const PRICE = { diag: [490, 490], first: [600, 1200], extra: [480, 840], train: [[120, 240], [240, 360]] };
+  // Números y condición del descuento: los inyecta la página desde src/data/site.ts (DIAGNOSTICO).
+  // desdeCfg es la misma cuenta que precioCerrado() en ese fichero. El diagnóstico no lleva el 25 %.
+  const cfg = window.__SOBTREE_PRECIO;
+  if (!cfg) return;
+  function desdeCfg(personas, n) {
+    const big = personas > cfg.umbralRecargo ? cfg.recargo : 1;
+    const train = personas > cfg.umbralFormacion ? cfg.trainBig : cfg.trainSmall;
+    const areas = Math.max(1, n);
+    const round10 = (v) => Math.round(v / 10) * 10;
+    const puesta = [0, 1].map((i) => round10((cfg.first[i] + cfg.extra[i] * (areas - 1) + train[i]) * big));
+    const descuento = cfg.descuentoCondicionado ? cfg.precio : 0;
+    return {
+      diagnostico: cfg.precio,
+      descuento,
+      puestaMin: puesta[0],
+      puestaMax: puesta[1],
+      netoMin: puesta[0] + cfg.precio - descuento,
+      netoMax: puesta[1] + cfg.precio - descuento
+    };
+  }
   const WEEKS = 46;         // semanas efectivas al año
   const eur = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0, useGrouping: "always" });
   const nf = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0, useGrouping: "always" });
@@ -32,11 +50,9 @@
     const horasAno = personas * horas * WEEKS;
     const saveLo = horasAno * shareLo * coste, saveHi = horasAno * shareHi * coste;
 
-    // Precio cerrado: diagnóstico + primera área + áreas adicionales + formación (más si la plantilla crece)
-    const big = personas > 50 ? 1.25 : 1;
-    const train = PRICE.train[personas > 25 ? 1 : 0];
-    const fee = (i) => round((PRICE.diag[i] + PRICE.first[i] + PRICE.extra[i] * (n - 1) + train[i]) * big, 10);
-    const feeLo = fee(0), feeHi = fee(1);
+    // Diagnóstico fijo, sin recargo. El 25 % solo entra en la puesta en marcha (áreas + formación).
+    const precio = desdeCfg(personas, n);
+    const feeLo = precio.netoMin, feeHi = precio.netoMax;
 
     // Licencias de IA: ~20–30 €/usuario/mes para la mitad de la plantilla
     const users = Math.max(1, Math.ceil(personas * 0.5));
@@ -49,6 +65,9 @@
     $("#r-save-lo").textContent = eur.format(round(saveLo, 100));
     $("#r-save-hi").textContent = eur.format(round(saveHi, 100));
     $("#r-hours").textContent = `${nf.format(horasAno * shareLo / 12)}–${nf.format(horasAno * shareHi / 12)}`;
+    $("#r-diag").textContent = eur.format(precio.diagnostico);
+    $("#r-puesta-lo").textContent = eur.format(precio.puestaMin);
+    $("#r-puesta-hi").textContent = eur.format(precio.puestaMax);
     $("#r-fee-lo").textContent = eur.format(feeLo);
     $("#r-fee-hi").textContent = eur.format(feeHi);
     $("#r-lic").textContent = `${eur.format(licLo)}–${eur.format(licHi)}`;
@@ -61,7 +80,7 @@
     $("#b-save").style.width = `${(save1 / max) * 100}%`;
     $("#b-cost").style.width = `${(cost1 / max) * 100}%`;
 
-    last = { sector, personas, horas, coste, areas: areas.map((a) => a.dataset.name), saveLo, saveHi, feeLo, feeHi };
+    last = { sector, personas, horas, coste, areas: areas.map((a) => a.dataset.name), saveLo, saveHi, feeLo, feeHi, precio };
   }
 
   form.addEventListener("input", calc);
@@ -78,9 +97,13 @@
         tipo: "calculadora",
         calculadora: {
           sector: last.sector, personas: last.personas, horas: last.horas, coste: last.coste, areas: last.areas,
-          ahorro_min: round(last.saveLo, 100), ahorro_max: round(last.saveHi, 100), precio_min: last.feeLo, precio_max: last.feeHi
+          ahorro_min: round(last.saveLo, 100), ahorro_max: round(last.saveHi, 100),
+          precio_min: last.feeLo, precio_max: last.feeHi,
+          diagnostico: last.precio.diagnostico, descuento: last.precio.descuento,
+          puesta_min: last.precio.puestaMin, puesta_max: last.precio.puestaMax,
+          neto_min: last.precio.netoMin, neto_max: last.precio.netoMax
         },
-        mensaje: `He usado la calculadora. Sector: ${last.sector}. ${last.personas} personas, ${last.horas} h/semana en tareas repetitivas, ${last.coste} €/h. Quiero automatizar: ${last.areas.join(", ") || "por decidir"}. Ahorro estimado: ${eur.format(round(last.saveLo, 100))}–${eur.format(round(last.saveHi, 100))} al año. Precio cerrado orientativo: ${eur.format(last.feeLo)}–${eur.format(last.feeHi)}.`
+        mensaje: `He usado la calculadora. Sector: ${last.sector}. ${last.personas} personas, ${last.horas} h/semana en tareas repetitivas, ${last.coste} €/h. Quiero automatizar: ${last.areas.join(", ") || "por decidir"}. Ahorro estimado: ${eur.format(round(last.saveLo, 100))}–${eur.format(round(last.saveHi, 100))} al año. Diagnóstico: ${eur.format(last.precio.diagnostico)}. Puesta en marcha: ${eur.format(last.precio.puestaMin)}–${eur.format(last.precio.puestaMax)}. Descuento: ${eur.format(last.precio.descuento)}. Total neto: ${eur.format(last.feeLo)}–${eur.format(last.feeHi)}.`
       }));
     } catch (e) {}
   });

@@ -77,7 +77,7 @@ $calc = json_decode($clean('datos_calculadora', 2000), true);
 $calculadora = [];
 if (is_array($calc)) {
     // Solo los campos conocidos, con tipo controlado.
-    foreach (['sector' => 's', 'personas' => 'n', 'horas' => 'n', 'coste' => 'n', 'ahorro_min' => 'n', 'ahorro_max' => 'n', 'precio_min' => 'n', 'precio_max' => 'n'] as $k => $t) {
+    foreach (['sector' => 's', 'personas' => 'n', 'horas' => 'n', 'coste' => 'n', 'ahorro_min' => 'n', 'ahorro_max' => 'n', 'precio_min' => 'n', 'precio_max' => 'n', 'diagnostico' => 'n', 'descuento' => 'n', 'puesta_min' => 'n', 'puesta_max' => 'n', 'neto_min' => 'n', 'neto_max' => 'n'] as $k => $t) {
         if (!array_key_exists($k, $calc)) continue;
         $calculadora[$k] = $t === 'n' ? (is_numeric($calc[$k]) ? round((float)$calc[$k], 2) : null) : mb_substr((string)$calc[$k], 0, 80);
     }

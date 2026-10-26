@@ -2,8 +2,9 @@
 title: "Plantilla de análisis"
 description: "Copia este fichero, cámbiale el nombre y pon draft a false para publicarlo."
 date: 2026-10-23
-tags: ["Agentforce", "Data 360"]
-linea: "Salesforce + IA"   # Salesforce | IA | Salesforce + IA
+tags: ["Pymes"]
+linea: "IA"   # IA | Normativa | Caso de uso
+# seoTitle: "Título para Google | Sobtree"
 # imagen: "/img/mi-portada.jpg"   # opcional, con licencia de uso
 # imagenAlt: "Descripción de la imagen"
 draft: true
@@ -14,7 +15,8 @@ Este fichero es una plantilla y no se publica (`draft: true`).
 ## Cómo publicar un análisis
 
 1. Copia este fichero en `src/content/analisis/` con un nombre corto en minúsculas y guiones: será la URL.
-2. Rellena `title`, `description` (máx. 200 caracteres, es lo que leen Google y las IAs) y `date`.
-3. Cambia `draft` a `false`, haz commit y push. La web se publica sola.
+2. Rellena `title` (el H1), `description` (máx. 200 caracteres, es lo que leen Google y las IAs) y `date`. Si el título de la pestaña debe ser distinto del H1, añade `seoTitle`.
+3. `tags` con las palabras del tema (por ejemplo «Pymes», «Precios»). `linea` es `IA`, `Normativa` o `Caso de uso`.
+4. Cambia `draft` a `false`, haz commit y push. La web se publica sola.
 
-Al publicar se generan automáticamente la página del artículo, sus datos estructurados (Article), su entrada en el sitemap y en `llms.txt`.
+Al publicar se generan automáticamente la página del artículo, sus datos estructurados (Article), su entrada en el sitemap y en `llms.txt`. La firma por defecto es «El equipo de Sobtree».

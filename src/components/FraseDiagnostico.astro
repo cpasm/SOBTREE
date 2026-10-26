@@ -1,0 +1,8 @@
+---
+// Frases del diagnóstico en los análisis. Salen de DIAGNOSTICO en src/data/site.ts.
+import { TEXTOS } from "../data/site";
+interface Props { cual: "apertura" | "servicios" | "faq" }
+const { cual } = Astro.props;
+const fuerte = cual !== "faq";
+---
+{fuerte ? <strong>{TEXTOS.articulo[cual]}</strong> : TEXTOS.articulo[cual]}

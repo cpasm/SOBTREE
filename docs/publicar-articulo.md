@@ -1,47 +1,45 @@
 # Publicar «Cuánto cuesta implantar IA en una pyme»
 
-El borrador está en `src/content/analisis/cuanto-cuesta-implantar-ia-en-una-pyme.mdx`, con `draft: true`. La URL final, cuando se publique, será:
+El artículo ya está escrito en `src/content/analisis/cuanto-cuesta-implantar-ia-en-una-pyme.mdx`, con `draft: false`. No entra en producción hasta que el fundador dé el OK y se fusione a `main`. La URL será:
 
 `https://sobtree.com/analisis/cuanto-cuesta-implantar-ia-en-una-pyme/`
 
 Un push a `main` compila y despliega a producción (`.github/workflows/deploy.yml` → rama `hostinger`). No hagas ese push hasta terminar las comprobaciones de abajo. Esta rama no publica nada.
 
-## Qué hay que rellenar
+## Qué quedó relleno
 
-El esquema está en `src/content.config.ts`. `description` admite como máximo 200 caracteres.
+El esquema está en `src/content.config.ts`. `description` admite como máximo 200 caracteres. Las frases del diagnóstico salen de `DIAGNOSTICO` en `src/data/site.ts` (`descuentoCondicionado`).
 
-| Campo | Estado | Qué poner |
-|---|---|---|
-| `title` | Relleno | Cámbialo solo si el titular definitivo es otro. |
-| `description` | `REEMPLAZAR_DESCRIPCION` | Resumen de 2–3 frases. Es la meta description y el texto de las tarjetas. Máximo 200 caracteres. |
-| `date` | `2026-10-27` | Fecha de publicación. No la cambies salvo que se decida otra. |
-| `updated` | Comentado | Solo si el texto se revisa después de publicarlo. Si no existe, `dateModified` del JSON-LD usa `date`. |
-| `tags` | `REEMPLAZAR_ETIQUETA` | Lista real. El tema de la portada ilustrada sale de aquí (`precio`, `coste` o `ahorro` → tema ahorro). |
-| `linea` | `IA` | Déjala en `IA` salvo que la pieza sea de Salesforce. Valores: `Salesforce`, `IA`, `Salesforce + IA`. |
-| `imagen` | Comentado | Ruta pública, por ejemplo `/img/coste-ia-pyme.jpg`. Archivo en `public/img/`, con licencia de uso. |
-| `imagenAlt` | Comentado | Obligatorio si hay `imagen`. Describe la foto; no repitas el título si no aporta. |
-| `draft` | `true` | Pásalo a `false` solo cuando el texto esté pegado y revisado. |
-| Cuerpo | `{/* REEMPLAZAR_CUERPO */}` | El artículo. Borra el comentario. |
+| Campo | Estado |
+|---|---|
+| `title` | «Cuánto cuesta implantar IA en una pyme (y de qué depende)» |
+| `seoTitle` | «Cuánto cuesta implantar IA en una pyme en 2026 \| Sobtree» |
+| `description` | 157 caracteres, la del paquete |
+| `date` | 2026-10-27 |
+| `autor` | El equipo de Sobtree (valor por defecto del esquema) |
+| `tags` | Pymes, Precios, Primeros pasos |
+| `linea` | IA. Valores posibles: `IA`, `Normativa`, `Caso de uso`. |
+| `imagen` | Sin cabecera: el fichero propuesto no existe. La portada es la ilustración de marca. |
+| `draft` | `false`. Publicar es fusionar a `main` con el OK del fundador. |
 
-No hay autor con nombre en la web (`AUTHOR` en `src/data/site.ts` está vacío). El JSON-LD usa la organización Sobtree. No inventes una persona.
+Las frases de precio del cuerpo no están escritas a mano: las pinta `FraseDiagnostico` desde `DIAGNOSTICO`. Con `descuentoCondicionado: false` pasan a «490 €, descontable del proyecto».
 
-## Pasos (menos de 30 minutos)
+No hay autor con nombre de persona (`AUTHOR` en `src/data/site.ts` está vacío). El JSON-LD usa una Organization.
 
-1. Pega el texto en el cuerpo, en español, y borra `{/* REEMPLAZAR_CUERPO */}`.
-2. Sustituye cada `REEMPLAZAR_...` del frontmatter. `description` tiene que seguir cabiendo en 200 caracteres.
-3. Imágenes: guárdalas en `public/img/`, descomenta `imagen` y `imagenAlt`, y comprueba que cada `<img>` del cuerpo (si las hay) lleva `alt`. No uses fotos sin licencia.
-4. Fuentes: cada cifra o afirmación ajena lleva un enlace, con el nombre de la fuente en el texto del enlace, como en los análisis ya publicados. Enlaces internos con ruta del sitio y barra final: `/calculadora/`, `/analisis/como-empezar-con-ia-en-tu-pyme/`, `/analisis/ley-de-ia-que-exige-a-tu-pyme/`, `/#contacto`.
-5. Newsletter: el formulario ya está en la plantilla del artículo (`src/layouts/Post.astro` incluye `Newsletter.astro`, ancla `#newsletter`). No añadas otro. En el cuerpo, si quieres enlazarlo, usa `[la newsletter](#newsletter)`. El formulario permanece oculto hasta que `ZAPIER_NEWSLETTER_WEBHOOK` está configurado en el servidor; no enlaces una URL de newsletter que no existe.
-6. Pon `draft: false`.
-7. `npm run build`. Tiene que terminar sin errores.
+## Antes de fusionar a main
+
+1. Newsletter: el formulario ya está en la plantilla (`#newsletter`). No hace falta otro enlace. Permanece oculto hasta que `ZAPIER_NEWSLETTER_WEBHOOK` está configurado.
+2. `npm run build` tiene que pasar.
+3. Comprueba sitemap, canónica, JSON-LD y enlaces internos con los comandos de abajo.
 
 ## Comprobaciones sobre `dist/`
 
 Sustituye la ruta si el build numera el sitemap de otra forma (`sitemap-0.xml` es el habitual).
 
 ```bash
-# El borrador no debe estar. Con draft: false, esta URL sí debe salir.
-grep -n "cuanto-cuesta-implantar-ia-en-una-pyme" dist/sitemap-0.xml || echo "NO está en el sitemap"
+# Con draft: false la URL tiene que salir. /radar/ no, mientras no haya entregas publicadas.
+grep -n "cuanto-cuesta-implantar-ia-en-una-pyme" dist/sitemap-0.xml
+grep -n "/radar/" dist/sitemap-0.xml && echo "radar en el sitemap" || echo "radar fuera del sitemap"
 
 # Canónica absoluta, con https y barra final.
 grep -o 'rel="canonical" href="[^"]*"' dist/analisis/cuanto-cuesta-implantar-ia-en-una-pyme/index.html
@@ -80,8 +78,8 @@ console.log("Enlaces internos resueltos:", [...new Set(hrefs)].length);
 '
 ```
 
-Con `draft: true` la página no se genera y el slug no entra en el sitemap, en `/llms.txt` ni en el listado. Vuelve a mirar el sitemap después de poner `draft: false`: la URL tiene que aparecer una vez, con `https://sobtree.com` y barra final.
+Con `draft: false` la URL sale en el sitemap, en `/llms.txt` y en el listado, con `https://sobtree.com` y barra final. `/radar/` no entra mientras la única entrega sea la plantilla en borrador.
 
-El JSON-LD ya lo escribe la plantilla (`src/data/schema.ts`, tipo `Article` dentro de `@graph`). No lo copies a mano. `publisher` apunta a la organización Sobtree del mismo bloque (nombre, razón social, logo y URL que ya usa el sitio). `image` solo se añade si `imagen` tiene valor, como URL absoluta. `author` es esa misma organización mientras `AUTHOR` siga vacío.
+El JSON-LD lo escribe la plantilla (`src/data/schema.ts`, tipo `Article` dentro de `@graph`). `publisher` apunta a la organización Sobtree del mismo bloque. `author` es una `Organization` con el `autor` del frontmatter («El equipo de Sobtree») y `parentOrganization` hacia Sobtree. `image` solo se añade si `imagen` tiene valor.
 
-Mientras preparas el texto, `npm run build` debe seguir pasando y el slug no debe aparecer en `dist/sitemap-0.xml`.
+El flujo de n8n exportado hay que reimportarlo a mano si se quieren los importes desglosados en la nota del lead. La firma HMAC y la cola de reintentos no cambian.

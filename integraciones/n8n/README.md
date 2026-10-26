@@ -22,6 +22,10 @@ La web solo envía su propio correo (de respaldo) si este workflow responde 401/
 7. **Aviso PRINCIPAL a info@sobtree.com** (Gmail) con enlace a la ficha, salvo que la web indique que ya envió su correo de respaldo (`envio.respaldo_enviado`). Después **200** con `aviso: true`; si el aviso falla, **200** con `aviso: false` y la web envía su correo de respaldo.
 8. Cualquier fallo de HubSpot (tras 3 intentos con 1 s de espera) → **502**. La web lo reintenta por cron, hasta 8 veces.
 
+## Reimportar a mano
+
+Si cambia `verificar-y-mapear.js`, hay que regenerar el JSON (`python3 integraciones/n8n/build-workflow.py`) y **reimportar** `sobtree-lead-a-hubspot.json` en n8n. El despliegue de la web no actualiza el flujo. La firma HMAC y la cola de reintentos de la web no cambian: solo el texto de la nota y del contexto, que ahora desglosa diagnóstico, descuento, puesta en marcha y total neto. No se crean propiedades nuevas en HubSpot.
+
 ## Pasos manuales en n8n (los hace el fundador o FORGE con su OK)
 
 1. Credencial **HubSpot Service Key account**: tipo nativo de n8n **«HubSpot Service Key»** (nombre interno `hubspotAppToken`, el mismo que antes se llamaba «HubSpot App Token»; envía `Authorization: Bearer <key>`). Valor: la *service key* creada en HubSpot (Development → Keys → Service keys) con permisos `crm.objects.contacts.read`, `crm.objects.contacts.write` y `crm.schemas.contacts.read`. La key solo se pega en n8n, nunca en el repo ni en el chat. La usan los 4 nodos HTTP Request: «Buscar contacto por email», «Actualizar contacto», «Crear contacto» y «Crear nota en el contacto» (`authentication: predefinedCredentialType`, `nodeCredentialType: hubspotAppToken`).

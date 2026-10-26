@@ -17,7 +17,6 @@ export type Tema = "ahorro" | "radar" | "ia" | "datos";
 export const temaDe = (linea: string, tags: string[] = []): Tema => {
   const t = tags.join(" ").toLowerCase();
   if (/precio|coste|ahorro|licenc|business case/.test(t)) return "ahorro";
-  if (linea === "IA") return "ia";
-  if (linea === "Salesforce") return "ahorro";
+  if (linea === "IA" || linea === "Caso de uso") return "ia";
   return "datos";
 };

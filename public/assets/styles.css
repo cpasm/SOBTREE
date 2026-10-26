@@ -378,6 +378,8 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .faq summary::after { content: ""; position: absolute; right: 8px; top: 28px; width: 10px; height: 10px; border-right: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(45deg); transition: transform .2s; }
 .faq[open] summary::after { transform: rotate(-135deg); top: 32px; }
 .faq p { padding: 0 0 24px; color: var(--text-2); max-width: 44em; }
+.faq-note { margin-top: -12px; padding: 0 0 24px; font-size: 13.5px; color: var(--text-3); max-width: 44em; }
+.offer-discount { text-align: left; margin: 4px 0 8px; }
 
 /* Contacto */
 .section-cta { background: var(--bg-alt); }
@@ -600,6 +602,8 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .res { padding: 16px 18px; border-radius: var(--r); background: var(--paper-2); }
 .res-save { background: var(--ink); color: var(--white); }
 .res-k { font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #1F4FA8; }
+.res-k.res-net { margin-top: 12px; }
+.res-off { margin: 8px 0 0; font-size: 15px; font-weight: 700; color: #1F4FA8; }
 .res-save .res-k { color: var(--accent-2); }
 .res-v { margin-top: 4px; font-size: clamp(28px, 3vw, 38px); font-weight: 800; letter-spacing: -0.035em; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .res-v.sm { font-size: clamp(22px, 2.3vw, 28px); }
