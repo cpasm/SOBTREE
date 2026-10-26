@@ -1,5 +1,9 @@
 RewriteEngine On
 
+# No hay página /diagnostico: el bloque del diagnóstico está en la portada, ancla #servicios.
+# Va la primera: la regla de btc.sobtree.com (RewriteRule ^) capturaría esta ruta.
+RewriteRule ^diagnostico/?$ https://sobtree.com/#servicios [R=301,L,NE,NC,QSD]
+
 # Secciones retiradas (tesoro en Bitcoin y principios): todo va a la home.
 # btc.sobtree.com apunta a public_html/btc/, así que también pasa por este fichero.
 RewriteCond %{HTTP_HOST} ^btc\.sobtree\.com$ [NC]
