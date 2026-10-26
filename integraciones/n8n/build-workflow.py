@@ -145,7 +145,7 @@ errores = {
             "emailType": "text",
             "message": "=Workflow: {{ $json.workflow.name }}\nNodo: {{ $json.execution.lastNodeExecuted }}\n"
                        "Error: {{ $json.execution.error.message }}\nEjecución: {{ $json.execution.url }}\n\n"
-                       "El lead sigue guardado en el registro local de la web y se reintentará por cron.",
+                       "Si el alta venía de la web, sigue en el registro local (solicitudes o newsletter) y el cron la reintentará si aún no se había entregado.",
             "options": {"appendAttribution": False},
         }, credentials=GMAIL),
     ],

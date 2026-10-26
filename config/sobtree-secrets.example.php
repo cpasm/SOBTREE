@@ -6,8 +6,10 @@ return [
     // Asistente (api/asistente.php)
     'ANTHROPIC_API_KEY' => 'sk-ant-...',
 
-    // Newsletter (api/newsletter.php)
-    'ZAPIER_NEWSLETTER_WEBHOOK' => 'https://hooks.zapier.com/hooks/catch/...',
+    // Newsletter (api/newsletter.php). La firma reutiliza N8N_LEADS_WEBHOOK_SECRET.
+    // Si se deja vacía, se deduce de N8N_LEADS_WEBHOOK_URL: el último tramo de la ruta
+    // pasa a ser sobtree-newsletter (…/webhook/sobtree-lead → …/webhook/sobtree-newsletter).
+    'N8N_NEWSLETTER_WEBHOOK_URL' => '',
 
     // Captura de leads (contact.php + lib/reintentar-leads.php)
     // URL "Production" del nodo Webhook de n8n. Si se deja vacía, el reenvío se omite y los leads

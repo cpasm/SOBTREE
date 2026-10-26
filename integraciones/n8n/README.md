@@ -2,6 +2,8 @@
 
 Instancia: `https://sobtree.app.n8n.cloud` · Webhook de producción: `https://sobtree.app.n8n.cloud/webhook/sobtree-lead`
 
+La newsletter es otro workflow: `integraciones/n8n/NEWSLETTER.md` y `sobtree-newsletter.json`. El de errores es el mismo (`alJvCL7d1kwPIipg`, «Sobtree · Errores de workflows»).
+
 Ficheros (sin credenciales ni secretos):
 
 - `sobtree-lead-a-hubspot.json`: workflow principal (importar en n8n).
@@ -29,14 +31,14 @@ La web solo envía su propio correo (de respaldo) si este workflow responde 401/
 3. Importar primero `sobtree-errores.json` y después `sobtree-lead-a-hubspot.json`. Los JSON llevan `REEMPLAZAR_ID_CREDENCIAL`: en cada nodo con credencial, elegir la credencial real en el desplegable.
 4. Pegar el secreto (`openssl rand -hex 32`) en `SECRET` del nodo Code. Debe ser el mismo valor que `N8N_LEADS_WEBHOOK_SECRET` en `sobtree-secrets.php`.
 5. El enlace del aviso ya apunta a la cuenta de HubSpot 149616589 (región EU1, `app-eu1.hubspot.com`).
-6. Settings del workflow principal → *Error workflow* = «Sobtree · Errores de workflows».
+6. Settings del workflow principal → *Error workflow* = «Sobtree · Errores de workflows» (id `alJvCL7d1kwPIipg`). El JSON de leads sigue llevando el marcador `REEMPLAZAR_ID_WORKFLOW_ERRORES`; el de la newsletter ya trae ese id.
 7. Probar con *Test URL* y el script local. Después, activar el workflow.
 
 ## Propiedades de HubSpot
 
 **Estado (25/10/2026):** las 7 propiedades personalizadas están **creadas** en la cuenta 149616589 (grupo «Custom information», `custom_information`; el conector no permite crear grupos).
 
-Plan gratuito: hasta **10 propiedades personalizadas en toda la cuenta** (según la comunidad de HubSpot; hay que confirmarlo en la cuenta). Este diseño usa **7** y deja 3 libres.
+Plan gratuito: hasta **10 propiedades personalizadas en toda la cuenta** (según la comunidad de HubSpot; hay que confirmarlo en la cuenta). Los leads usan **7**. La newsletter suma **2** (`sobtree_newsletter_consentimiento` y `sobtree_newsletter_confirmado`) y deja **1** libre. No crear más. Ver `NEWSLETTER.md`.
 
 Nativas que se reutilizan: `email`, `firstname`, `lastname`, `phone`, `jobtitle`, `company`, `company_size`, `message`, `industry`, `lifecyclestage`, `hs_lead_status`, `hs_legal_basis` y `hs_analytics_source` (solo en el alta; HubSpot indica que se puede editar manualmente).
 

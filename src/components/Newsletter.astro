@@ -1,23 +1,36 @@
 ---
-// Suscripción a la newsletter (email + consentimiento). Envía a /api/newsletter.php, que reenvía a Zapier.
-// Queda oculto hasta que el servidor confirma que el webhook está configurado (newsletter.js).
-interface Props { title?: string; sub?: string }
+// Alta a la newsletter. Envía a /api/newsletter.php, que firma y reenvía a n8n.
+// Oculto hasta que el servidor confirma que n8n está configurado (newsletter.js).
+import { BUILD_VERSION, NEWSLETTER_CONSENT_TEXT } from "../data/site";
+
+interface Props {
+  origen: string;
+  title?: string;
+  sub?: string;
+}
 const {
+  origen,
   title = "¿Quieres más análisis como este?",
-  sub = "Cada semana, ideas prácticas para usar IA en tu pyme y ahorrar tiempo y dinero. Sin relleno. Te das de baja cuando quieras."
+  sub = "Cada semana, ideas prácticas para usar IA en tu pyme y ahorrar tiempo y dinero. Sin relleno. Te das de baja cuando quieras.",
 } = Astro.props;
 ---
 <section class="newsletter" id="newsletter" aria-labelledby="nl-title" hidden>
   <h2 id="nl-title">{title}</h2>
   <p class="nl-sub">{sub}</p>
-  <form class="nl-form" id="nl-form" novalidate>
+  <form class="nl-form" id="nl-form" novalidate data-origen={origen} data-consent-text={NEWSLETTER_CONSENT_TEXT}>
     <div class="nl-row">
       <label class="sr-only" for="nl-email">Tu email</label>
-      <input id="nl-email" name="email" type="email" autocomplete="email" placeholder="tu@empresa.com" required>
+      <input id="nl-email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="tu@empresa.com" required aria-describedby="nl-status">
       <button class="btn btn-primary" type="submit">Suscribirme</button>
     </div>
     <label class="hp" aria-hidden="true">No rellenar<input name="web" tabindex="-1" autocomplete="off"></label>
-    <label class="nl-consent"><input type="checkbox" name="consentimiento" value="si" required><span>Acepto recibir la newsletter de Sobtree y la <a href="/privacidad/">política de privacidad</a>.</span></label>
-    <p class="nl-status" id="nl-status" role="status"></p>
+    <input type="hidden" name="t0">
+    <label class="nl-consent" for="nl-consent">
+      <input id="nl-consent" type="checkbox" name="consentimiento" value="si" required aria-describedby="nl-legal">
+      <span>Acepto recibir la newsletter de Sobtree por email y he leído la <a href="/privacidad/">política de privacidad</a>.</span>
+    </label>
+    <p class="nl-legal" id="nl-legal">Responsable: Sobtree. Finalidad: envío de la newsletter. Base legal: consentimiento. Puedes darte de baja en cada email</p>
+    <p class="nl-status" id="nl-status" role="status" aria-live="polite" aria-atomic="true"></p>
   </form>
 </section>
+<script is:inline src={`/assets/newsletter.js?v=${BUILD_VERSION}`} defer></script>

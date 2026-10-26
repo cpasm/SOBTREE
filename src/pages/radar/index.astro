@@ -1,6 +1,7 @@
 ---
 import Base from "../../layouts/Base.astro";
 import Cover from "../../components/Cover.astro";
+import Newsletter from "../../components/Newsletter.astro";
 import { getRadar, fmtDate } from "../../data/content";
 import { graph, organization, website } from "../../data/schema";
 
@@ -30,6 +31,7 @@ const items = await getRadar();
               </li>
             ))}
           </ul>}
+      <Newsletter origen="radar" title="¿Quieres el próximo Radar en tu correo?" sub="Cada entrega, en tu bandeja. Sin relleno. Te das de baja cuando quieras." />
     </div>
   </main>
 </Base>

@@ -7,6 +7,9 @@
 // salió el correo de respaldo (o falló), lo envía; la marca en estado.jsonl evita duplicados.
 // n8n debe ser idempotente por id de lead (cabecera X-Sobtree-Lead-Id): HubSpot hace upsert por email.
 //
+// También reintenta la cola de la newsletter (lib/newsletter.php), en la misma ejecución.
+// No hace falta un cron aparte: el que ya llama a este script cubre las dos colas.
+//
 // Uso:   php reintentar-leads.php [--dry-run] [--max-edad-dias=30]
 // Cron (hPanel → Avanzado → Cron Jobs), cada 15 min:
 //   /usr/bin/php /home/<usuario>/domains/sobtree.com/public_html/lib/reintentar-leads.php
@@ -14,6 +17,7 @@ declare(strict_types=1);
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 
 require __DIR__ . '/leads.php';
+require __DIR__ . '/newsletter.php';
 
 $dry = in_array('--dry-run', $argv, true);
 $maxDays = 30;
@@ -53,5 +57,15 @@ foreach ($leads as $id => $lead) {
 
 $line = gmdate('c') . ' reintentar-leads ' . json_encode($stats);
 echo $line . "\n";
-if ($stats['errores'] || $stats['agotados']) error_log($line);
-exit($stats['agotados'] > 0 ? 2 : 0);
+
+$nl = ['revisados' => 0, 'enviados' => 0, 'errores' => 0, 'agotados' => 0, 'pendientes_sin_webhook' => 0];
+try {
+    $nl = newsletter_retry($dry, $maxDays);
+} catch (Throwable $e) {
+    error_log('reintentar-newsletter: ' . $e->getMessage());
+    $nl['errores'] = 1;
+}
+$lineNl = gmdate('c') . ' reintentar-newsletter ' . json_encode($nl);
+echo $lineNl . "\n";
+if ($stats['errores'] || $stats['agotados'] || $nl['errores'] || $nl['agotados']) error_log($line . ' | ' . $lineNl);
+exit(($stats['agotados'] + $nl['agotados']) > 0 ? 2 : 0);

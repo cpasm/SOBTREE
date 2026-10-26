@@ -2,6 +2,7 @@
 import Base from "../layouts/Base.astro";
 import Foco from "../components/Foco.astro";
 import Articulos from "../components/Articulos.astro";
+import Newsletter from "../components/Newsletter.astro";
 import Asistente from "../components/Asistente.astro";
 import { FAQ } from "../data/faq";
 import { BUILD_VERSION } from "../data/site";
@@ -277,6 +278,10 @@ const jsonld = graph(organization(), website(), person(), faqPage());
     </form>
   </div>
 </section>
+
+<div class="wrap newsletter-slot">
+  <Newsletter origen="portada" title="Ideas de IA para tu pyme, en tu correo" sub="El Radar y los análisis, cuando salen. Sin relleno. Te das de baja cuando quieras." />
+</div>
 
 </main>
 <Asistente />

@@ -1,6 +1,13 @@
 // Versión de los assets: cambia en cada build (ver Base.astro).
 export const BUILD_VERSION = Date.now().toString(36);
 
+// Política de privacidad. Tiene que coincidir con NEWSLETTER_POLITICA_VERSION y
+// NEWSLETTER_CONSENT_TEXT en public/lib/newsletter.php, y con el texto del flujo n8n.
+export const POLITICA_VERSION = "2026-10-26";
+export const POLITICA_FECHA = "26 de octubre de 2026";
+export const NEWSLETTER_CONSENT_TEXT =
+  "Acepto recibir la newsletter de Sobtree por email y he leído la política de privacidad.";
+
 // Datos de la empresa. Se usan en las metaetiquetas, los datos estructurados (JSON-LD) y llms.txt.
 export const SITE = {
   name: "Sobtree",

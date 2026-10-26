@@ -1,5 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
+import { POLITICA_FECHA, POLITICA_VERSION } from "../data/site";
 ---
 <Base title="Privacidad y aviso legal | Sobtree" description="Política de privacidad y aviso legal de Sobtree." bare>
 <style is:global>
@@ -10,10 +11,12 @@ import Base from "../layouts/Base.astro";
   .legal a { color: #fff; }
   .legal .back { display: inline-block; margin-bottom: 32px; color: var(--text-3); text-decoration: none; }
   .legal .back:hover { color: #fff; }
+  .legal .legal-meta { color: var(--text-3); font-size: 14px; }
 </style>
 <main class="wrap legal">
   <a class="back" href="/">Volver a la web</a>
   <h1>Privacidad y aviso legal</h1>
+  <p class="legal-meta">Versión {POLITICA_VERSION} · Última actualización: {POLITICA_FECHA}.</p>
 
   <h2>Titular</h2>
   <p>Sobtree Holding, S.L., con CIF B22574222 y domicilio en Madrid (España). Contacto: <a href="mailto:info@sobtree.com">info@sobtree.com</a>.</p>
@@ -35,9 +38,9 @@ import Base from "../layouts/Base.astro";
   <ul>
     <li><strong>Hostinger</strong>, nuestro proveedor de alojamiento web, que aloja la web y la copia de seguridad de las solicitudes.</li>
     <li><strong>n8n GmbH</strong> (Alemania), que automatiza el envío de tu solicitud a nuestro CRM y nuestro aviso interno.</li>
-    <li><strong>HubSpot Spain, S.L.</strong>, del grupo HubSpot, que presta el CRM donde gestionamos los contactos comerciales. Nuestra cuenta está alojada en el centro de datos de HubSpot en la Unión Europea (Alemania).</li>
-    <li><strong>Google Cloud EMEA Limited</strong> (Irlanda), que presta nuestro correo electrónico (Google Workspace), por el que recibimos los avisos de nuevas solicitudes.</li>
-    <li>Los indicados más abajo para la newsletter (Zapier, Inc.) y el asistente (Anthropic, PBC).</li>
+    <li><strong>HubSpot Spain, S.L.</strong>, del grupo HubSpot, que presta el CRM donde gestionamos los contactos comerciales y envía la newsletter. Nuestra cuenta está alojada en el centro de datos de la Unión Europea de HubSpot, en Fráncfort (Alemania). Los correos de la newsletter los envía HubSpot, llevan su marca y un enlace de baja en cada envío.</li>
+    <li><strong>Google Cloud EMEA Limited</strong> (Irlanda), que presta nuestro correo electrónico (Google Workspace), por el que recibimos los avisos de nuevas solicitudes y el correo para confirmar el alta a la newsletter.</li>
+    <li><strong>Anthropic, PBC</strong>, que procesa las preguntas del asistente de la web, como se detalla más abajo.</li>
   </ul>
   <p>Si alguno de estos proveedores o sus subencargados trata datos fuera del Espacio Económico Europeo, lo hace con garantías adecuadas conforme al RGPD, como las cláusulas contractuales tipo de la Comisión Europea o el Marco de Privacidad de Datos UE-EE. UU.</p>
 
@@ -48,7 +51,10 @@ import Base from "../layouts/Base.astro";
   <p>La calculadora de ahorro y el autodiagnóstico funcionan en tu navegador. Solo si después nos envías el formulario de contacto, el resultado de la calculadora (o el nivel del autodiagnóstico, que aparece en tu mensaje y puedes editar) viaja con tu solicitud para que podamos prepararla. Esta web no utiliza cookies de seguimiento.</p>
 
   <h2>Newsletter</h2>
-  <p>Si te suscribes, tratamos tu email para enviarte el Radar semanal y nuestros análisis, con tu consentimiento como base legal. El alta se registra a través de Zapier, Inc., que la traslada a nuestra herramienta de envío; ambos actúan como encargados del tratamiento. Puedes darte de baja en cualquier momento desde el enlace de cada envío o escribiendo a <a href="mailto:info@sobtree.com">info@sobtree.com</a>. Conservamos el email mientras sigas suscrito.</p>
+  <p>Si te suscribes, tratamos tu dirección de email para enviarte la newsletter: el Radar semanal y nuestros análisis. La base legal es tu consentimiento (art. 6.1.a del RGPD), que nos das al marcar la casilla del formulario. Esa casilla no viene marcada. Puedes retirar el consentimiento en cualquier momento.</p>
+  <p>El alta pasa por <strong>n8n GmbH</strong>, que ya interviene como encargado del tratamiento, y los envíos los hace <strong>HubSpot Spain, S.L.</strong> Los correos de la newsletter los envía HubSpot, llevan su marca y un enlace de baja en cada envío. También puedes darte de baja escribiendo a <a href="mailto:info@sobtree.com">info@sobtree.com</a>. Antes de suscribirte te pedimos que confirmes el alta desde un mensaje enviado por info@sobtree.com.</p>
+  <!-- REVISAR FUNDADOR: el plazo de prescripción de la prueba del consentimiento y de la baja no está cifrado en años. Confírmalo antes de dar por cerrada la frase siguiente. -->
+  <p>Conservamos tu email mientras sigas suscrito. Después de la baja conservamos la prueba del consentimiento y de la baja durante el plazo de prescripción de las posibles responsabilidades.</p>
 
   <h2>Asistente de IA</h2>
   <p>El asistente de la página de inicio es un sistema de inteligencia artificial. Para responderte, enviamos tus preguntas y la conversación en curso a Anthropic, PBC, proveedor del modelo Claude, que las procesa como encargado del tratamiento. No guardamos las conversaciones: solo un contador temporal, asociado a un identificador cifrado de tu conexión, para limitar el número de preguntas y evitar abusos. No incluyas datos personales ni información confidencial en tus preguntas.</p>

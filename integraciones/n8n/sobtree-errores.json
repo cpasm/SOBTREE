@@ -25,7 +25,7 @@
         "sendTo": "info@sobtree.com",
         "subject": "=⚠️ n8n: falló «{{ $json.workflow.name }}»",
         "emailType": "text",
-        "message": "=Workflow: {{ $json.workflow.name }}\nNodo: {{ $json.execution.lastNodeExecuted }}\nError: {{ $json.execution.error.message }}\nEjecución: {{ $json.execution.url }}\n\nEl lead sigue guardado en el registro local de la web y se reintentará por cron.",
+        "message": "=Workflow: {{ $json.workflow.name }}\nNodo: {{ $json.execution.lastNodeExecuted }}\nError: {{ $json.execution.error.message }}\nEjecución: {{ $json.execution.url }}\n\nSi el alta venía de la web, sigue en el registro local (solicitudes o newsletter) y el cron la reintentará si aún no se había entregado.",
         "options": {
           "appendAttribution": false
         }

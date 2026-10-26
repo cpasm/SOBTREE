@@ -50,11 +50,15 @@ Mientras no haya Radar ni análisis publicados, la home muestra en su lugar el a
 
 ## Newsletter
 
-Al final de cada análisis y Radar hay un formulario de suscripción (email + consentimiento). Envía a `/api/newsletter.php`, que reenvía el alta a un webhook de Zapier. Para activarlo, añade esta línea al array de `domains/sobtree.com/sobtree-secrets.php` (el mismo fichero de la clave del asistente):
+Formulario de alta (email + casilla de consentimiento, sin marcar) al final de cada análisis, en la portada y en `/radar/`. Envía a `/api/newsletter.php`, que guarda el alta fuera de `public_html` y la reenvía firmada al webhook de n8n `sobtree-newsletter`. La firma es la misma HMAC que los leads (`N8N_LEADS_WEBHOOK_SECRET`).
 
-`'ZAPIER_NEWSLETTER_WEBHOOK' => 'https://hooks.zapier.com/hooks/catch/...',`
+En `sobtree-secrets.php` (ver `config/sobtree-secrets.example.php`):
 
-Zapier recibe `email`, `consentimiento`, `texto_consentimiento`, `origen` (página) y `fecha`. Mientras no haya webhook, el formulario no aparece. Límite: 5 altas por IP y hora, 300 al día.
+`'N8N_NEWSLETTER_WEBHOOK_URL' => 'https://sobtree.app.n8n.cloud/webhook/sobtree-newsletter',`
+
+Si esa clave se deja vacía, la URL se deduce de `N8N_LEADS_WEBHOOK_URL` cambiando el último tramo de la ruta por `sobtree-newsletter`. Mientras URL o secreto falten, el formulario no aparece. Si n8n no responde, el visitante ve éxito igualmente y lo reintenta el mismo cron que los leads. No hace falta otro cron.
+
+El flujo, las propiedades de HubSpot y la prueba están en `integraciones/n8n/NEWSLETTER.md`. Límite: 1 alta cada 30 s por IP, 5 por IP y hora, 300 al día.
 
 ## Radar y artículo semanal
 
@@ -106,7 +110,7 @@ La caja de la home envía la pregunta a `/api/asistente.php`, que llama a Claude
 4. Reenvía el lead al webhook de n8n firmado con HMAC-SHA256. **n8n envía el aviso principal a `info@sobtree.com`** y lo da de alta en HubSpot.
 5. **Correo de respaldo** desde la web a `info@sobtree.com` solo si n8n falla, da timeout, no está configurado o responde que no pudo enviar su aviso (`aviso: false`). Cada resultado queda en `estado.jsonl` y la marca del canal `correo` evita respaldos duplicados.
 
-Lo que falle lo reenvía `public/lib/reintentar-leads.php` (y envía el respaldo pendiente si aún no salió) (cron cada 15 min en hPanel → Avanzado → Cron Jobs):
+Lo que falle lo reenvía `public/lib/reintentar-leads.php` (y envía el respaldo pendiente si aún no salió). El mismo script reintenta la cola de la newsletter; no hace falta un cron nuevo. Cron cada 15 min en hPanel → Avanzado → Cron Jobs:
 `/usr/bin/php /home/<usuario>/domains/sobtree.com/public_html/lib/reintentar-leads.php`
 
 - **Configuración:** en `sobtree-secrets.php` (ver `config/sobtree-secrets.example.php`): `N8N_LEADS_WEBHOOK_URL`, `N8N_LEADS_WEBHOOK_SECRET` y opcionales `LEADS_DIR`, `LEADS_NOTIFY_TO`, `LEADS_NOTIFY_FROM`. Sin webhook, el reenvío se omite y los leads quedan guardados y avisados por correo.

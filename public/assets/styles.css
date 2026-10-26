@@ -518,23 +518,26 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .chat-chips[hidden] { display: none; }
 .section-sub a { color: var(--accent-2); }
 
-/* ---------- Newsletter (al final de cada post) ---------- */
-.newsletter { max-width: 100%; margin-top: 40px; padding: clamp(24px, 4vw, 40px); border-radius: var(--r-lg); background: var(--panel); border: 1px solid #18306B; }
+/* ---------- Newsletter (artículos, portada y /radar/) ---------- */
+.newsletter { max-width: 760px; margin: 40px auto 0; padding: clamp(24px, 4vw, 40px); border-radius: var(--r-lg); background: var(--panel); border: 1px solid #18306B; }
 .newsletter[hidden] { display: none; }
 .newsletter h2 { font-size: clamp(24px, 2.6vw, 32px); font-weight: 800; letter-spacing: -0.03em; }
 .nl-sub { margin-top: 10px; color: var(--text-2); max-width: 40em; }
-.nl-form { margin-top: 20px; display: grid; gap: 12px; }
+.nl-form { position: relative; margin-top: 20px; display: grid; gap: 12px; }
 .nl-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .nl-row input { flex: 1 1 260px; min-width: 0; font: inherit; font-size: 16px; color: var(--ink); background: var(--paper); border: 1.5px solid transparent; border-radius: 999px; padding: 14px 20px; outline: none; }
 .nl-row input:focus { border-color: var(--accent); }
 .nl-row input[aria-invalid="true"] { border-color: #ff8a80; }
-.nl-consent { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--text-2); line-height: 1.5; }
+.nl-consent { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--text-2); line-height: 1.5; cursor: pointer; }
 .nl-consent input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
 .nl-consent a { color: var(--white); }
 .nl-consent.invalid span { color: #ffb4ab; }
+.nl-legal { font-size: 13px; line-height: 1.45; color: var(--text-3); }
 .nl-status { font-size: 15px; min-height: 1.5em; color: var(--text-2); }
 .nl-status.ok { color: var(--ok); }
 .nl-status.err { color: #ffb4ab; }
+.newsletter-slot { padding-bottom: clamp(48px, 6vw, 88px); }
+.newsletter-slot:has(.newsletter[hidden]) { display: none; }
 @media (max-width: 640px) { .nl-row .btn { flex: 1 1 100%; } }
 
 /* ---------- Listados de Artículos y Radar, y portada dentro del artículo ---------- */

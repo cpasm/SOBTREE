@@ -4,7 +4,7 @@ import Base from "./Base.astro";
 import Newsletter from "../components/Newsletter.astro";
 import Cover from "../components/Cover.astro";
 import type { Tema } from "../data/content";
-import { SITE, BUILD_VERSION } from "../data/site";
+import { SITE } from "../data/site";
 import { fmtDate } from "../data/content";
 import { graph, organization, website, person, article } from "../data/schema";
 
@@ -21,6 +21,7 @@ interface Props {
   imagenAlt?: string;
 }
 const { title, description, date, updated, tags, path, back, tema = "datos", imagen, imagenAlt } = Astro.props;
+const slugNewsletter = path.split("/").filter(Boolean).pop() ?? "";
 const url = new URL(path, SITE.url).href;
 const jsonld = graph(organization(), website(), person(), article({ title, description, url, date, updated, tags }));
 ---
@@ -35,12 +36,11 @@ const jsonld = graph(organization(), website(), person(), article({ title, descr
       <p class="lede">{description}</p>
       <slot name="intro" />
       <div class="prose-body"><slot /></div>
-      <Newsletter />
+      <Newsletter origen={`articulo:${slugNewsletter}`} />
       <aside class="prose-cta">
         <p>¿Quieres ver cómo aplica esto a tu empresa?</p>
         <a class="btn btn-primary" href="/#contacto">Reservar diagnóstico</a>
       </aside>
     </article>
   </main>
-  <script is:inline src={`/assets/newsletter.js?v=${BUILD_VERSION}`} defer></script>
 </Base>

@@ -1,0 +1,864 @@
+{
+  "name": "Sobtree · Newsletter → HubSpot",
+  "nodes": [
+    {
+      "id": "0fc67c50-5391-5648-803a-e44308e84804",
+      "name": "Webhook alta newsletter",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        280
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sobtree-newsletter",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "webhookId": "87b018c5-f844-5f46-a2b7-02e12c767427"
+    },
+    {
+      "id": "68e6a6f3-3d2f-5d3c-a09f-b37668b221d9",
+      "name": "Verificar firma newsletter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        280
+      ],
+      "parameters": {
+        "jsCode": "// Nodo Code «Verificar firma newsletter» del workflow «Sobtree · Newsletter → HubSpot».\n// Fuente única: build-newsletter.py lo incrusta en el JSON y tests/ lo prueba en local.\n// Modo: Run Once for All Items. Requiere que el nodo Webhook tenga activado «Raw Body».\nconst crypto = require('crypto');\n\n// Secreto compartido con la web (N8N_LEADS_WEBHOOK_SECRET en sobtree-secrets.php).\n// Plan Starter de n8n Cloud: sin Variables, así que se pega aquí DENTRO de n8n, nunca en el repositorio.\nconst SECRET = 'REEMPLAZAR_EN_N8N';\nconst MAX_DESFASE_S = 300; // 5 minutos\n\n// Doble confirmación propia. Por defecto activa: la nativa de HubSpot no se dispara\n// con contactos creados por API. Ponla a false solo para suscribir en el mismo alta.\nconst DOBLE_CONFIRMACION = true;\nconst CADUCIDAD_S = 48 * 3600;\nconst BASE_CONFIRMAR = 'https://sobtree.app.n8n.cloud/webhook/sobtree-newsletter-confirmar';\n\n// Tipo existente «Marketing Information» del portal gratuito 149616589.\n// El plan gratuito no deja crear tipos propios. Para usar otro, cambia solo esta constante.\nconst SUBSCRIPTION_ID = '3927875333';\nconst NOMBRE_SUSCRIPCION = 'Marketing Information';\n\nfunction canonEnlace(email, exp, ts, origen, version, texto) {\n  return ['newsletter-confirmar', email, String(exp), String(ts), String(origen), String(version), String(texto)].join('\\n');\n}\nfunction explicacion(p, via) {\n  const frase = via === 'enlace'\n    ? 'La persona confirmó el alta con el enlace enviado a su correo tras marcar la casilla en sobtree.com.'\n    : 'La persona marcó la casilla no premarcada en sobtree.com para recibir la newsletter por email.';\n  return [\n    frase,\n    'Texto aceptado: «' + p.texto + '».',\n    'Fecha del consentimiento (UTC): ' + p.ts + '.',\n    'Origen: ' + p.origen + '.',\n    'Versión de la política de privacidad: ' + p.version + '.',\n    'Base legal: consentimiento, art. 6.1.a RGPD (CONSENT_WITH_NOTICE).',\n    'Tipo de suscripción: ' + NOMBRE_SUSCRIPCION + ' (' + SUBSCRIPTION_ID + ').',\n  ].join(' ').slice(0, 1000);\n}\nfunction fallo(motivo) { return [{ json: { valido: false, motivo } }]; }\n\nconst item = $input.first();\nconst h = item.json.headers || {};\nconst tsHeader = String(h['x-sobtree-timestamp'] || '');\nconst firma = String(h['x-sobtree-signature'] || '');\nlet raw = '';\ntry { raw = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8'); } catch (e) { raw = ''; }\n\nconst esperada = 'sha256=' + crypto.createHmac('sha256', SECRET).update(tsHeader + '.' + raw).digest('hex');\nconst reciente = /^\\d+$/.test(tsHeader) && Math.abs(Date.now() / 1000 - Number(tsHeader)) <= MAX_DESFASE_S;\nconst a = Buffer.from(firma), b = Buffer.from(esperada);\nconst valida = SECRET !== 'REEMPLAZAR_EN_N8N' && reciente && a.length === b.length && crypto.timingSafeEqual(a, b);\nif (!valida) return fallo(!reciente ? 'timestamp' : 'firma');\n\nlet alta;\ntry { alta = JSON.parse(raw); } catch (e) { return fallo('json'); }\nconst email = String(alta.email || '').trim().toLowerCase();\nif (!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)) return fallo('email');\nif (alta.consentimiento !== true) return fallo('consentimiento');\nconst texto = String(alta.consent_text || '');\nif (!texto || texto.length > 500) return fallo('texto');\nconst origen = String(alta.origen || '');\nif (!/^(portada|radar|articulo:[a-z0-9-]{1,120})$/.test(origen)) return fallo('origen');\nconst cuando = String(alta.consent_timestamp || '');\nif (!/^\\d{4}-\\d{2}-\\d{2}T/.test(cuando)) return fallo('fecha');\nconst version = String(alta.version_politica || '');\nif (!/^\\d{4}-\\d{2}-\\d{2}$/.test(version)) return fallo('version');\n\nconst corta = (s, n) => String(s || '').slice(0, n);\nconst esc = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);\nconst resumen = [cuando, origen, version].join(' | ').slice(0, 400);\nconst nota = [\n  `<p><strong>Alta a la newsletter</strong> · ${esc(cuando)} · id ${esc(alta.id)}</p>`,\n  `<p><strong>Email:</strong> ${esc(email)}</p>`,\n  `<p><strong>Origen:</strong> ${esc(origen)} · <strong>Versión de la política:</strong> ${esc(version)}</p>`,\n  `<p><strong>Consentimiento:</strong> sí</p>`,\n  `<p><strong>Texto aceptado:</strong> ${esc(texto)}</p>`,\n  `<p>Doble confirmación: ${DOBLE_CONFIRMACION ? 'pendiente del enlace; todavía no está suscrito' : 'desactivada; la suscripción se intenta en este paso'}.</p>`,\n].join('');\n\nconst exp = Math.floor(Date.now() / 1000) + CADUCIDAD_S;\nconst sigEnlace = crypto.createHmac('sha256', SECRET).update(canonEnlace(email, exp, cuando, origen, version, texto)).digest('hex');\nconst qs = new URLSearchParams({ email, exp: String(exp), ts: cuando, origen, v: version, txt: texto, sig: sigEnlace });\nconst enlace = BASE_CONFIRMAR + '?' + qs.toString();\nconst emailTexto = [\n  'Hola,',\n  '',\n  'Para recibir la newsletter de Sobtree, confirma tu email antes de 48 horas:',\n  '',\n  enlace,\n  '',\n  'Si no has pedido esta suscripción, ignora este mensaje: no te apuntaremos.',\n  '',\n  'Responsable: Sobtree. Finalidad: envío de la newsletter. Base legal: consentimiento. Puedes darte de baja en cada email o escribiendo a info@sobtree.com.',\n].join('\\n');\n\nreturn [{ json: {\n  valido: true,\n  doble_confirmacion: DOBLE_CONFIRMACION,\n  alta_id: corta(alta.id, 64),\n  email,\n  props: { email, sobtree_newsletter_consentimiento: resumen },\n  nota_html: nota,\n  enlace: DOBLE_CONFIRMACION ? enlace : '',\n  email_asunto: 'Confirma tu suscripción a la newsletter de Sobtree',\n  email_texto: DOBLE_CONFIRMACION ? emailTexto : '',\n  subscription_id: SUBSCRIPTION_ID,\n  nombre_suscripcion: NOMBRE_SUSCRIPCION,\n  legal_basis: explicacion({ texto, ts: cuando, origen, version }, DOBLE_CONFIRMACION ? 'enlace' : 'formulario'),\n} }];\n"
+      }
+    },
+    {
+      "id": "6b8f4d9e-dfc9-58c8-a6c3-b0a7095accde",
+      "name": "¿Firma válida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        480,
+        280
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "1a2ae5f5-d708-5c32-ae24-cd1c05c36083",
+              "leftValue": "={{ $json.valido }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "4cdb178b-bb9f-513c-b148-f7e824ca8d45",
+      "name": "Responder 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        460
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, motivo: $json.motivo }) }}",
+        "options": {
+          "responseCode": 401
+        }
+      }
+    },
+    {
+      "id": "03b21467-e164-5d80-aa75-78100112c0c8",
+      "name": "Upsert contacto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        160
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/contacts/batch/upsert",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "hubspotAppToken",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ inputs: [{ idProperty: 'email', id: $('Verificar firma newsletter').first().json.email, properties: $('Verificar firma newsletter').first().json.props }] }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "REEMPLAZAR_ID_CREDENCIAL",
+          "name": "HubSpot Service Key account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "b5cfe6cc-89c2-5679-890c-f1c5b6d5bc19",
+      "name": "Crear nota del consentimiento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        980,
+        160
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/notes",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "hubspotAppToken",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ properties: { hs_timestamp: $now.toISO(), hs_note_body: $('Verificar firma newsletter').first().json.nota_html }, associations: [{ to: { id: $('Upsert contacto').first().json.results[0].id }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 202 }] }] }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "REEMPLAZAR_ID_CREDENCIAL",
+          "name": "HubSpot Service Key account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "4fb84fa6-be86-59ec-95a3-0d211be5b28f",
+      "name": "¿Doble confirmación?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1220,
+        160
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "2d1deb1d-a717-5a7a-91aa-a9930714031d",
+              "leftValue": "={{ $('Verificar firma newsletter').first().json.doble_confirmacion }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f7587d4c-1762-5442-89e3-705313101b10",
+      "name": "Email de confirmación",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1460,
+        60
+      ],
+      "parameters": {
+        "sendTo": "={{ $('Verificar firma newsletter').first().json.email }}",
+        "subject": "={{ $('Verificar firma newsletter').first().json.email_asunto }}",
+        "emailType": "text",
+        "message": "={{ $('Verificar firma newsletter').first().json.email_texto }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REEMPLAZAR_ID_CREDENCIAL",
+          "name": "Gmail account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "0e6dabe4-83c4-58ab-b60e-4902f835df84",
+      "name": "Responder 200 confirmar",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, confirmar: true, id: $('Verificar firma newsletter').first().json.alta_id }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "0a936c0f-7163-5d55-a40b-516a9c3f37d3",
+      "name": "Suscribir ya",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1460,
+        280
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/communication-preferences/v3/subscribe",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "hubspotAppToken",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ emailAddress: $('Verificar firma newsletter').first().json.email, subscriptionId: $('Verificar firma newsletter').first().json.subscription_id, legalBasis: 'CONSENT_WITH_NOTICE', legalBasisExplanation: $('Verificar firma newsletter').first().json.legal_basis }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "REEMPLAZAR_ID_CREDENCIAL",
+          "name": "HubSpot Service Key account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "88334d33-2154-5dd4-ad40-354a5ba67bff",
+      "name": "Responder 200 suscrito",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        220
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, confirmar: false, id: $('Verificar firma newsletter').first().json.alta_id }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "e4af5b3c-3e08-58f4-8cf3-91298164719c",
+      "name": "Responder 200 suscripción pendiente",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1700,
+        380
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, confirmar: false, suscripcion: false, id: $('Verificar firma newsletter').first().json.alta_id }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "a99af5e5-abb9-5095-af83-cc4d374ae81b",
+      "name": "Responder 502 alta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1220,
+        460
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, motivo: \"newsletter\", detalle: String($json.error?.message || \"\").slice(0, 200) }) }}",
+        "options": {
+          "responseCode": 502
+        }
+      }
+    },
+    {
+      "id": "5a76dc7e-02cc-5877-aeae-e64f7cac00dd",
+      "name": "Webhook confirmar",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        760
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "sobtree-newsletter-confirmar",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "8114b606-26ee-5679-9570-9a5201dd4419"
+    },
+    {
+      "id": "098c2d02-f3a4-5327-adba-45ef37d7abd2",
+      "name": "Validar enlace",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        760
+      ],
+      "parameters": {
+        "jsCode": "// Nodo Code «Validar enlace» del workflow «Sobtree · Newsletter → HubSpot».\n// Comprueba el enlace firmado del correo de doble confirmación (caduca a las 48 h).\n// Fuente única: build-newsletter.py lo incrusta en el JSON y tests/ lo prueba en local.\n// Modo: Run Once for All Items. El webhook es GET; los datos van en la query.\nconst crypto = require('crypto');\n\n// El mismo secreto que «Verificar firma newsletter» (N8N_LEADS_WEBHOOK_SECRET).\nconst SECRET = 'REEMPLAZAR_EN_N8N';\nconst SUBSCRIPTION_ID = '3927875333'; // «Marketing Information». Mismo valor que en el otro nodo Code.\nconst NOMBRE_SUSCRIPCION = 'Marketing Information';\n\nfunction canonEnlace(email, exp, ts, origen, version, texto) {\n  return ['newsletter-confirmar', email, String(exp), String(ts), String(origen), String(version), String(texto)].join('\\n');\n}\nfunction explicacion(p) {\n  return [\n    'La persona confirmó el alta con el enlace enviado a su correo tras marcar la casilla en sobtree.com.',\n    'Texto aceptado: «' + p.texto + '».',\n    'Fecha del consentimiento (UTC): ' + p.ts + '.',\n    'Origen: ' + p.origen + '.',\n    'Versión de la política de privacidad: ' + p.version + '.',\n    'Base legal: consentimiento, art. 6.1.a RGPD (CONSENT_WITH_NOTICE).',\n    'Tipo de suscripción: ' + NOMBRE_SUSCRIPCION + ' (' + SUBSCRIPTION_ID + ').',\n  ].join(' ').slice(0, 1000);\n}\nfunction fallo(motivo) { return [{ json: { valido: false, motivo } }]; }\n\nconst item = $input.first().json;\nconst q = item.query && typeof item.query === 'object' ? item.query : {};\nconst email = String(q.email || '').trim().toLowerCase();\nconst exp = String(q.exp || '');\nconst ts = String(q.ts || '');\nconst origen = String(q.origen || '');\nconst version = String(q.v || '');\nconst texto = String(q.txt || '');\nconst sig = String(q.sig || '');\n\nif (SECRET === 'REEMPLAZAR_EN_N8N') return fallo('secreto');\nif (!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)) return fallo('email');\nif (!/^\\d+$/.test(exp) || Number(exp) < Math.floor(Date.now() / 1000) - 30) return fallo('caducado');\nif (!/^(portada|radar|articulo:[a-z0-9-]{1,120})$/.test(origen)) return fallo('origen');\nif (!texto || texto.length > 500) return fallo('texto');\nif (!/^\\d{4}-\\d{2}-\\d{2}T/.test(ts)) return fallo('fecha');\nif (!/^\\d{4}-\\d{2}-\\d{2}$/.test(version)) return fallo('version');\n\nconst esperada = crypto.createHmac('sha256', SECRET).update(canonEnlace(email, exp, ts, origen, version, texto)).digest('hex');\nconst a = Buffer.from(sig), b = Buffer.from(esperada);\nif (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return fallo('firma');\n\nconst ahoraMs = Date.now();\nconst ahoraIso = new Date(ahoraMs).toISOString();\nconst esc = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);\nconst nota = [\n  `<p><strong>Doble confirmación de la newsletter</strong> · ${esc(ahoraIso)}</p>`,\n  `<p><strong>Email:</strong> ${esc(email)} · <strong>Origen:</strong> ${esc(origen)} · <strong>Versión de la política:</strong> ${esc(version)}</p>`,\n  `<p><strong>Consentimiento (UTC):</strong> ${esc(ts)}</p>`,\n  `<p><strong>Texto aceptado:</strong> ${esc(texto)}</p>`,\n].join('');\n\nreturn [{ json: {\n  valido: true,\n  email,\n  subscription_id: SUBSCRIPTION_ID,\n  nombre_suscripcion: NOMBRE_SUSCRIPCION,\n  legal_basis: explicacion({ texto, ts, origen, version }),\n  props: { email, sobtree_newsletter_confirmado: String(ahoraMs) },\n  nota_html: nota,\n} }];\n"
+      }
+    },
+    {
+      "id": "9d41a37a-f474-5cf0-a45a-f0597f9fddb0",
+      "name": "¿Enlace válido?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        480,
+        760
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "31b70225-0427-5856-ba82-1e43f417a585",
+              "leftValue": "={{ $json.valido }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "68ab1269-cb38-573d-8da6-55da759855ce",
+      "name": "Responder enlace inválido",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        940
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<!doctype html><html lang=\"es\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Este enlace no vale</title><body style=\"font-family:sans-serif;background:#050F2C;color:#fff;max-width:36em;margin:0 auto;padding:4rem 1.2rem\"><h1 style=\"font-size:1.7rem\">Este enlace no vale</h1><p style=\"color:#D4DEF4;line-height:1.5\">Ha caducado o no es válido. El enlace dura 48 horas. Vuelve a apuntarte en sobtree.com o escribe a info@sobtree.com.</p><p><a style=\"color:#9CC2FF\" href=\"https://sobtree.com/\">Volver a sobtree.com</a></p></body></html>",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "33502028-64fb-5ca8-bacc-72307b0f4511",
+      "name": "Guardar confirmación",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        680
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/contacts/batch/upsert",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "hubspotAppToken",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ inputs: [{ idProperty: 'email', id: $('Validar enlace').first().json.email, properties: $('Validar enlace').first().json.props }] }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "REEMPLAZAR_ID_CREDENCIAL",
+          "name": "HubSpot Service Key account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "0b857943-cdc5-52ec-9842-22caf8e4a28a",
+      "name": "Crear nota de confirmación",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        980,
+        680
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/crm/v3/objects/notes",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "hubspotAppToken",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ properties: { hs_timestamp: $now.toISO(), hs_note_body: $('Validar enlace').first().json.nota_html }, associations: [{ to: { id: $('Guardar confirmación').first().json.results[0].id }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 202 }] }] }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "REEMPLAZAR_ID_CREDENCIAL",
+          "name": "HubSpot Service Key account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "29523d2b-8961-5be5-b816-18f034d96e6e",
+      "name": "Suscribir en HubSpot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1220,
+        680
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hubapi.com/communication-preferences/v3/subscribe",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "hubspotAppToken",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ emailAddress: $('Validar enlace').first().json.email, subscriptionId: $('Validar enlace').first().json.subscription_id, legalBasis: 'CONSENT_WITH_NOTICE', legalBasisExplanation: $('Validar enlace').first().json.legal_basis }) }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "REEMPLAZAR_ID_CREDENCIAL",
+          "name": "HubSpot Service Key account"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "b9225b5c-dda5-5ca7-b392-be2576671910",
+      "name": "Responder confirmado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1460,
+        600
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<!doctype html><html lang=\"es\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Suscripción confirmada</title><body style=\"font-family:sans-serif;background:#050F2C;color:#fff;max-width:36em;margin:0 auto;padding:4rem 1.2rem\"><h1 style=\"font-size:1.7rem\">Suscripción confirmada</h1><p style=\"color:#D4DEF4;line-height:1.5\">Ya puedes recibir la newsletter de Sobtree. Los correos los envía HubSpot e incluyen un enlace para darte de baja.</p><p><a style=\"color:#9CC2FF\" href=\"https://sobtree.com/\">Volver a sobtree.com</a></p></body></html>",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "b2fc0a04-2e9d-5df1-895f-dcffdd37f6f1",
+      "name": "Responder confirmación pendiente",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1460,
+        800
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<!doctype html><html lang=\"es\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Confirmación registrada</title><body style=\"font-family:sans-serif;background:#050F2C;color:#fff;max-width:36em;margin:0 auto;padding:4rem 1.2rem\"><h1 style=\"font-size:1.7rem\">Confirmación registrada</h1><p style=\"color:#D4DEF4;line-height:1.5\">Hemos anotado tu confirmación. Si no recibes la newsletter, escribe a info@sobtree.com.</p><p><a style=\"color:#9CC2FF\" href=\"https://sobtree.com/\">Volver a sobtree.com</a></p></body></html>",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "1b14bb0e-40d4-5f8c-b1d1-512074c77689",
+      "name": "Responder 502 confirmación",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        980,
+        900
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<!doctype html><html lang=\"es\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>No hemos podido confirmar</title><body style=\"font-family:sans-serif;background:#050F2C;color:#fff;max-width:36em;margin:0 auto;padding:4rem 1.2rem\"><h1 style=\"font-size:1.7rem\">No hemos podido confirmar</h1><p style=\"color:#D4DEF4;line-height:1.5\">Prueba el enlace otra vez en unos minutos o escribe a info@sobtree.com.</p><p><a style=\"color:#9CC2FF\" href=\"https://sobtree.com/\">Volver a sobtree.com</a></p></body></html>",
+        "options": {
+          "responseCode": 502,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "850e7eb6-a0fa-5736-ae0c-adcdafa78cdf",
+      "name": "Avisar fallo de suscripción",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        800
+      ],
+      "parameters": {
+        "jsCode": "// Se ejecuta DESPUÉS de haber respondido. El contacto y la nota ya están guardados.\n// Lanzar el error hace saltar el workflow «Errores de workflows» sin deshacer el upsert.\nthrow new Error('Suscripción HubSpot no aplicada. El contacto y la nota sí se guardaron. Revisa el scope communication_preferences.write de la Service Key y reejecuta esta ejecución.');\n"
+      }
+    },
+    {
+      "id": "0f0a55a0-4525-5546-ba1e-1da0befbbff7",
+      "name": "Nota",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -20
+      ],
+      "parameters": {
+        "content": "## Sobtree · Newsletter → HubSpot\nLa web ya guardó el alta. Este workflow hace el upsert y, con el flag activo, el correo de confirmación.\n- Hasta que la persona abre el enlace, el contacto NO se suscribe.\n- Tipo de suscripción: Marketing Information (3927875333), constante en los dos nodos Code.\n- Si falla la suscripción por permisos, el upsert y la nota no se deshacen y salta el workflow de errores.\n- SECRET = el mismo que N8N_LEADS_WEBHOOK_SECRET, en los DOS nodos Code.\nSecretos y credenciales solo dentro de n8n, nunca en el repo.",
+        "height": 260,
+        "width": 460
+      }
+    }
+  ],
+  "connections": {
+    "Webhook alta newsletter": {
+      "main": [
+        [
+          {
+            "node": "Verificar firma newsletter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar firma newsletter": {
+      "main": [
+        [
+          {
+            "node": "¿Firma válida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Firma válida?": {
+      "main": [
+        [
+          {
+            "node": "Upsert contacto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert contacto": {
+      "main": [
+        [
+          {
+            "node": "Crear nota del consentimiento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 502 alta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear nota del consentimiento": {
+      "main": [
+        [
+          {
+            "node": "¿Doble confirmación?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 502 alta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Doble confirmación?": {
+      "main": [
+        [
+          {
+            "node": "Email de confirmación",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Suscribir ya",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email de confirmación": {
+      "main": [
+        [
+          {
+            "node": "Responder 200 confirmar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 502 alta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Suscribir ya": {
+      "main": [
+        [
+          {
+            "node": "Responder 200 suscrito",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 200 suscripción pendiente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder 200 suscripción pendiente": {
+      "main": [
+        [
+          {
+            "node": "Avisar fallo de suscripción",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook confirmar": {
+      "main": [
+        [
+          {
+            "node": "Validar enlace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar enlace": {
+      "main": [
+        [
+          {
+            "node": "¿Enlace válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Enlace válido?": {
+      "main": [
+        [
+          {
+            "node": "Guardar confirmación",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder enlace inválido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar confirmación": {
+      "main": [
+        [
+          {
+            "node": "Crear nota de confirmación",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 502 confirmación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear nota de confirmación": {
+      "main": [
+        [
+          {
+            "node": "Suscribir en HubSpot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 502 confirmación",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Suscribir en HubSpot": {
+      "main": [
+        [
+          {
+            "node": "Responder confirmado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder confirmación pendiente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder confirmación pendiente": {
+      "main": [
+        [
+          {
+            "node": "Avisar fallo de suscripción",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "errorWorkflow": "alJvCL7d1kwPIipg",
+    "timezone": "Europe/Madrid"
+  },
+  "meta": {
+    "instancia": "https://sobtree.app.n8n.cloud",
+    "webhook_produccion": "https://sobtree.app.n8n.cloud/webhook/sobtree-newsletter",
+    "webhook_confirmacion": "https://sobtree.app.n8n.cloud/webhook/sobtree-newsletter-confirmar",
+    "suscripcion": "Marketing Information",
+    "subscription_id": "3927875333"
+  },
+  "tags": []
+}
