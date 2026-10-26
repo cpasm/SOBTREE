@@ -88,6 +88,22 @@ for (const k of Object.keys(comunes)) if (comunes[k] === '') delete comunes[k];
 const soloAlta = { lifecyclestage: 'lead', hs_lead_status: 'NEW', hs_analytics_source: fuente() };
 
 const esc = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+// Comunicaciones comerciales: solo en la nota y en el aviso. No se crea propiedad (el plan gratuito
+// tiene 10; 7 ya usadas y la newsletter reserva sobtree_newsletter_consentimiento y
+// sobtree_newsletter_confirmado). El scope para suscribir contactos no está concedido, así que
+// no se suscribe a nadie. Un lead en cola anterior a la casilla no trae el campo: «no consta».
+const cc = lead.consentimiento_comercial;
+let comercialNota, comercialTexto;
+if (!cc || typeof cc !== 'object' || !Object.prototype.hasOwnProperty.call(cc, 'acepta')) {
+  comercialNota = '<p><strong>Comunicaciones comerciales:</strong> no consta (lead anterior a la casilla)</p>';
+  comercialTexto = 'Comunicaciones comerciales: no consta';
+} else if (cc.acepta === true) {
+  comercialNota = `<p><strong>Comunicaciones comerciales:</strong> sí · ${esc(cc.fecha)} · política ${esc(cc.version_politica)}<br>${esc(cc.texto)}</p>`;
+  comercialTexto = `Comunicaciones comerciales: sí (${cc.fecha || '—'}, política ${cc.version_politica || '—'})\n${cc.texto || ''}`;
+} else {
+  comercialNota = '<p><strong>Comunicaciones comerciales:</strong> no</p>';
+  comercialTexto = 'Comunicaciones comerciales: no';
+}
 const nota = [
   `<p><strong>Lead web (${esc(comunes.sobtree_tipo_formulario)})</strong> · ${esc(lead.fecha)} · id ${esc(lead.id)}</p>`,
   `<p><strong>Interés:</strong> ${esc(lead.interes)} · <strong>Tamaño:</strong> ${esc(lead.tamano)}</p>`,
@@ -95,6 +111,7 @@ const nota = [
   contexto && `<p>${esc(contexto).replace(/\n/g, '<br>')}</p>`,
   `<p><strong>Origen:</strong> ${esc(detalleOrigen || '—')} · UTM: ${esc([utm.utm_source, utm.utm_medium, utm.utm_campaign].filter(Boolean).join(' / ') || '—')}</p>`,
   `<p><strong>Consentimiento:</strong> ${esc((lead.consentimiento || {}).texto)} (${esc((lead.consentimiento || {}).fecha)})</p>`,
+  comercialNota,
 ].filter(Boolean).join('');
 
 // Si la web ya envió su correo de RESPALDO (n8n falló antes), no se repite el aviso.
@@ -109,5 +126,5 @@ return [{ json: {
   props_actualizacion: comunes,
   nota_html: nota,
   aviso_asunto: `Lead en HubSpot (${comunes.sobtree_tipo_formulario}): ${corta(lead.empresa, 80)} · ${corta(lead.interes, 60)}`,
-  aviso_texto: `${lead.nombre} (${lead.cargo || 'sin cargo'}) de ${lead.empresa}\n${email} · ${lead.telefono}\nInterés: ${lead.interes} · Tamaño: ${lead.tamano}\n\n${lead.mensaje}\n\n${contexto ? contexto + '\n\n' : ''}Origen: ${detalleOrigen || '—'}\nUTM: ${[utm.utm_source, utm.utm_medium, utm.utm_campaign].filter(Boolean).join(' / ') || '—'}\nId lead: ${lead.id}`,
+  aviso_texto: `${lead.nombre} (${lead.cargo || 'sin cargo'}) de ${lead.empresa}\n${email} · ${lead.telefono}\nInterés: ${lead.interes} · Tamaño: ${lead.tamano}\n\n${lead.mensaje}\n\n${contexto ? contexto + '\n\n' : ''}Origen: ${detalleOrigen || '—'}\nUTM: ${[utm.utm_source, utm.utm_medium, utm.utm_campaign].filter(Boolean).join(' / ') || '—'}\n${comercialTexto}\nId lead: ${lead.id}`,
 } }];

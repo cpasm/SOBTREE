@@ -66,6 +66,13 @@ if (!preg_match('/^\+?[0-9 ()\.\-]{6,25}$/', $data['telefono'])) {
 if (($_POST['consentimiento'] ?? '') !== 'si') {
     reply(422, ['ok' => false, 'error' => 'Necesitamos que aceptes la política de privacidad para responderte.']);
 }
+// Casilla aparte, opcional y sin marcar. Ausente = no. Cualquier valor que no sea booleano se rechaza.
+$comercial = array_key_exists('consentimiento_comercial', $_POST)
+    ? leads_parse_bool($_POST['consentimiento_comercial'])
+    : false;
+if ($comercial === null) {
+    reply(422, ['ok' => false, 'error' => 'La casilla de comunicaciones comerciales no es válida.']);
+}
 
 // ---------- Origen ----------
 $tipo = $clean('tipo_formulario', 20);
@@ -112,6 +119,7 @@ $lead = [
         'texto' => 'Acepto la política de privacidad y que Sobtree use estos datos para responder a mi solicitud.',
         'fecha' => gmdate('c'),
     ],
+    'consentimiento_comercial' => leads_consentimiento_comercial($comercial),
     'origen' => [
         'pagina' => $url('origen_pagina'),
         'landing' => $url('origen_landing'),

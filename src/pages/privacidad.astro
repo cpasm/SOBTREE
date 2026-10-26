@@ -1,5 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
+import { POLITICA_FECHA, POLITICA_VERSION } from "../data/site";
 ---
 <Base title="Privacidad y aviso legal | Sobtree" description="Política de privacidad y aviso legal de Sobtree." bare>
 <style is:global>
@@ -10,10 +11,12 @@ import Base from "../layouts/Base.astro";
   .legal a { color: #fff; }
   .legal .back { display: inline-block; margin-bottom: 32px; color: var(--text-3); text-decoration: none; }
   .legal .back:hover { color: #fff; }
+  .legal .legal-meta { color: var(--text-3); font-size: 14px; }
 </style>
 <main class="wrap legal">
   <a class="back" href="/">Volver a la web</a>
   <h1>Privacidad y aviso legal</h1>
+  <p class="legal-meta">Versión {POLITICA_VERSION} · Última actualización: {POLITICA_FECHA}.</p>
 
   <h2>Titular</h2>
   <p>Sobtree Holding, S.L., con CIF B22574222 y domicilio en Madrid (España). Contacto: <a href="mailto:info@sobtree.com">info@sobtree.com</a>.</p>
@@ -23,6 +26,8 @@ import Base from "../layouts/Base.astro";
   <p>Para saber cómo nos has conocido, registramos junto a tu solicitud la página desde la que la envías, la primera página que visitaste, la web de procedencia (por ejemplo, un buscador o una red social) y, si existen, los parámetros de campaña del enlace (utm_source, utm_medium, utm_campaign, utm_term y utm_content). Estos datos se guardan solo en el almacenamiento temporal de tu navegador mientras dura la visita (se borran al cerrar la pestaña) y únicamente se nos envían si envías el formulario. No usamos cookies para esto.</p>
   <p>Por seguridad y para evitar abusos, guardamos también un resumen cifrado de tu dirección IP (que no permite conocer la IP) y el tipo de navegador.</p>
   <p>Usamos estos datos para responder a tu solicitud, preparar en su caso una propuesta, gestionar la relación comercial en nuestro CRM y conocer, de forma agregada, qué canales nos traen solicitudes.</p>
+  <!-- REVISAR FUNDADOR: la finalidad de comunicaciones comerciales, su base en el consentimiento (art. 6.1.a RGPD) y si además aplica el art. 21 de la LSSI son una decisión legal. Confírmalo antes de publicar. También si la prueba de este consentimiento puede suprimirse con el plazo de 12 meses de la sección Conservación. -->
+  <p>Comunicaciones comerciales a quien marque la casilla del formulario de contacto: si la marcas, usamos tu email para enviarte novedades, análisis y ofertas de Sobtree. La base legal es tu consentimiento (art. 6.1.a del RGPD). La casilla es opcional y no viene marcada. Puedes retirar el consentimiento en cualquier momento escribiendo a <a href="mailto:info@sobtree.com">info@sobtree.com</a>.</p>
 
   <h2>Base legal</h2>
   <p>Para responder a tu solicitud y preparar una propuesta: tu consentimiento al enviar el formulario y la aplicación de medidas precontractuales a petición tuya (art. 6.1.a y 6.1.b del RGPD). Para registrar el origen de la solicitud (página, procedencia y campaña) y los datos técnicos antiabuso: nuestro interés legítimo en medir la eficacia de nuestros canales y proteger el formulario (art. 6.1.f del RGPD). Puedes oponerte a este tratamiento escribiendo a <a href="mailto:info@sobtree.com">info@sobtree.com</a>.</p>

@@ -1,6 +1,14 @@
 // Versión de los assets: cambia en cada build (ver Base.astro).
 export const BUILD_VERSION = Date.now().toString(36);
 
+// Política de privacidad. Tiene que coincidir con LEADS_POLITICA_VERSION en public/lib/leads.php.
+export const POLITICA_VERSION = "2026-10-26";
+export const POLITICA_FECHA = "26 de octubre de 2026";
+// Texto exacto de la casilla opcional del formulario de contacto. El mismo literal va firmado
+// en el lead (LEADS_COMERCIAL_TEXTO). El enlace a /privacidad/ es aparte y no forma parte del texto.
+export const COMERCIAL_CONSENT_TEXT =
+  "Quiero recibir comunicaciones comerciales de Sobtree (novedades, análisis y ofertas) por email. Puedes darte de baja cuando quieras.";
+
 // Datos de la empresa. Se usan en las metaetiquetas, los datos estructurados (JSON-LD) y llms.txt.
 export const SITE = {
   name: "Sobtree",

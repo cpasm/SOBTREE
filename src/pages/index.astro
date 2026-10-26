@@ -4,7 +4,7 @@ import Foco from "../components/Foco.astro";
 import Articulos from "../components/Articulos.astro";
 import Asistente from "../components/Asistente.astro";
 import { FAQ } from "../data/faq";
-import { BUILD_VERSION, DIAGNOSTICO, TEXTOS } from "../data/site";
+import { BUILD_VERSION, COMERCIAL_CONSENT_TEXT, DIAGNOSTICO, TEXTOS } from "../data/site";
 import CASOS from "../data/casos.json";
 import { graph, organization, website, person, faqPage } from "../data/schema";
 
@@ -274,6 +274,7 @@ const jsonld = graph(organization(), website(), person(), faqPage());
       <input type="hidden" name="motivo_asistente">
       <input type="hidden" name="t0">
       <label class="consent"><input type="checkbox" name="consentimiento" value="si" required><span>Acepto la <a href="/privacidad/">política de privacidad</a> y que Sobtree use estos datos para responder a mi solicitud.</span></label>
+      <label class="consent consent-comercial"><input type="checkbox" name="consentimiento_comercial" value="si" autocomplete="off"><span><span class="opt">Opcional.</span> {COMERCIAL_CONSENT_TEXT} <a href="/privacidad/">Política de privacidad</a>.</span></label>
       <button class="btn btn-primary" type="submit">Solicitar conversación</button>
       <p class="form-status" id="contact-status" role="status"></p>
     </form>

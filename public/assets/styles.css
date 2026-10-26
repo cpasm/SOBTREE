@@ -406,6 +406,9 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .consent input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
 .consent a { color: #fff; }
 .consent.invalid span { color: #ffb4ab; }
+/* Casilla aparte de la privacidad: opcional, sin marcar. El borde la separa de la aceptación obligatoria. */
+.consent-comercial { margin-top: 4px; padding-top: 16px; border-top: 1px solid var(--line-strong); }
+.consent-comercial .opt { display: inline; margin-right: 4px; }
 .hp { position: absolute !important; left: -9999px; }
 .opt { font-weight: 400; opacity: .7; }
 .contact .btn { justify-self: start; }

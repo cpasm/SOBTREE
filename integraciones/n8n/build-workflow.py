@@ -106,8 +106,9 @@ nodes = [
                    "- 401: firma o timestamp no válidos (la web reintenta y queda registro).\n"
                    "- 502: HubSpot falló → la web lo reintenta por cron (máx. 8 intentos).\n"
                    "- 200: contacto creado/actualizado por email (sin duplicados) + nota.\n"
+                   "- Comunicaciones comerciales: solo en la nota. Sin propiedad nueva y sin suscribir por API.\n"
                    "Secretos y credenciales solo dentro de n8n, nunca en el repo.",
-        "height": 220, "width": 420,
+        "height": 260, "width": 460,
     }),
 ]
 
