@@ -48,7 +48,9 @@ export function faqPage() {
   };
 }
 
-export function article(a: { title: string; description: string; url: string; date: Date; updated?: Date; tags: string[] }) {
+export function article(a: { title: string; description: string; url: string; date: Date; updated?: Date; tags: string[]; image?: string }) {
+  // Solo la portada del frontmatter. La ilustración de marca no es un archivo: no se inventa una URL.
+  const image = a.image ? new URL(a.image, SITE.url).href : undefined;
   return {
     "@type": "Article",
     headline: a.title,
@@ -59,6 +61,7 @@ export function article(a: { title: string; description: string; url: string; da
     dateModified: (a.updated ?? a.date).toISOString(),
     inLanguage: "es-ES",
     keywords: a.tags.join(", "),
+    ...(image ? { image } : {}),
     author: AUTHOR ? { "@id": PERSON_ID } : { "@id": ORG_ID },
     publisher: { "@id": ORG_ID },
     isPartOf: { "@id": SITE_ID }

@@ -22,7 +22,7 @@ interface Props {
 }
 const { title, description, date, updated, tags, path, back, tema = "datos", imagen, imagenAlt } = Astro.props;
 const url = new URL(path, SITE.url).href;
-const jsonld = graph(organization(), website(), person(), article({ title, description, url, date, updated, tags }));
+const jsonld = graph(organization(), website(), person(), article({ title, description, url, date, updated, tags, image: imagen }));
 ---
 <Base title={`${title} | Sobtree`} description={description} ogType="article" jsonld={jsonld}>
   <main id="main" class="section page-tight">
