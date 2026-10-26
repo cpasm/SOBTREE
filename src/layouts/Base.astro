@@ -11,8 +11,10 @@ interface Props {
   jsonld?: string;
   noindex?: boolean;
   bare?: boolean; // sin cabecera ni pie (p. ej. páginas legales)
+  image?: string; // absoluta; solo si la página tiene portada propia
+  imageAlt?: string;
 }
-const { title = SITE.title, description = SITE.description, ogType = "website", jsonld, noindex = false, bare = false } = Astro.props;
+const { title = SITE.title, description = SITE.description, ogType = "website", jsonld, noindex = false, bare = false, image, imageAlt } = Astro.props;
 // Absoluta, https (SITE.url), sin index.html y con la misma barra final que el sitemap.
 const canonicalPath = Astro.url.pathname.replace(/index\.html$/, "") || "/";
 const canonical = new URL(canonicalPath.endsWith("/") ? canonicalPath : `${canonicalPath}/`, SITE.url).href;
@@ -34,7 +36,11 @@ const v = BUILD_VERSION;
 <meta property="og:title" content={title}>
 <meta property="og:description" content={description}>
 <meta property="og:url" content={canonical}>
-<meta name="twitter:card" content="summary">
+{image && <meta property="og:image" content={image}>}
+{image && imageAlt && <meta property="og:image:alt" content={imageAlt}>}
+<meta name="twitter:card" content={image ? "summary_large_image" : "summary"}>
+{image && <meta name="twitter:image" content={image}>}
+{image && imageAlt && <meta name="twitter:image:alt" content={imageAlt}>}
 <link rel="icon" href="/favicon.ico" sizes="48x48">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">

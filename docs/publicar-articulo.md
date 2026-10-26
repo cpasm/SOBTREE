@@ -19,7 +19,7 @@ El esquema está en `src/content.config.ts`. `description` admite como máximo 2
 | `autor` | El equipo de Sobtree (valor por defecto del esquema) |
 | `tags` | Pymes, Precios, Primeros pasos |
 | `linea` | IA. Valores posibles: `IA`, `Normativa`, `Caso de uso`. |
-| `imagen` | Sin cabecera: el fichero propuesto no existe. La portada es la ilustración de marca. |
+| `imagen` | `/img/cuanto-cuesta-implantar-ia-pyme.png`. Alt: «Cuánto cuesta implantar IA en una pyme, guía de Sobtree». |
 | `draft` | `false`. Publicar es fusionar a `main` con el OK del fundador. |
 
 Las frases de precio del cuerpo no están escritas a mano: las pinta `FraseDiagnostico` desde `DIAGNOSTICO`. Con `descuentoCondicionado: false` pasan a «490 €, descontable del proyecto».
@@ -80,6 +80,6 @@ console.log("Enlaces internos resueltos:", [...new Set(hrefs)].length);
 
 Con `draft: false` la URL sale en el sitemap, en `/llms.txt` y en el listado, con `https://sobtree.com` y barra final. `/radar/` no entra mientras la única entrega sea la plantilla en borrador.
 
-El JSON-LD lo escribe la plantilla (`src/data/schema.ts`, tipo `Article` dentro de `@graph`). `publisher` apunta a la organización Sobtree del mismo bloque. `author` es una `Organization` con el `autor` del frontmatter («El equipo de Sobtree») y `parentOrganization` hacia Sobtree. `image` solo se añade si `imagen` tiene valor.
+El JSON-LD lo escribe la plantilla (`src/data/schema.ts`, tipo `Article` dentro de `@graph`). `publisher` apunta a la organización Sobtree del mismo bloque. `author` es una `Organization` con el `autor` del frontmatter («El equipo de Sobtree») y `parentOrganization` hacia Sobtree. `image` solo se añade si `imagen` tiene valor. Esa misma URL absoluta es `og:image` y `twitter:image` (la tarjeta pasa a `summary_large_image`). Sin `imagen`, la página no lleva imagen social y la tarjeta sigue siendo `summary`.
 
 El flujo de n8n exportado hay que reimportarlo a mano si se quieren los importes desglosados en la nota del lead. La firma HMAC y la cola de reintentos no cambian.
