@@ -204,11 +204,12 @@ const varios = SERVICIOS.length > 1;
   .contrata-heading { margin-bottom: 1.25rem; }
   .contrata-heading h1 { margin: 0.2rem 0 0.5rem; }
   .contrata-heading .section-sub { max-width: 58ch; margin-bottom: 0; }
-  .contrata-resumen { display: grid; grid-template-columns: minmax(180px, 0.72fr) minmax(0, 1.5fr); gap: 1.25rem; align-items: center; margin: 1.25rem 0 1rem; padding: 1.15rem 1.25rem; border: 1px solid var(--line, #d9deea); border-radius: 16px; background: var(--surface, #fff); }
+  .contrata-resumen { display: grid; grid-template-columns: minmax(180px, 0.72fr) minmax(0, 1.5fr); gap: 1.25rem; align-items: center; margin: 1.25rem 0 1rem; padding: 1.15rem 1.25rem; border: 1px solid var(--line-strong, rgba(255,255,255,.24)); border-radius: 16px; background: var(--panel, #0C1F4F); color: var(--white, #fff); }
   .contrata-resumen p { margin: 0 0 0.55rem; }
   .contrata-resumen p:last-child { margin-bottom: 0; }
-  .contrata-resumen-precio { padding-right: 1.25rem; border-right: 1px solid var(--line, #d9deea); }
-  .contrata-label { font-size: 0.85rem; opacity: 0.78; }
+  .contrata-resumen .fine { color: var(--text-2, #D4DEF4); text-align: left; }
+  .contrata-resumen-precio { padding-right: 1.25rem; border-right: 1px solid var(--line-strong, rgba(255,255,255,.24)); }
+  .contrata-label { font-size: 0.85rem; color: var(--text-2, #D4DEF4); opacity: 1; }
   .contrata-resumen .contrata-total { font-size: clamp(1.8rem, 4vw, 2.25rem); line-height: 1.1; font-weight: 750; letter-spacing: -0.03em; }
   .contrata-resumen-detalle { min-width: 0; }
   .contrata-status:empty { display: none; }
