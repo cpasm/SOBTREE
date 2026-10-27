@@ -22,7 +22,7 @@ El esquema está en `src/content.config.ts`. `description` admite como máximo 2
 | `imagen` | `/img/cuanto-cuesta-implantar-ia-pyme.png`. Alt: «Cuánto cuesta implantar IA en una pyme, guía de Sobtree». |
 | `draft` | `false`. Publicar es fusionar a `main` con el OK del fundador. |
 
-Las frases de precio del cuerpo no están escritas a mano: las pinta `FraseDiagnostico` desde `DIAGNOSTICO`. Con `descuentoCondicionado: false` pasan a «490 €, descontable del proyecto».
+Las frases de precio del cuerpo no están escritas a mano: las pinta `FraseDiagnostico` desde `DIAGNOSTICO`. Con `descuentoCondicionado: true` la FAQ usa la redacción aprobada: «Diagnóstico 490 € + IVA. Si contratas el proyecto en los 30 días siguientes a la entrega del informe, te descontamos los 490 €. Se aplica solo a proyectos (no a formación, acompañamiento ni licencias), uno por empresa, no es acumulable y no se devuelve en dinero.» Con `descuentoCondicionado: false` pasan a «490 €, descontable del proyecto».
 
 No hay autor con nombre de persona (`AUTHOR` en `src/data/site.ts` está vacío). El JSON-LD usa una Organization.
 

@@ -31,7 +31,8 @@ export const SITE = {
 export const AUTHOR: { name: string; jobTitle: string; url?: string; sameAs: string[] } | null = null;
 
 // Una sola fuente del diagnóstico. `descuentoCondicionado: false` pasa toda la web a
-// «490 €, descontable del proyecto» (opción B). El true es la opción A, pendiente del fundador.
+// «490 €, descontable del proyecto» (opción B). Con true, el descuento es contratar
+// el proyecto en los 30 días siguientes a la entrega del informe, con las condiciones de la FAQ.
 export const DIAGNOSTICO = {
   precio: 490,
   descuentoCondicionado: true,
@@ -82,51 +83,51 @@ const euros = (n: number) => `${n.toLocaleString("es-ES")} €`;
 function textosDiagnostico(d = DIAGNOSTICO) {
   const precio = euros(d.precio);
   const cond = d.descuentoCondicionado;
-  const lineaCorta = cond
-    ? `${precio} · Si haces la puesta en marcha con nosotros en los ${d.dias} días siguientes, te lo descontamos entero.`
-    : `${precio}, descontable del proyecto.`;
-  const focoDetalle = cond
-    ? `Si haces la puesta en marcha con nosotros en los ${d.dias} días siguientes, te lo descontamos entero.`
-    : "Descontable del proyecto.";
-  const cierreFicha = cond
-    ? focoDetalle
-    : `El diagnóstico cuesta ${precio}, descontable del proyecto.`;
+  // Redacción aprobada. Con precio 490 y 30 días coincide literalmente con el email.
   const condiciones = cond
-    ? "No se aplica a formación, acompañamiento ni licencias. Uno por empresa, no acumulable, sin devolución en dinero."
+    ? "Se aplica solo a proyectos (no a formación, acompañamiento ni licencias), uno por empresa, no es acumulable y no se devuelve en dinero."
     : "";
+  const fraseProyecto = `Si contratas el proyecto en los ${d.dias} días siguientes a la entrega del informe, te descontamos los ${d.precio} €`;
+  const faqLiteral = `Diagnóstico ${d.precio} € + IVA. ${fraseProyecto}. ${condiciones}`;
+  const etiquetaCorta = `−${precio} si contratas el proyecto en ${d.dias} días desde la entrega del informe (condiciones en las FAQ)`;
+  const lineaCorta = cond
+    ? `${precio} + IVA. ${fraseProyecto}.`
+    : `${precio}, descontable del proyecto.`;
+  const conCondiciones = cond ? `${lineaCorta} ${condiciones}` : lineaCorta;
+  const focoDetalle = cond ? `${precio} + IVA. ${etiquetaCorta}.` : "Descontable del proyecto.";
+  const cierreFicha = cond
+    ? `El diagnóstico cuesta ${precio} + IVA. ${fraseProyecto}. ${condiciones}`
+    : `El diagnóstico cuesta ${precio}, descontable del proyecto.`;
   const faqDescuento = cond
-    ? {
-        q: "¿El diagnóstico se descuenta?",
-        a: `Sí. Si contratas la puesta en marcha del primer caso de uso en los ${d.dias} días siguientes a la entrega del diagnóstico, te descontamos los ${d.precio} € enteros.`
-      }
+    ? { q: "¿El diagnóstico se descuenta?", a: faqLiteral }
     : {
         q: "¿El diagnóstico se descuenta?",
         a: `Sí. El diagnóstico cuesta ${precio}, descontable del proyecto.`
       };
   const faqPrecio = cond
-    ? `Siempre a precio cerrado, IVA no incluido: sabes lo que pagas antes de empezar y no hay extras. El diagnóstico exprés cuesta ${precio}. Si contratas la puesta en marcha del primer caso de uso en los ${d.dias} días siguientes a la entrega, te descontamos esos ${d.precio} € enteros. Poner en marcha un primer caso de uso cuesta entre 600 y 1.200 € según lo que haya que conectar. En la calculadora de la web tienes una horquilla para tu caso.`
+    ? `${faqLiteral} Siempre a precio cerrado, IVA no incluido: sabes lo que pagas antes de empezar y no hay extras. Poner en marcha un primer caso de uso cuesta entre 600 y 1.200 € según lo que haya que conectar. En la calculadora de la web tienes una horquilla para tu caso.`
     : `Siempre a precio cerrado, IVA no incluido: sabes lo que pagas antes de empezar y no hay extras. El diagnóstico exprés cuesta ${precio}, descontable del proyecto, y poner en marcha un primer caso de uso, entre 600 y 1.200 € según lo que haya que conectar. En la calculadora de la web tienes una horquilla para tu caso.`;
   const articulo = {
     apertura: cond
-      ? `${precio}, y te lo descontamos entero si haces la puesta en marcha con nosotros en los ${d.dias} días siguientes`
+      ? `${precio} + IVA. ${fraseProyecto}. ${condiciones}`
       : `${precio}, descontable del proyecto`,
     servicios: cond
-      ? `${precio}. Si haces la puesta en marcha del primer caso de uso con nosotros en los ${d.dias} días siguientes a la entrega, te lo descontamos entero.`
+      ? faqLiteral
       : `${precio}, descontable del proyecto.`,
     faq: cond
-      ? `${precio}, sin IVA. Si haces la puesta en marcha del primer caso de uso con nosotros en los ${d.dias} días siguientes a la entrega, te lo descontamos entero.`
+      ? faqLiteral
       : `${precio}, sin IVA, descontable del proyecto.`
   };
-  const calcDescuento = `−${euros(d.precio)} si contratas en ${d.dias} días`;
-  const calcSinContratar = `sin contratar después: ${precio}`;
+  const calcDescuento = etiquetaCorta;
+  const calcSinContratar = cond ? `sin contratar el proyecto después: ${precio}` : `sin contratar después: ${precio}`;
   const calcSupuesto = cond
-    ? `Nuestro precio: diagnóstico (${precio}, sin el recargo por tamaño) + puesta en marcha de la primera área (600–1.200 €) y de cada área más (480–840 €) + formación del equipo (120–360 €). Más de 50 personas: +25 % solo sobre la puesta en marcha. Si contratas esa puesta en marcha en los ${d.dias} días siguientes, el total neto resta los ${d.precio} €. Si no, pagas el diagnóstico. El precio final, cerrado, te lo damos tras el diagnóstico.`
+    ? `Nuestro precio: diagnóstico (${precio} + IVA, sin el recargo por tamaño) + puesta en marcha de la primera área (600–1.200 €) y de cada área más (480–840 €) + formación del equipo (120–360 €). Más de 50 personas: +25 % solo sobre la puesta en marcha. Si contratas el proyecto en los ${d.dias} días siguientes a la entrega del informe, el total neto resta los ${d.precio} €. ${condiciones} Si no, pagas el diagnóstico. El precio final, cerrado, te lo damos tras el diagnóstico.`
     : `Nuestro precio: diagnóstico (${precio}, descontable del proyecto, sin el recargo por tamaño) + puesta en marcha de la primera área (600–1.200 €) y de cada área más (480–840 €) + formación del equipo (120–360 €). Más de 50 personas: +25 % solo sobre la puesta en marcha. El total suma diagnóstico y puesta en marcha. El precio final, cerrado, te lo damos tras el diagnóstico.`;
   const ej8 = precioCerrado(8, 2, d);
   const ej60 = precioCerrado(60, 2, d);
   const fmt = (n: number) => n.toLocaleString("es-ES");
   const corpus = cond
-    ? `Precio cerrado orientativo de Sobtree, sin IVA. El diagnóstico (${d.precio} €) va en una línea aparte y no lleva el recargo del 25 % de más de 50 personas. La puesta en marcha (primera área 600–1.200 €, cada área adicional 480–840 €, formación 120–360 €) sí lleva ese 25 % si la empresa tiene más de 50 personas. Si se contrata la puesta en marcha en los ${d.dias} días siguientes a la entrega, se restan ${d.precio} € y el total neto es la puesta en marcha; si no se contrata después, el coste es el diagnóstico. Por ejemplo, 8 personas y dos áreas: diagnóstico ${fmt(ej8.diagnostico)} €, puesta en marcha ${fmt(ej8.puestaMin)}–${fmt(ej8.puestaMax)} €, descuento −${fmt(ej8.descuento)} €, total neto ${fmt(ej8.netoMin)}–${fmt(ej8.netoMax)} €. Con 60 personas y dos áreas: diagnóstico ${fmt(ej60.diagnostico)} €, puesta en marcha ${fmt(ej60.puestaMin)}–${fmt(ej60.puestaMax)} €, descuento −${fmt(ej60.descuento)} €, total neto ${fmt(ej60.netoMin)}–${fmt(ej60.netoMax)} €.`
+    ? `Precio cerrado orientativo de Sobtree, sin IVA. El diagnóstico (${d.precio} €) va en una línea aparte y no lleva el recargo del 25 % de más de 50 personas. La puesta en marcha (primera área 600–1.200 €, cada área adicional 480–840 €, formación 120–360 €) sí lleva ese 25 % si la empresa tiene más de 50 personas. Si se contrata el proyecto en los ${d.dias} días siguientes a la entrega del informe, se restan ${d.precio} € y el total neto es la puesta en marcha; si no se contrata el proyecto después, el coste es el diagnóstico. ${condiciones} Por ejemplo, 8 personas y dos áreas: diagnóstico ${fmt(ej8.diagnostico)} €, puesta en marcha ${fmt(ej8.puestaMin)}–${fmt(ej8.puestaMax)} €, descuento −${fmt(ej8.descuento)} €, total neto ${fmt(ej8.netoMin)}–${fmt(ej8.netoMax)} €. Con 60 personas y dos áreas: diagnóstico ${fmt(ej60.diagnostico)} €, puesta en marcha ${fmt(ej60.puestaMin)}–${fmt(ej60.puestaMax)} €, descuento −${fmt(ej60.descuento)} €, total neto ${fmt(ej60.netoMin)}–${fmt(ej60.netoMax)} €.`
     : `Precio cerrado orientativo de Sobtree, sin IVA. El diagnóstico (${precio}, descontable del proyecto) va en una línea aparte y no lleva el recargo del 25 %. La puesta en marcha (primera área 600–1.200 €, cada área adicional 480–840 €, formación 120–360 €) sí lleva ese 25 % si hay más de 50 personas. El total es la suma. Por ejemplo, 8 personas y dos áreas: entre ${fmt(ej8.netoMin)} y ${fmt(ej8.netoMax)} €. Con 60 personas y dos áreas: entre ${fmt(ej60.netoMin)} y ${fmt(ej60.netoMax)} €.`;
   return {
     lineaCorta,
@@ -140,9 +141,9 @@ function textosDiagnostico(d = DIAGNOSTICO) {
     calcSinContratar,
     calcSupuesto,
     corpus,
-    llmsPaso: `Diagnóstico IA exprés (1 semana, ${lineaCorta}): qué tareas automatizar, cuánto ahorras y cuánto cuesta.`,
-    llmsIntro: `El punto de entrada es un diagnóstico IA exprés de 1 semana (${lineaCorta}). Sede en Madrid; trabaja en remoto para toda España.`,
-    duracionServicio: `1 semana · ${lineaCorta}`
+    llmsPaso: `Diagnóstico IA exprés (1 semana, ${conCondiciones}): qué tareas automatizar, cuánto ahorras y cuánto cuesta.`,
+    llmsIntro: `El punto de entrada es un diagnóstico IA exprés de 1 semana (${conCondiciones.replace(/\.$/, "")}). Sede en Madrid; trabaja en remoto para toda España.`,
+    duracionServicio: `1 semana · ${conCondiciones}`
   };
 }
 

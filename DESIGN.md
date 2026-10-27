@@ -19,7 +19,7 @@ Todo lo que se añada a la web sigue esta guía. Los valores viven en `public/as
 
 ### Tono
 - Directo, agresivo con el sobrecoste y nunca con personas o empresas concretas: «¿Cansado de consultoras que cobran pastizales?» sí; nombres de competidores, no.
-- Se habla de tú. Frases cortas. Cifras siempre verificables (490 € el diagnóstico a precio cerrado; si haces la puesta en marcha en los 30 días siguientes, te lo descontamos entero; 2–3 semanas, 0 € en comisiones, ejemplos de los análisis). Transparencia total en coste y ahorro: si damos un ahorro, damos también lo que cuesta. La frase sale de `DIAGNOSTICO` en `src/data/site.ts`.
+- Se habla de tú. Frases cortas. Cifras siempre verificables (diagnóstico 490 € + IVA a precio cerrado; si contratas el proyecto en los 30 días siguientes a la entrega del informe, te descontamos los 490 €, solo en proyectos, uno por empresa, no acumulable y no se devuelve en dinero; 2–3 semanas, 0 € en comisiones, ejemplos de los análisis). Transparencia total en coste y ahorro: si damos un ahorro, damos también lo que cuesta. La frase sale de `DIAGNOSTICO` en `src/data/site.ts`.
 - Lenguaje de pyme: tareas, horas, euros. Sin jerga técnica; si hace falta un término, se explica.
 - Nada de promesas no medibles («resultados garantizados»). Si no hay dato, no hay cifra.
 - La expresión destacada del titular (p. ej. «cobran pastizales») va en `--accent` con el subrayado dibujado.
@@ -89,13 +89,13 @@ En escritorio (≥1280×800) la primera pantalla muestra, sin hacer scroll:
 2. Antetítulo («IA para pymes · precio cerrado, sin sorpresas»), titular y una frase de apoyo.
 3. Dos acciones: **Calcula tu ahorro** (primaria) y **Reservar 25 min**.
 4. Diagrama interactivo horizontal (Tus tareas → Caso de uso → IA → Tu equipo).
-5. «Cómo lo hacemos»: tres tarjetas (2–3 sem. · 490 € precio cerrado, descontado entero si haces la puesta en marcha en los 30 días siguientes · 0 €).
+5. «Cómo lo hacemos»: tres tarjetas (2–3 sem. · 490 € + IVA a precio cerrado, −490 € si contratas el proyecto en 30 días desde la entrega del informe, condiciones en las FAQ · 0 €).
 6. Franja «Trabajamos con»: Claude, ChatGPT, Gemini y Copilot.
 
 Los artículos empiezan justo debajo, en una sección blanca con esquinas superiores redondeadas. La calculadora vive en `/calculadora/`, no en la portada.
 
 ### Calculadora (`/calculadora/`)
-Cinco preguntas visuales (sector en chips, personas, horas repetitivas y coste por hora con deslizadores, áreas a automatizar en tarjetas) y un panel de resultado fijo: ahorro anual (tarjeta oscura), diagnóstico en línea aparte, puesta en marcha, descuento de 30 días si `descuentoCondicionado` está activo, total neto, licencias al mes, barras ahorro frente a inversión del primer año, meses para recuperarlo (sobre el neto) y «Cómo lo calculamos» desplegable. El modelo está en `public/assets/roi.js` con los números de `src/data/site.ts`. El botón final rellena el formulario de contacto con los importes por separado (diagnóstico, descuento, puesta en marcha y neto); el flujo de n8n los escribe en la nota del lead.
+Cinco preguntas visuales (sector en chips, personas, horas repetitivas y coste por hora con deslizadores, áreas a automatizar en tarjetas) y un panel de resultado fijo: ahorro anual (tarjeta oscura), diagnóstico en línea aparte, puesta en marcha, descuento si se contrata el proyecto en los 30 días desde la entrega del informe (cuando `descuentoCondicionado` está activo; condiciones en las FAQ), total neto, licencias al mes, barras ahorro frente a inversión del primer año, meses para recuperarlo (sobre el neto) y «Cómo lo calculamos» desplegable. El modelo está en `public/assets/roi.js` con los números de `src/data/site.ts`. El botón final rellena el formulario de contacto con los importes por separado (diagnóstico, descuento, puesta en marcha y neto); el flujo de n8n los escribe en la nota del lead.
 
 ---
 

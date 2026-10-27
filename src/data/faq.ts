@@ -3,7 +3,8 @@ import { TEXTOS } from "./site";
 
 export const FAQ: { q: string; a: string; nota?: string }[] = [
   { q: "¿Cuánto cuesta implantar IA en una pyme?", a: TEXTOS.faqPrecio },
-  { ...TEXTOS.faqDescuento, ...(TEXTOS.condiciones ? { nota: TEXTOS.condiciones } : {}) },
+  // La respuesta ya incluye las condiciones: el JSON-LD FAQPage solo publica `a`, no la nota.
+  TEXTOS.faqDescuento,
   { q: "¿Necesito saber de tecnología o tener un departamento de informática?", a: "No. Usamos herramientas que ya existen (ChatGPT, Claude, Gemini, Microsoft Copilot y automatizaciones sencillas) y las dejamos funcionando. Tu equipo solo tiene que aprender a usarlas, y eso también lo hacemos." },
   { q: "¿En cuánto tiempo veo resultados?", a: "El primer caso de uso suele estar en marcha en 2 o 3 semanas. Empezamos siempre por la tarea que más tiempo os quita, para que el ahorro se note pronto." },
   { q: "¿Qué pasa con mis datos y el RGPD?", a: "Elegimos planes de empresa de los proveedores de IA que no usan tus datos para entrenar sus modelos, limitamos qué información se comparte y dejamos por escrito qué hace cada herramienta. Si un caso de uso no es seguro para tus datos, no lo hacemos." },

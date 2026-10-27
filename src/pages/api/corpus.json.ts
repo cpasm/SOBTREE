@@ -26,7 +26,7 @@ export const GET: APIRoute = async () => {
       "Servicios:",
       ...SERVICES.map((s) => `- ${s.name} (${s.duration}): ${s.description}`),
       "",
-      `El punto de entrada recomendado es el Diagnóstico IA exprés: 1 semana, ${TEXTOS.lineaCorta} Dice qué tareas automatizar primero, cuánto ahorrarías y cuánto costaría ponerlo en marcha.`
+      `El punto de entrada recomendado es el Diagnóstico IA exprés: 1 semana, ${TEXTOS.lineaCorta}${TEXTOS.condiciones ? " " + TEXTOS.condiciones : ""} Dice qué tareas automatizar primero, cuánto ahorrarías y cuánto costaría ponerlo en marcha.`
     )
   });
 
