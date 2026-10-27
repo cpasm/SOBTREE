@@ -1,0 +1,898 @@
+{
+  "name": "Sobtree · Lead web → Hoja de contactos",
+  "nodes": [
+    {
+      "id": "f24927e8-b039-514e-bc6d-aec93db97931",
+      "name": "Webhook lead web",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sobtree-lead",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "webhookId": "e31f1861-6a44-544c-ac84-d58f7d59eeea"
+    },
+    {
+      "id": "af46007e-8cfa-5aa8-953f-d798c0bc98df",
+      "name": "Verificar firma y mapear",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Nodo Code «Verificar firma y mapear» del workflow «Sobtree · Lead web → Hoja de contactos».\n// Versión sin HubSpot: la verificación HMAC es idéntica a la de verificar-y-mapear.js; cambia solo el mapeo (de propiedades de HubSpot a las columnas de la hoja).\n// Fuente única: build-lead-a-hoja.py lo incrusta en el JSON y tests/leads-hoja/ lo prueba en local.\n// Modo: Run Once for All Items. Requiere que el nodo Webhook tenga activado «Raw Body».\nconst crypto = require('crypto');\n\n// Secreto compartido con la web (N8N_LEADS_WEBHOOK_SECRET en sobtree-secrets.php).\n// Plan Starter de n8n Cloud: sin Variables, así que se pega aquí DENTRO de n8n, nunca en el repositorio.\n// En planes con Variables, usar: const SECRET = $vars.SOBTREE_LEADS_SECRET;\nconst SECRET = 'REEMPLAZAR_EN_N8N';\nconst MAX_DESFASE_S = 300; // 5 minutos\n\nconst item = $input.first();\nconst h = item.json.headers || {};\nconst ts = String(h['x-sobtree-timestamp'] || '');\nconst firma = String(h['x-sobtree-signature'] || '');\nlet raw = '';\ntry { raw = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8'); } catch (e) { raw = ''; }\n\nconst esperada = 'sha256=' + crypto.createHmac('sha256', SECRET).update(ts + '.' + raw).digest('hex');\nconst reciente = /^\\d+$/.test(ts) && Math.abs(Date.now() / 1000 - Number(ts)) <= MAX_DESFASE_S;\nconst a = Buffer.from(firma), b = Buffer.from(esperada);\nconst valida = SECRET !== 'REEMPLAZAR_EN_N8N' && reciente && a.length === b.length && crypto.timingSafeEqual(a, b);\nif (!valida) return [{ json: { valido: false, motivo: !reciente ? 'timestamp' : 'firma' } }];\n\nlet lead;\ntry { lead = JSON.parse(raw); } catch (e) { return [{ json: { valido: false, motivo: 'json' } }]; }\nconst email = String(lead.email || '').trim().toLowerCase();\nif (!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)) return [{ json: { valido: false, motivo: 'email' } }];\n\nconst o = lead.origen || {}, utm = o.utm || {}, calc = lead.calculadora || {}, asis = lead.asistente || {};\nconst partes = String(lead.nombre || '').trim().split(/\\s+/);\nconst corta = (s, n) => String(s || '').slice(0, n);\n\nconst eur = (n) => (typeof n === 'number' ? n.toLocaleString('es-ES') + ' €' : '—');\n// Importes por separado en el texto (nota y contexto).\nconst importes = typeof calc.diagnostico === 'number'\n  ? `Diagnóstico ${eur(calc.diagnostico)} · Descuento ${eur(calc.descuento)} · Puesta en marcha ${eur(calc.puesta_min)}–${eur(calc.puesta_max)} · Neto ${eur(calc.neto_min)}–${eur(calc.neto_max)}`\n  : `Precio ${eur(calc.precio_min)}–${eur(calc.precio_max)}`;\nconst resumenCalc = Object.keys(calc).length\n  ? `Sector: ${calc.sector || '—'} · ${calc.personas ?? '—'} personas · ${calc.horas ?? '—'} h/sem · ${calc.coste ?? '—'} €/h · Áreas: ${(calc.areas || []).join(', ') || '—'} · Ahorro ${eur(calc.ahorro_min)}–${eur(calc.ahorro_max)}/año · ${importes}`\n  : '';\nconst contexto = [resumenCalc && 'Calculadora: ' + resumenCalc, asis.motivo && 'Asistente: ' + asis.motivo].filter(Boolean).join('\\n');\nconst detalleOrigen = [\n  o.landing && 'entrada=' + o.landing, o.referrer && 'referrer=' + o.referrer, o.pagina && 'pagina=' + o.pagina,\n  utm.utm_term && 'utm_term=' + utm.utm_term, utm.utm_content && 'utm_content=' + utm.utm_content,\n].filter(Boolean).join(' | ');\n\nconst comercial = lead.consentimiento_comercial;\nconst tieneCC = !!comercial && typeof comercial === 'object' && Object.prototype.hasOwnProperty.call(comercial, 'acepta');\nconst aceptaCC = tieneCC && comercial.acepta === true;\nconst tipo = ['contacto', 'calculadora', 'asistente'].includes(lead.tipo_formulario) ? lead.tipo_formulario : 'contacto';\nconst tamano = corta(lead.tamano, 60);\nconst fechaLead = corta(lead.fecha, 40) || new Date().toISOString();\n// Fila nueva de la pestaña «Contactos» (sin los campos de estado). Los vacíos no pisan datos buenos al fusionar.\nconst fila_nueva = {\n  email,\n  nombre: corta(String(lead.nombre || '').trim(), 200),\n  empresa: corta(lead.empresa, 200),\n  cargo: corta(lead.cargo, 120),\n  telefono: corta(lead.telefono, 40),\n  interes: corta(lead.interes, 100),\n  tamano,\n  mensaje: corta(lead.mensaje, 4000),\n  tipo_formulario: tipo,\n  origen: corta(o.landing, 300),\n  referrer: corta(o.referrer, 300),\n  pagina: corta(o.pagina, 300),\n  utm_source: corta(utm.utm_source, 150),\n  utm_medium: corta(utm.utm_medium, 150),\n  utm_campaign: corta(utm.utm_campaign, 150),\n  utm_term: corta(utm.utm_term, 150),\n  utm_content: corta(utm.utm_content, 150),\n  contexto: corta(contexto, 2000),\n  consentimiento_privacidad_fecha: corta((lead.consentimiento || {}).fecha, 40),\n  id_lead: corta(lead.id, 64),\n  fecha_actualizacion: fechaLead,\n};\n// Comunicaciones comerciales del lead tal como llegan. «no consta» (lead en cola anterior a la casilla) cuenta como «no».\nconst cc_nuevo = {\n  consentimiento_comercial: aceptaCC ? 'sí' : 'no',\n  fecha_consentimiento: aceptaCC ? corta(comercial.fecha, 40) : '',\n  texto_consentimiento_comercial: aceptaCC ? corta(comercial.texto, 500) : '',\n  version_politica: tieneCC ? corta(comercial.version_politica, 40) : '',\n};\n\nconst comercialTexto = !tieneCC ? 'Comunicaciones comerciales: no consta' : (aceptaCC ? `Comunicaciones comerciales: sí (${comercial.fecha || '—'}, política ${comercial.version_politica || '—'})\\n${comercial.texto || ''}` : 'Comunicaciones comerciales: no');\n\n// Si la web ya envió su correo de RESPALDO (n8n falló antes), no se repite el aviso.\nconst avisoNecesario = !(lead.envio && lead.envio.respaldo_enviado === true);\n\nreturn [{ json: {\n  valido: true,\n  aviso_necesario: avisoNecesario,\n  lead_id: corta(lead.id, 64),\n  email,\n  fecha_lead: fechaLead,\n  fila_nueva,\n  cc_nuevo,\n  detalle_historial: `Lead web (${tipo}) id ${corta(lead.id, 64)}. ${comercialTexto.split('\\n')[0]}.`,\n  aviso_asunto: `Lead web (${tipo}): ${corta(lead.empresa, 80)} · ${corta(lead.interes, 60)}`,\n  aviso_texto: `${lead.nombre} (${lead.cargo || 'sin cargo'}) de ${lead.empresa}\\n${email} · ${lead.telefono}\\nInterés: ${lead.interes} · Tamaño: ${lead.tamano}\\n\\n${lead.mensaje}\\n\\n${contexto ? contexto + '\\n\\n' : ''}Origen: ${detalleOrigen || '—'}\\nUTM: ${[utm.utm_source, utm.utm_medium, utm.utm_campaign].filter(Boolean).join(' / ') || '—'}\\n${comercialTexto}\\nId lead: ${lead.id}`,\n} }];\n"
+      }
+    },
+    {
+      "id": "77ccda14-1bc8-54ce-b627-d44cefbd7d0e",
+      "name": "¿Firma válida?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "0f2ea456-c568-5bd6-b500-7f48787e99d8",
+              "leftValue": "={{ $json.valido }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c555a74d-b532-5661-a1ed-8e2481812773",
+      "name": "Responder 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        520
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, motivo: $json.motivo }) }}",
+        "options": {
+          "responseCode": 401
+        }
+      }
+    },
+    {
+      "id": "1689174d-c19f-5daf-a8df-e01cc8cddf65",
+      "name": "Buscar fila por email",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        660,
+        200
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "1EWlyQCodNmxIwOvljQuyM1ZOq1s7QlNZVkPEydyNizQ",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Contactos",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "email",
+              "lookupValue": "={{ $('Verificar firma y mapear').first().json.email }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REEMPLAZAR_EN_N8N",
+          "name": "Google Sheets Sobtree (info@)"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "id": "463bf871-682e-5199-a63d-e45d0ebf6f3b",
+      "name": "Fusionar con la fila existente",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        200
+      ],
+      "parameters": {
+        "jsCode": "// Nodo Code «Fusionar con la fila existente» del workflow «Sobtree · Lead web → Hoja de contactos».\n// Entrada: salida de «Buscar fila por email» (la fila actual de la hoja, o un ítem vacío si el correo es nuevo).\n// Reglas: un correo = una fila. Los vacíos del lead nuevo no borran datos buenos.\n//   - Un «sí» a comunicaciones comerciales nunca se rebaja a «no» por un lead posterior.\n//   - Un lead nuevo con «no» se queda en «no».\n//   - Una baja no se reactiva: estado, fecha_baja y ultimo_envio se conservan siempre.\nconst COLUMNAS = ['email', 'nombre', 'empresa', 'cargo', 'telefono', 'interes', 'tamano', 'mensaje', 'tipo_formulario', 'origen', 'referrer', 'pagina',\n  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'contexto', 'consentimiento_privacidad_fecha', 'consentimiento_comercial',\n  'fecha_consentimiento', 'texto_consentimiento_comercial', 'version_politica', 'id_lead', 'estado', 'fecha_baja', 'ultimo_envio', 'fecha_alta', 'fecha_actualizacion'];\nconst m = $('Verificar firma y mapear').first().json;\nconst ex = $input.first().json || {};\nconst s = (v) => (v === undefined || v === null ? '' : String(v).trim());\nconst existe = s(ex.email).toLowerCase() === m.email;\nconst prev = existe ? ex : {};\nconst esSi = (v) => ['sí', 'si', 'yes', 'true'].includes(s(v).toLowerCase());\n\nconst fila = {};\nfor (const c of COLUMNAS) fila[c] = s(prev[c]);\n// Campos de contacto: lo nuevo gana si no está vacío.\nfor (const [k, v] of Object.entries(m.fila_nueva)) if (s(v) !== '') fila[k] = s(v);\nfila.email = m.email;\n\n// Consentimiento comercial.\nconst notas = [];\nif (existe && esSi(prev.consentimiento_comercial)) {\n  fila.consentimiento_comercial = 'sí';\n  fila.fecha_consentimiento = s(prev.fecha_consentimiento);\n  fila.texto_consentimiento_comercial = s(prev.texto_consentimiento_comercial);\n  fila.version_politica = s(prev.version_politica) || s(m.cc_nuevo.version_politica);\n  if (!esSi(m.cc_nuevo.consentimiento_comercial)) notas.push('se conserva el «sí» anterior');\n} else if (esSi(m.cc_nuevo.consentimiento_comercial)) {\n  Object.assign(fila, m.cc_nuevo);\n  if (existe) notas.push('nuevo «sí» a comunicaciones comerciales');\n} else {\n  fila.consentimiento_comercial = 'no';\n  fila.fecha_consentimiento = '';\n  fila.texto_consentimiento_comercial = '';\n  fila.version_politica = s(m.cc_nuevo.version_politica) || s(prev.version_politica);\n}\n\n// Estado y envíos: nunca los toca un lead.\nconst baja = existe && s(prev.estado).toLowerCase() === 'baja';\nfila.estado = baja ? 'baja' : 'activo';\nfila.fecha_baja = s(prev.fecha_baja);\nfila.ultimo_envio = s(prev.ultimo_envio);\nfila.fecha_alta = s(prev.fecha_alta) || m.fecha_lead;\nfila.fecha_actualizacion = m.fecha_lead;\nif (baja) notas.push('el contacto sigue de baja (no se reactiva)');\n// Un lead sin consentimiento a una persona de baja no cambia nada de eso; el consentimiento comercial de una baja no se usa para enviar.\n\nconst tipo = existe ? 'actualización' : 'alta';\nreturn [{ json: {\n  existe, fila,\n  historial: { fecha: m.fecha_lead, email: m.email, tipo, campania: '', detalle: (m.detalle_historial + (notas.length ? ' ' + notas.join('; ') + '.' : '')).slice(0, 500) },\n  resumen: (existe ? 'Contacto ya existente: fila actualizada' : 'Contacto nuevo: fila añadida') + (notas.length ? ' (' + notas.join('; ') + ')' : ''),\n} }];\n"
+      }
+    },
+    {
+      "id": "1f0c0fd2-27f5-5e15-97c0-65ffe292b401",
+      "name": "Añadir o actualizar contacto",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "sheet",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1EWlyQCodNmxIwOvljQuyM1ZOq1s7QlNZVkPEydyNizQ",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Contactos",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{ $('Fusionar con la fila existente').first().json.fila.email }}",
+            "nombre": "={{ $('Fusionar con la fila existente').first().json.fila.nombre }}",
+            "empresa": "={{ $('Fusionar con la fila existente').first().json.fila.empresa }}",
+            "cargo": "={{ $('Fusionar con la fila existente').first().json.fila.cargo }}",
+            "telefono": "={{ $('Fusionar con la fila existente').first().json.fila.telefono }}",
+            "interes": "={{ $('Fusionar con la fila existente').first().json.fila.interes }}",
+            "tamano": "={{ $('Fusionar con la fila existente').first().json.fila.tamano }}",
+            "mensaje": "={{ $('Fusionar con la fila existente').first().json.fila.mensaje }}",
+            "tipo_formulario": "={{ $('Fusionar con la fila existente').first().json.fila.tipo_formulario }}",
+            "origen": "={{ $('Fusionar con la fila existente').first().json.fila.origen }}",
+            "referrer": "={{ $('Fusionar con la fila existente').first().json.fila.referrer }}",
+            "pagina": "={{ $('Fusionar con la fila existente').first().json.fila.pagina }}",
+            "utm_source": "={{ $('Fusionar con la fila existente').first().json.fila.utm_source }}",
+            "utm_medium": "={{ $('Fusionar con la fila existente').first().json.fila.utm_medium }}",
+            "utm_campaign": "={{ $('Fusionar con la fila existente').first().json.fila.utm_campaign }}",
+            "utm_term": "={{ $('Fusionar con la fila existente').first().json.fila.utm_term }}",
+            "utm_content": "={{ $('Fusionar con la fila existente').first().json.fila.utm_content }}",
+            "contexto": "={{ $('Fusionar con la fila existente').first().json.fila.contexto }}",
+            "consentimiento_privacidad_fecha": "={{ $('Fusionar con la fila existente').first().json.fila.consentimiento_privacidad_fecha }}",
+            "consentimiento_comercial": "={{ $('Fusionar con la fila existente').first().json.fila.consentimiento_comercial }}",
+            "fecha_consentimiento": "={{ $('Fusionar con la fila existente').first().json.fila.fecha_consentimiento }}",
+            "texto_consentimiento_comercial": "={{ $('Fusionar con la fila existente').first().json.fila.texto_consentimiento_comercial }}",
+            "version_politica": "={{ $('Fusionar con la fila existente').first().json.fila.version_politica }}",
+            "id_lead": "={{ $('Fusionar con la fila existente').first().json.fila.id_lead }}",
+            "estado": "={{ $('Fusionar con la fila existente').first().json.fila.estado }}",
+            "fecha_baja": "={{ $('Fusionar con la fila existente').first().json.fila.fecha_baja }}",
+            "ultimo_envio": "={{ $('Fusionar con la fila existente').first().json.fila.ultimo_envio }}",
+            "fecha_alta": "={{ $('Fusionar con la fila existente').first().json.fila.fecha_alta }}",
+            "fecha_actualizacion": "={{ $('Fusionar con la fila existente').first().json.fila.fecha_actualizacion }}"
+          },
+          "matchingColumns": [
+            "email"
+          ],
+          "schema": [
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "nombre",
+              "displayName": "nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "empresa",
+              "displayName": "empresa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "cargo",
+              "displayName": "cargo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "telefono",
+              "displayName": "telefono",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "interes",
+              "displayName": "interes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "tamano",
+              "displayName": "tamano",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "mensaje",
+              "displayName": "mensaje",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "tipo_formulario",
+              "displayName": "tipo_formulario",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "origen",
+              "displayName": "origen",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "referrer",
+              "displayName": "referrer",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "pagina",
+              "displayName": "pagina",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "utm_source",
+              "displayName": "utm_source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "utm_medium",
+              "displayName": "utm_medium",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "utm_campaign",
+              "displayName": "utm_campaign",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "utm_term",
+              "displayName": "utm_term",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "utm_content",
+              "displayName": "utm_content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "contexto",
+              "displayName": "contexto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "consentimiento_privacidad_fecha",
+              "displayName": "consentimiento_privacidad_fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "consentimiento_comercial",
+              "displayName": "consentimiento_comercial",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "fecha_consentimiento",
+              "displayName": "fecha_consentimiento",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "texto_consentimiento_comercial",
+              "displayName": "texto_consentimiento_comercial",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "version_politica",
+              "displayName": "version_politica",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "id_lead",
+              "displayName": "id_lead",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "estado",
+              "displayName": "estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "fecha_baja",
+              "displayName": "fecha_baja",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ultimo_envio",
+              "displayName": "ultimo_envio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "fecha_alta",
+              "displayName": "fecha_alta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "fecha_actualizacion",
+              "displayName": "fecha_actualizacion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REEMPLAZAR_EN_N8N",
+          "name": "Google Sheets Sobtree (info@)"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "4609cd14-7c0b-52f9-8c97-b236c2ad00ed",
+      "name": "Añadir a Historial",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1320,
+        200
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "sheet",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1EWlyQCodNmxIwOvljQuyM1ZOq1s7QlNZVkPEydyNizQ",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Historial",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fecha": "={{ $('Fusionar con la fila existente').first().json.historial.fecha }}",
+            "email": "={{ $('Fusionar con la fila existente').first().json.historial.email }}",
+            "tipo": "={{ $('Fusionar con la fila existente').first().json.historial.tipo }}",
+            "campania": "={{ $('Fusionar con la fila existente').first().json.historial.campania }}",
+            "detalle": "={{ $('Fusionar con la fila existente').first().json.historial.detalle }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "tipo",
+              "displayName": "tipo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "campania",
+              "displayName": "campania",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "detalle",
+              "displayName": "detalle",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REEMPLAZAR_EN_N8N",
+          "name": "Google Sheets Sobtree (info@)"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "1b071f3a-2829-51ae-8993-b9224ee61210",
+      "name": "¿Enviar aviso?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "8a39ad07-14d8-5427-894e-4ead92915831",
+              "leftValue": "={{ $('Verificar firma y mapear').first().json.aviso_necesario }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f0894931-37df-5ed7-ab34-d322348e874c",
+      "name": "Aviso a info@",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1760,
+        100
+      ],
+      "parameters": {
+        "sendTo": "info@sobtree.com",
+        "subject": "={{ $('Verificar firma y mapear').first().json.aviso_asunto }}",
+        "emailType": "text",
+        "message": "={{ $('Verificar firma y mapear').first().json.aviso_texto }}\n\n{{ $('Fusionar con la fila existente').first().json.resumen }}\nHoja de contactos: https://docs.google.com/spreadsheets/d/1EWlyQCodNmxIwOvljQuyM1ZOq1s7QlNZVkPEydyNizQ/edit",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REEMPLAZAR_ID_CREDENCIAL",
+          "name": "Gmail Sobtree (info@)"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "419dba41-0c10-51b9-8243-deb58112c95d",
+      "name": "Responder 200 (aviso enviado)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1980,
+        40
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, aviso: true, lead_id: $('Verificar firma y mapear').first().json.lead_id }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "6b60c662-f6de-5d51-b7cb-f78654636fa4",
+      "name": "Responder 200 (sin aviso)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1980,
+        300
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, aviso: false, motivo: $('Verificar firma y mapear').first().json.aviso_necesario ? 'aviso_fallo' : 'respaldo_ya_enviado', lead_id: $('Verificar firma y mapear').first().json.lead_id }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "5181cedf-2a13-5fd1-bfd4-d1f34939881a",
+      "name": "Responder 502 (hoja falló)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1540,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, motivo: \"hoja\", detalle: String($json.error?.message || \"\").slice(0, 200) }) }}",
+        "options": {
+          "responseCode": 502
+        }
+      }
+    },
+    {
+      "id": "1d0783bb-6f7b-5eb0-9d73-60b69f00799f",
+      "name": "Nota",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "content": "## Sobtree · Lead web → Hoja de contactos\nLa web (contact.php) ya guardó el lead. ESTE workflow guarda el contacto en la hoja y envía el aviso PRINCIPAL a info@.\n- La web solo manda correo de respaldo si aquí hay 401/502/timeout o aviso:false.\n- 401: firma o timestamp no válidos.\n- 502: la hoja falló → la web lo reintenta por cron (máx. 8 intentos).\n- 200: una fila por correo (sin duplicados) en «Contactos» + una fila en «Historial».\n- Un «sí» a comunicaciones comerciales no se rebaja a «no»; una baja no se reactiva.\nSecretos y credenciales solo dentro de n8n, nunca en el repo.",
+        "height": 260,
+        "width": 460
+      }
+    }
+  ],
+  "connections": {
+    "Webhook lead web": {
+      "main": [
+        [
+          {
+            "node": "Verificar firma y mapear",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar firma y mapear": {
+      "main": [
+        [
+          {
+            "node": "¿Firma válida?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Firma válida?": {
+      "main": [
+        [
+          {
+            "node": "Buscar fila por email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Enviar aviso?": {
+      "main": [
+        [
+          {
+            "node": "Aviso a info@",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 200 (sin aviso)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aviso a info@": {
+      "main": [
+        [
+          {
+            "node": "Responder 200 (aviso enviado)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 200 (sin aviso)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar fila por email": {
+      "main": [
+        [
+          {
+            "node": "Fusionar con la fila existente",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 502 (hoja falló)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fusionar con la fila existente": {
+      "main": [
+        [
+          {
+            "node": "Añadir o actualizar contacto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Añadir o actualizar contacto": {
+      "main": [
+        [
+          {
+            "node": "Añadir a Historial",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 502 (hoja falló)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Añadir a Historial": {
+      "main": [
+        [
+          {
+            "node": "¿Enviar aviso?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 502 (hoja falló)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "errorWorkflow": "REEMPLAZAR_ID_WORKFLOW_ERRORES",
+    "timezone": "Europe/Madrid"
+  },
+  "meta": {
+    "instancia": "https://sobtree.app.n8n.cloud",
+    "webhook_produccion": "https://sobtree.app.n8n.cloud/webhook/sobtree-lead",
+    "hoja_contactos": "https://docs.google.com/spreadsheets/d/1EWlyQCodNmxIwOvljQuyM1ZOq1s7QlNZVkPEydyNizQ/edit"
+  },
+  "tags": []
+}

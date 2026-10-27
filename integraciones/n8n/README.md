@@ -5,6 +5,7 @@ Instancia: `https://sobtree.app.n8n.cloud` · Webhook de producción: `https://s
 Ficheros (sin credenciales ni secretos):
 
 - `sobtree-lead-a-hubspot.json`: workflow principal (importar en n8n).
+- `sobtree-lead-a-hoja.json`: versión sin HubSpot (Google Sheets). Ver `leads-hoja/README.md`. Sustituye a la anterior cuando el fundador lo confirme.
 - `sobtree-errores.json`: workflow de errores (Error Trigger → correo a info@sobtree.com).
 - `verificar-y-mapear.js`: código del nodo Code (fuente única; `build-workflow.py` lo incrusta en el JSON).
 - `build-workflow.py`: regenera los JSON. Prueba local del código: `node tests/leads/test-n8n-code.mjs`.
