@@ -55,6 +55,9 @@ Reglas:
 
 ---
 
+### Menú móvil desplegable
+El menú desplegable utiliza una superficie ligeramente más clara que el fondo principal (`--bg-alt`), con borde discreto y sombra suave. Debe diferenciarse del contenido sin competir con la marca ni parecer un bloque azul brillante. El enlace de calculadora se mantiene neutro, con texto secundario y borde fino.
+
 ## 3. Tipografía
 
 - **Open Sans** (Google Fonts) 400, 600, 700, 800. Pila de respaldo: `system-ui, -apple-system, "Segoe UI", sans-serif`.
