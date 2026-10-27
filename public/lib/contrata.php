@@ -26,6 +26,7 @@ const CONTRATA_MSG_SEMANA = 'Esa semana ya está completa. Elige otra.';
 const CONTRATA_MSG_FECHA = 'La fecha se confirma por email en 1 día laborable; si no fuera posible, te ofrecemos otra semana o el reembolso íntegro.';
 const CONTRATA_MSG_SIN_PLAZAS = 'No hay plazas en las próximas 4 semanas.';
 const CONTRATA_PRICE_TEST = 'price_test_diagnostico';
+const CONTRATA_TAX_RATE_TEST = 'txr_test_iva21';
 
 function contrata_base_dirs(): array {
     $publicDir = dirname(__DIR__);
@@ -72,9 +73,13 @@ function contrata_config(): array {
         $dir = $base ? "$base/sobtree-contrata" : dirname(__DIR__) . '/_contrata';
     }
     $key = $get('STRIPE_RESTRICTED_KEY');
-    $prohibida = $key !== '' && contrata_clave_prohibida($key);
+    $modo = $get('CONTRATA_MODO');
+    if (!in_array($modo, ['simulacion', 'stripe_test', 'stripe_live'], true)) $modo = 'apagado';
+    // Una clave live solo sirve en stripe_live; una clave test no sirve en stripe_live.
+    $esLive = $key !== '' && contrata_clave_prohibida($key);
+    $prohibida = $key !== '' && (($esLive && $modo !== 'stripe_live') || (!$esLive && $modo === 'stripe_live'));
     if ($prohibida) {
-        error_log('contrata: clave de Stripe live rechazada; no se usará');
+        error_log('contrata: la clave de Stripe no corresponde al modo; no se usará');
         $key = '';
     }
     $wh = $get('STRIPE_WEBHOOK_SECRET');
@@ -83,8 +88,6 @@ function contrata_config(): array {
         $wh = '';
         $prohibida = true;
     }
-    $modo = $get('CONTRATA_MODO');
-    if (!in_array($modo, ['simulacion', 'stripe_test'], true)) $modo = 'apagado';
     $public = rtrim($get('CONTRATA_PUBLIC_URL', 'https://sobtree.com'), '/');
     $httpLocal = (bool)preg_match('#^http://(127\.0\.0\.1|localhost)(:\d+)?$#', $public);
     if (!preg_match('#^https://[a-z0-9.-]+$#i', $public) && !($modo === 'simulacion' && $httpLocal)) {
@@ -99,6 +102,8 @@ function contrata_config(): array {
         'clave_prohibida' => $prohibida,
         'webhook_secret' => $wh,
         'stripe_price' => $get('STRIPE_PRICE_DIAGNOSTICO'),
+        'stripe_tax_rate' => $get('STRIPE_TAX_RATE_IVA21'),
+        'live' => $modo === 'stripe_live',
         'hmac_secret' => $get('CONTRATA_HMAC_SECRET'),
         'n8n_url' => $n8nOk ? $n8n : '',
         'public_url' => $public,
@@ -113,11 +118,25 @@ function contrata_config(): array {
 
 function contrata_modo(): string { return contrata_config()['modo']; }
 
+/** Los eventos, sesiones y Prices de Stripe tienen que ser live solo en stripe_live. */
+function contrata_livemode_esperado(): bool { return contrata_config()['live']; }
+
 function contrata_stripe_utilizable(): bool {
     $c = contrata_config();
     if ($c['clave_prohibida']) return false;
     if ($c['modo'] === 'simulacion') return true;
-    return $c['modo'] === 'stripe_test' && preg_match('/^(rk|sk)_test_/', $c['stripe_key']) === 1 && $c['stripe_price'] !== '';
+    $comun = preg_match('/^price_[A-Za-z0-9_]+$/', $c['stripe_price']) === 1
+        && preg_match('/^txr_[A-Za-z0-9_]+$/', $c['stripe_tax_rate']) === 1;
+    if ($c['modo'] === 'stripe_test') return $comun && preg_match('/^(rk|sk)_test_/', $c['stripe_key']) === 1;
+    if ($c['modo'] === 'stripe_live') {
+        // Para cobrar de verdad hace falta todo: clave live, webhook firmado, aviso a n8n firmado y web en https.
+        return $comun && contrata_clave_prohibida($c['stripe_key'])
+            && str_starts_with($c['webhook_secret'], 'whsec' . '_')
+            && $c['n8n_url'] !== '' && str_starts_with($c['n8n_url'], 'https://')
+            && $c['hmac_secret'] !== ''
+            && str_starts_with($c['public_url'], 'https://');
+    }
+    return false;
 }
 
 function contrata_ensure_dir(): string {
@@ -274,7 +293,7 @@ function contrata_euros(int $centimos): string {
 }
 
 function contrata_price_coincide(int $unitAmount, string $currency, bool $livemode): bool {
-    return $livemode === false && strtolower($currency) === 'eur' && $unitAmount === contrata_importes()['total_centimos'];
+    return $livemode === contrata_livemode_esperado() && strtolower($currency) === 'eur' && $unitAmount === contrata_importes()['total_centimos'];
 }
 
 function contrata_texto_descuento(): string {
@@ -616,6 +635,7 @@ function contrata_barrer(int $ahora = 0): int {
                 $r['estado'] = 'liberada';
                 $r['liberada'] = gmdate('c', $ahora);
                 $r['motivo'] = 'caducada';
+                unset($r['nif']);
                 $n++;
             }
         }
@@ -681,6 +701,9 @@ function contrata_abrir_sesion(array $in, array $ctx = []): array {
     if ($nif === null) {
         return ['http' => 422, 'body' => ['ok' => false, 'error' => 'El NIF o CIF no tiene un formato válido. Solo vendemos a empresas y autónomos.']];
     }
+    if (($nif['pais'] ?? '') !== 'ES') {
+        return ['http' => 422, 'body' => ['ok' => false, 'motivo' => 'fuera_de_espana', 'error' => 'Por ahora solo cobramos online a empresas y autónomos con NIF o CIF español. Si tu empresa está en otro país, escríbenos a info@sobtree.com y te preparamos la factura sin IVA español cuando corresponda.']];
+    }
     if (($in['condiciones'] ?? '') !== 'si') {
         return ['http' => 422, 'body' => ['ok' => false, 'error' => 'Hay que aceptar las condiciones y la política de privacidad.']];
     }
@@ -724,6 +747,7 @@ function contrata_abrir_sesion(array $in, array $ctx = []): array {
                 if (($r['estado'] ?? '') === 'retenida' && (int)$r['expira'] <= $ahora) {
                     $r['estado'] = 'liberada';
                     $r['motivo'] = 'caducada';
+                    unset($r['nif']);
                 }
             }
             unset($r);
@@ -766,10 +790,11 @@ function contrata_abrir_sesion(array $in, array $ctx = []): array {
         $sesion = contrata_stripe_crear_sesion($ret, $cliente);
     } catch (Throwable $e) {
         error_log('contrata stripe: ' . $e->getMessage());
-        contrata_marcar_retencion($ret['id'], ['estado' => 'liberada', 'motivo' => 'stripe_error', 'liberada' => gmdate('c')]);
+        contrata_marcar_retencion($ret['id'], ['estado' => 'liberada', 'motivo' => 'stripe_error', 'liberada' => gmdate('c'), 'nif' => null]);
         return ['http' => 502, 'body' => ['ok' => false, 'error' => CONTRATA_MSG_PAGO]];
     }
-    contrata_marcar_retencion($ret['id'], ['sesion' => $sesion['id']]);
+    // El NIF se guarda solo en la retención (fuera de la web, 0600) hasta que llega el pago; ahí se usa y se borra.
+    contrata_marcar_retencion($ret['id'], ['sesion' => $sesion['id'], 'nif' => contrata_nif_normal((string)$nif['normalizado'])]);
     $imp = contrata_importes();
     return ['http' => 200, 'body' => [
         'ok' => true,
@@ -794,15 +819,38 @@ function contrata_marcar_retencion(string $id, array $cambios): void {
     });
 }
 
-function contrata_parametros_sesion(array $ret, array $cliente): array {
+/** NIF/CIF sin el prefijo ES y sin separadores, que es como lo guarda Stripe en un tax_id es_cif. */
+function contrata_nif_normal(string $v): string {
+    $v = strtoupper((string)preg_replace('/[^A-Za-z0-9]/', '', $v));
+    return str_starts_with($v, 'ES') && strlen($v) === 11 ? substr($v, 2) : $v;
+}
+
+/**
+ * Parámetros de Checkout. Cliente creado antes (con su NIF como tax_id), dirección de facturación obligatoria,
+ * IVA 21 % incluido en el Price (tax rate manual inclusive) y factura automática tras el pago.
+ * $nifEnFactura: solo si Stripe no aceptó el NIF como tax_id; entonces va como campo personalizado de la factura.
+ */
+function contrata_parametros_sesion(array $ret, array $cliente, string $customerId = '', bool $nifEnFactura = false): array {
     $imp = contrata_importes();
-    $price = contrata_config()['stripe_price'];
+    $cfg = contrata_config();
+    $price = $cfg['stripe_price'];
     if ($price === '') {
         if (contrata_modo() !== 'simulacion') throw new RuntimeException('sin price');
         $price = CONTRATA_PRICE_TEST;
     }
     if (!preg_match('/^price_[A-Za-z0-9_]+$/', $price)) throw new RuntimeException('price');
-    $mensaje = 'Semana de inicio: lunes ' . contrata_fecha_larga($ret['semana'], contrata_hoy()) . '. '
+    $tax = $cfg['stripe_tax_rate'];
+    if ($tax === '') {
+        if (contrata_modo() !== 'simulacion') throw new RuntimeException('sin tax rate');
+        $tax = CONTRATA_TAX_RATE_TEST;
+    }
+    if (!preg_match('/^txr_[A-Za-z0-9_]+$/', $tax)) throw new RuntimeException('tax rate');
+    if ($customerId === '') {
+        if (contrata_modo() !== 'simulacion') throw new RuntimeException('sin cliente');
+        $customerId = 'cus_test_simulado';
+    }
+    $semanaTxt = 'lunes ' . contrata_fecha_larga($ret['semana'], contrata_hoy());
+    $mensaje = 'Semana de inicio: ' . $semanaTxt . '. '
         . contrata_texto_descuento() . ' Total a pagar: ' . $imp['total_texto']
         . ' (' . $imp['base_texto'] . ' + IVA ' . CONTRATA_IVA_PORCIENTO . ' %: ' . $imp['iva_texto'] . '). '
         . CONTRATA_MSG_FECHA;
@@ -823,26 +871,30 @@ function contrata_parametros_sesion(array $ret, array $cliente): array {
     ];
     foreach ($cliente['utm'] as $k => $v) $meta[$k] = $v;
     if ($cliente['lead_id'] !== '') $meta['lead_id'] = $cliente['lead_id'];
-    $base = contrata_config()['public_url'];
+    $base = $cfg['public_url'];
+    $datosFactura = [
+        'description' => 'Diagnóstico de implantación de IA. Semana de inicio: ' . $semanaTxt . '.',
+        'metadata' => ['retencion_id' => $ret['id'], 'semana_lunes' => $ret['semana'], 'producto' => 'diagnostico'],
+    ];
+    if ($nifEnFactura) {
+        $datosFactura['custom_fields'] = [['name' => 'NIF/CIF', 'value' => contrata_nif_normal((string)$cliente['nif']['normalizado'])]];
+    }
     return [
         'mode' => 'payment',
         'line_items' => [[
             'price' => $price,
             'quantity' => 1,
+            'tax_rates' => [$tax],
         ]],
         'expires_at' => $ret['expira'],
         'success_url' => $base . contrata_ruta('gracias/?sesion={CHECKOUT_SESSION_ID}'),
         'cancel_url' => $base . contrata_ruta('?cancelado=1'),
-        'customer_email' => $cliente['email'],
+        'customer' => $customerId,
+        'customer_update' => ['address' => 'auto'],
+        'billing_address_collection' => 'required',
+        'invoice_creation' => ['enabled' => 'true', 'invoice_data' => $datosFactura],
         'locale' => 'es',
         'consent_collection' => ['terms_of_service' => 'required'],
-        'tax_id_collection' => ['enabled' => 'true', 'required' => 'if_supported'],
-        'custom_fields' => [[
-            'key' => 'empresa',
-            'label' => ['type' => 'custom', 'custom' => 'Empresa'],
-            'type' => 'text',
-            'optional' => 'false',
-        ]],
         'custom_text' => ['submit' => ['message' => $mensaje]],
         'metadata' => $meta,
         'payment_method_types' => ['card', 'link'],
@@ -850,9 +902,10 @@ function contrata_parametros_sesion(array $ret, array $cliente): array {
 }
 
 function contrata_stripe_crear_sesion(array $ret, array $cliente): array {
-    $params = contrata_parametros_sesion($ret, $cliente);
     $imp = contrata_importes();
+    $live = contrata_livemode_esperado();
     if (contrata_modo() === 'simulacion') {
+        $params = contrata_parametros_sesion($ret, $cliente);
         if (!contrata_price_coincide($imp['total_centimos'], 'eur', false)) {
             throw new RuntimeException('importe');
         }
@@ -867,6 +920,7 @@ function contrata_stripe_crear_sesion(array $ret, array $cliente): array {
             'status' => 'open',
             'url' => $url,
             'params' => $params,
+            'payment_intent' => 'pi_test_' . bin2hex(random_bytes(10)),
             'cliente' => [
                 'email' => $cliente['email'],
                 'empresa' => $cliente['empresa'],
@@ -882,15 +936,46 @@ function contrata_stripe_crear_sesion(array $ret, array $cliente): array {
         });
         return ['id' => $id, 'url' => $url];
     }
-    $price = contrata_stripe_leer_price($params['line_items'][0]['price']);
-    if (!contrata_price_coincide((int)$price['unit_amount'], (string)$price['currency'], (bool)($price['livemode'] ?? false))) {
-        throw new RuntimeException('El Price de Stripe no coincide con el diagnóstico (base + IVA) o está en live.');
+    $cfg = contrata_config();
+    $price = contrata_stripe_leer_price($cfg['stripe_price']);
+    if (!contrata_price_coincide((int)($price['unit_amount'] ?? 0), (string)($price['currency'] ?? ''), (bool)($price['livemode'] ?? false))) {
+        throw new RuntimeException('El Price de Stripe no coincide con el diagnóstico (base + IVA) o su modo (test/live) no es el configurado.');
     }
-    $resp = contrata_stripe_request('POST', '/v1/checkout/sessions', contrata_form_aplanar($params));
-    if (!empty($resp['livemode'])) throw new RuntimeException('sesión live');
+    $tr = contrata_stripe_request('GET', '/v1/tax_rates/' . rawurlencode($cfg['stripe_tax_rate']));
+    if (!(abs((float)($tr['percentage'] ?? 0) - CONTRATA_IVA_PORCIENTO) < 0.0001 && ($tr['inclusive'] ?? null) === true
+        && ($tr['active'] ?? null) === true && (bool)($tr['livemode'] ?? false) === $live)) {
+        throw new RuntimeException('El tax rate de Stripe no es el IVA 21 % incluido, activo y del modo configurado.');
+    }
+    // 1) Cliente con su NIF como tax_id. Si Stripe no lo acepta, el cliente se crea sin él y el NIF va en la factura.
+    $idem = 'contrata-' . $ret['id'];
+    $formCliente = [
+        'name' => $cliente['empresa'],
+        'email' => $cliente['email'],
+        'metadata' => ['origen' => 'contrata', 'retencion_id' => $ret['id']],
+    ];
+    $nifEnFactura = false;
+    try {
+        $cus = contrata_stripe_request('POST', '/v1/customers', contrata_form_aplanar($formCliente + [
+            'tax_id_data' => [['type' => 'es_cif', 'value' => contrata_nif_normal((string)$cliente['nif']['normalizado'])]],
+        ]), $idem . '-cus');
+    } catch (RuntimeException $e) {
+        if ($e->getMessage() !== 'stripe_http_400') throw $e;
+        $nifEnFactura = true;
+        $cus = contrata_stripe_request('POST', '/v1/customers', contrata_form_aplanar($formCliente), $idem . '-cus-sin-nif');
+        contrata_auditar('nif_sin_tax_id', ['retencion' => $ret['id']]);
+    }
+    $customerId = (string)($cus['id'] ?? '');
+    if (!preg_match('/^cus_[A-Za-z0-9_]+$/', $customerId) || (bool)($cus['livemode'] ?? false) !== $live) {
+        throw new RuntimeException('cliente de Stripe no aceptado');
+    }
+    // 2) Sesión de Checkout.
+    $params = contrata_parametros_sesion($ret, $cliente, $customerId, $nifEnFactura);
+    $resp = contrata_stripe_request('POST', '/v1/checkout/sessions', contrata_form_aplanar($params), $idem . '-ses');
+    if ((bool)($resp['livemode'] ?? false) !== $live) throw new RuntimeException('modo de la sesión no coincide');
     $url = (string)($resp['url'] ?? '');
     $id = (string)($resp['id'] ?? '');
-    if (!str_starts_with($id, 'cs_test_') || !contrata_url_pago_permitida($url)) {
+    $prefijo = $live ? 'cs_' . 'live_' : 'cs_test_';
+    if (!str_starts_with($id, $prefijo) || !contrata_url_pago_permitida($url)) {
         throw new RuntimeException('respuesta de Stripe no aceptada');
     }
     return ['id' => $id, 'url' => $url];
@@ -924,9 +1009,10 @@ function contrata_stripe_leer_price(string $priceId): array {
     return contrata_stripe_request('GET', '/v1/prices/' . rawurlencode($priceId));
 }
 
-function contrata_stripe_request(string $method, string $path, array $form = []): array {
+function contrata_stripe_request(string $method, string $path, array $form = [], string $idempotencia = ''): array {
     $c = contrata_config();
-    if ($c['clave_prohibida'] || !preg_match('/^(rk|sk)_test_/', $c['stripe_key'])) {
+    $reClave = $c['live'] ? '/^(rk|sk)_' . 'live_/' : '/^(rk|sk)_test_/';
+    if ($c['clave_prohibida'] || !in_array($c['modo'], ['stripe_test', 'stripe_live'], true) || !preg_match($reClave, $c['stripe_key'])) {
         throw new RuntimeException('clave de Stripe no utilizable');
     }
     if (!function_exists('curl_init')) throw new RuntimeException('curl');
@@ -938,12 +1024,14 @@ function contrata_stripe_request(string $method, string $path, array $form = [])
         $base = $baseEnv;
     }
     $ch = curl_init($base . $path);
+    $cabeceras = [
+        'Authorization: Bearer ' . $c['stripe_key'],
+        'Content-Type: application/x-www-form-urlencoded',
+    ];
+    if ($idempotencia !== '' && $method === 'POST') $cabeceras[] = 'Idempotency-Key: ' . substr($idempotencia, 0, 200);
     $opts = [
         CURLOPT_CUSTOMREQUEST => $method,
-        CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . $c['stripe_key'],
-            'Content-Type: application/x-www-form-urlencoded',
-        ],
+        CURLOPT_HTTPHEADER => $cabeceras,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CONNECTTIMEOUT => 5,
         CURLOPT_TIMEOUT => 20,
@@ -987,7 +1075,6 @@ function contrata_verificar_firma_stripe(string $payload, string $header, string
     if (!is_array($event) || !isset($event['id'], $event['type']) || !is_string($event['id'])) {
         throw new RuntimeException('evento');
     }
-    if (str_starts_with($event['id'], 'evt_live')) throw new RuntimeException('evento live');
     return $event;
 }
 
@@ -1012,6 +1099,11 @@ function contrata_recibir_webhook(string $raw, string $header): array {
         contrata_auditar('webhook_rechazado', ['motivo' => 'firma']);
         return ['http' => 400, 'body' => ['ok' => false, 'error' => 'Firma no válida.']];
     }
+    if ((bool)($event['livemode'] ?? false) !== contrata_livemode_esperado()) {
+        // Un evento de otro modo (test en live o live en test) se acusa sin tocar nada.
+        contrata_auditar('webhook_modo_distinto', ['tipo' => (string)($event['type'] ?? '')]);
+        return ['http' => 200, 'body' => ['ok' => true, 'ignorado' => 'livemode']];
+    }
     if (!contrata_evento_nuevo((string)$event['id'])) {
         return ['http' => 200, 'body' => ['ok' => true, 'duplicado' => true]];
     }
@@ -1035,12 +1127,30 @@ function contrata_meta(array $obj): array {
     return is_array($m) ? $m : [];
 }
 
+/** Alerta de territorio con otro régimen de IVA (Canarias, Ceuta y Melilla) o dirección fuera de España. */
+function contrata_alerta_territorio(array $detalles): string {
+    $dir = is_array($detalles['address'] ?? null) ? $detalles['address'] : [];
+    $pais = strtoupper((string)($dir['country'] ?? ''));
+    if ($pais === '') return '';
+    if ($pais !== 'ES') return 'direccion_fuera_de_espana';
+    $cp = (string)($dir['postal_code'] ?? '');
+    if (preg_match('/^(35|38|51|52)\d{3}$/', $cp)) return 'territorio_sin_iva';
+    return '';
+}
+
 function contrata_aplicar_pago(array $obj, string $eventId): void {
     $meta = contrata_meta($obj);
     $retId = (string)($meta['retencion_id'] ?? '');
     $sesion = (string)($obj['id'] ?? '');
+    if (($obj['payment_status'] ?? '') !== 'paid') {
+        // Solo un pago confirmado crea venta, plaza y aviso.
+        contrata_auditar('pago_no_confirmado', ['estado' => (string)($obj['payment_status'] ?? '')]);
+        return;
+    }
     $fuera = false;
-    contrata_con_bloqueo(function () use ($retId, $sesion, &$fuera) {
+    $nifGuardado = '';
+    $pi = (string)($obj['payment_intent'] ?? '');
+    contrata_con_bloqueo(function () use ($retId, $sesion, $pi, &$fuera, &$nifGuardado) {
         $data = contrata_leer_retenciones();
         $tocada = false;
         foreach ($data['retenciones'] as &$r) {
@@ -1049,7 +1159,10 @@ function contrata_aplicar_pago(array $obj, string $eventId): void {
             if (($r['estado'] ?? '') === 'liberada') $fuera = true;
             if (($r['estado'] ?? '') !== 'reembolsada') $r['estado'] = 'pagada';
             if ($sesion !== '') $r['sesion'] = $sesion;
+            if ($pi !== '') $r['payment_intent'] = $pi;
             $r['pagada'] = gmdate('c');
+            if (isset($r['nif']) && is_string($r['nif'])) $nifGuardado = $r['nif'];
+            unset($r['nif']); // ya no hace falta fuera del aviso a n8n
             $tocada = true;
         }
         unset($r);
@@ -1063,6 +1176,26 @@ function contrata_aplicar_pago(array $obj, string $eventId): void {
         });
     }
     $imp = contrata_importes();
+    $detalles = is_array($obj['customer_details'] ?? null) ? $obj['customer_details'] : [];
+    // NIF: el de la retención (lo que validó la web) y el tax_id que guarda Stripe tienen que coincidir.
+    $nifStripe = '';
+    foreach ((is_array($detalles['tax_ids'] ?? null) ? $detalles['tax_ids'] : []) as $t) {
+        if (is_array($t) && ($t['type'] ?? '') === 'es_cif' && is_string($t['value'] ?? null)) { $nifStripe = contrata_nif_normal($t['value']); break; }
+    }
+    $nif = $nifGuardado !== '' ? contrata_nif_normal($nifGuardado) : $nifStripe;
+    $coincide = ($nifGuardado !== '' && $nifStripe !== '') ? ($nifStripe === contrata_nif_normal($nifGuardado)) : null;
+    $alerta = '';
+    if ((int)($obj['amount_total'] ?? $imp['total_centimos']) !== $imp['total_centimos'] || strtolower((string)($obj['currency'] ?? 'eur')) !== 'eur') {
+        $alerta = 'importe_inesperado';
+    } elseif ($coincide === false) {
+        $alerta = 'nif_distinto';
+    } elseif ($nif === '') {
+        $alerta = 'nif_ausente';
+    } else {
+        $alerta = contrata_alerta_territorio($detalles);
+    }
+    if ($alerta !== '') contrata_auditar('pago_con_alerta', ['alerta' => $alerta]);
+    $email = (string)($detalles['email'] ?? $obj['customer_email'] ?? '');
     contrata_encolar_y_enviar([
         'tipo' => 'checkout.session.completed',
         'event_id' => $eventId,
@@ -1071,19 +1204,22 @@ function contrata_aplicar_pago(array $obj, string $eventId): void {
             'retencion_id' => $retId,
             'producto' => (string)($meta['producto'] ?? 'diagnostico'),
             'semana_lunes' => (string)($meta['semana_lunes'] ?? ''),
-            'importe_base_centimos' => (int)($meta['importe_base_centimos'] ?? $imp['base_centimos']),
-            'iva_porcentaje' => (int)($meta['iva_porcentaje'] ?? CONTRATA_IVA_PORCIENTO),
-            'importe_total_centimos' => (int)($meta['importe_total_centimos'] ?? $imp['total_centimos']),
+            'importe_base_centimos' => $imp['base_centimos'],
+            'iva_porcentaje' => CONTRATA_IVA_PORCIENTO,
+            'importe_total_centimos' => (int)($obj['amount_total'] ?? $imp['total_centimos']),
             'empresa' => (string)($meta['empresa'] ?? ''),
-            'email' => (string)($obj['customer_email'] ?? ''),
+            'email' => $email,
+            'nif' => $nif,
+            'nif_coincide' => $coincide,
             'nif_pais' => (string)($meta['nif_pais'] ?? ''),
             'nif_tipo' => (string)($meta['nif_tipo'] ?? ''),
             'nif_verificado' => false,
-            'alerta_facturacion' => 'revisar_antes_de_facturar',
+            'alerta_facturacion' => $alerta,
+            'factura' => (string)($obj['invoice'] ?? ''),
             'politica_version' => (string)($meta['politica_version'] ?? ''),
             'lead_id' => (string)($meta['lead_id'] ?? ''),
             'fuera_de_orden' => $fuera,
-            'livemode' => false,
+            'livemode' => contrata_livemode_esperado(),
         ],
     ]);
 }
@@ -1101,6 +1237,7 @@ function contrata_aplicar_expiracion(array $obj): void {
                 $r['estado'] = 'liberada';
                 $r['motivo'] = 'checkout_expired';
                 $r['liberada'] = gmdate('c');
+                unset($r['nif']);
             }
         }
         unset($r);
@@ -1113,26 +1250,43 @@ function contrata_aplicar_reembolso(array $obj, string $eventId): void {
     $meta = contrata_meta($obj);
     $sesion = (string)($meta['checkout_session_id'] ?? '');
     $retId = (string)($meta['retencion_id'] ?? '');
-    contrata_con_bloqueo(function () use ($retId, $sesion) {
+    $pi = (string)($obj['payment_intent'] ?? '');
+    $amount = (int)($obj['amount'] ?? 0);
+    $devuelto = (int)($obj['amount_refunded'] ?? $amount);
+    // Un reembolso parcial no libera la plaza ni cierra la venta.
+    $total = array_key_exists('refunded', $obj) ? ($obj['refunded'] === true) : ($amount === 0 || $devuelto >= $amount);
+    $semana = (string)($meta['semana_lunes'] ?? '');
+    $encontrada = false;
+    contrata_con_bloqueo(function () use (&$retId, &$sesion, &$semana, $pi, $total, &$encontrada) {
         $data = contrata_leer_retenciones();
         foreach ($data['retenciones'] as &$r) {
-            $match = ($retId !== '' && ($r['id'] ?? '') === $retId) || ($sesion !== '' && ($r['sesion'] ?? '') === $sesion);
+            $match = ($retId !== '' && ($r['id'] ?? '') === $retId) || ($sesion !== '' && ($r['sesion'] ?? '') === $sesion)
+                || ($pi !== '' && ($r['payment_intent'] ?? '') === $pi);
             if (!$match) continue;
-            $r['estado'] = 'reembolsada';
-            $r['reembolsada'] = gmdate('c');
+            $encontrada = true;
+            if ($retId === '') $retId = (string)($r['id'] ?? '');
+            if ($sesion === '') $sesion = (string)($r['sesion'] ?? '');
+            if ($semana === '') $semana = (string)($r['semana'] ?? '');
+            if ($total) {
+                $r['estado'] = 'reembolsada';
+                $r['reembolsada'] = gmdate('c');
+            }
         }
         unset($r);
         contrata_guardar_json(contrata_file_ret(), $data);
     });
+    if (!$encontrada) contrata_auditar('reembolso_sin_retencion', ['pi' => $pi !== '' ? 'presente' : 'ausente']);
     contrata_encolar_y_enviar([
         'tipo' => 'charge.refunded',
         'event_id' => $eventId,
         'cuerpo' => [
             'sesion' => $sesion,
             'retencion_id' => $retId,
-            'semana_lunes' => (string)($meta['semana_lunes'] ?? ''),
+            'semana_lunes' => $semana,
             'producto' => 'diagnostico',
-            'livemode' => false,
+            'estado' => $total ? 'reembolsada' : 'reembolso_parcial',
+            'importe_reembolsado_centimos' => $devuelto,
+            'livemode' => contrata_livemode_esperado(),
         ],
     ]);
 }
@@ -1166,6 +1320,30 @@ function contrata_marcar_cola(string $id, string $estado, string $detalle = ''):
         'detalle' => mb_substr($detalle, 0, 300),
         'fecha' => gmdate('c'),
     ]);
+    if ($estado === 'enviado') contrata_purgar_nif_cola($id);
+}
+
+/** Entregado el aviso, el NIF deja de guardarse en la cola. */
+function contrata_purgar_nif_cola(string $id): void {
+    contrata_con_bloqueo(function () use ($id) {
+        $f = contrata_file_cola();
+        if (!is_file($f)) return;
+        $out = [];
+        $cambio = false;
+        foreach (file($f, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+            $row = json_decode($line, true);
+            if (is_array($row) && ($row['id'] ?? '') === $id && isset($row['cuerpo']['nif']) && $row['cuerpo']['nif'] !== '') {
+                $row['cuerpo']['nif'] = '';
+                $line = (string)json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                $cambio = true;
+            }
+            $out[] = $line;
+        }
+        if ($cambio) {
+            $tmp = $f . '.tmp';
+            if (@file_put_contents($tmp, implode("\n", $out) . "\n", LOCK_EX) !== false) @rename($tmp, $f);
+        }
+    });
 }
 
 function contrata_enviar_webhook(array $row): array {
@@ -1328,15 +1506,28 @@ function contrata_evento_firmado_sim(string $sesionId, string $tipo, array $extr
             'livemode' => false,
             'currency' => 'eur',
             'amount_total' => $ses['amount_total'],
-            'customer_email' => $ses['cliente']['email'],
+            'customer_email' => null,
+            'customer_details' => [
+                'email' => $ses['cliente']['email'],
+                'name' => $ses['cliente']['empresa'],
+                'address' => ['country' => 'ES', 'postal_code' => '28001'],
+                'tax_ids' => [['type' => 'es_cif', 'value' => contrata_nif_normal((string)$ses['cliente']['nif']['normalizado'])]],
+            ],
+            'payment_intent' => $ses['payment_intent'] ?? null,
+            'invoice' => 'in_test_' . substr(md5($sesionId), 0, 12),
             'metadata' => $meta,
         ];
     } else {
+        unset($meta['checkout_session_id']);
         $obj = [
             'id' => 'ch_test_' . bin2hex(random_bytes(6)),
             'object' => 'charge',
             'livemode' => false,
-            'metadata' => $meta,
+            'payment_intent' => $ses['payment_intent'] ?? null,
+            'amount' => $ses['amount_total'],
+            'amount_refunded' => $ses['amount_total'],
+            'refunded' => true,
+            'metadata' => [],
         ];
     }
     foreach ($extra as $k => $v) $obj[$k] = $v;

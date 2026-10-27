@@ -4,7 +4,9 @@
   "settings": {
     "executionOrder": "v1",
     "timezone": "Europe/Madrid",
-    "errorWorkflow": "REEMPLAZAR_ID_WORKFLOW_ERRORES"
+    "errorWorkflow": "REEMPLAZAR_ID_WORKFLOW_ERRORES",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false
   },
   "tags": [],
   "nodes": [
@@ -15,12 +17,12 @@
       "typeVersion": 1,
       "position": [
         -40,
-        -240
+        -300
       ],
       "parameters": {
-        "content": "## Simulación\n\nEl nodo «Añadir fila en Ventas» (hoja «Sobtree · Contactos») está DESHABILITADO.\nCalendario, Gmail y la hoja no se ejecutan. La respuesta es un acuse simulado.\nCredenciales por nombre. Secreto: REEMPLAZAR_EN_N8N, el mismo que CONTRATA_HMAC_SECRET.",
-        "width": 540,
-        "height": 200,
+        "content": "## Modo\n\nLa constante MODO del nodo «Verificar firma y preparar» manda. «simulacion» (por defecto): responde un acuse simulado y no escribe en la hoja, el calendario ni el correo. «produccion»: pago confirmado → fila en «Ventas» + línea en «Historial» + evento en «Sobtree · Proyectos» + aviso a info@; reembolso → «Ventas» y «Historial».\nLIVE = true solo cuando se cobre de verdad con Stripe live.\nSecreto: REEMPLAZAR_EN_N8N, el mismo que CONTRATA_HMAC_SECRET. Credenciales por nombre. No se guardan los datos de las ejecuciones correctas (llevan el NIF).",
+        "width": 620,
+        "height": 240,
         "color": 5
       }
     },
@@ -45,7 +47,7 @@
     },
     {
       "id": "c0a1b002-0000-4000-8000-000000000003",
-      "name": "Verificar firma y simular",
+      "name": "Verificar firma y preparar",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -53,7 +55,7 @@
         80
       ],
       "parameters": {
-        "jsCode": "// Nodo Code del workflow «Sobtree · Contrata».\n// Verifica el HMAC de la web y deja el alta en la hoja de Ventas, el calendario y el correo SIMULADOS.\n// El nodo «Añadir fila en Ventas» está deshabilitado en v1: no escribe en la hoja hasta que se apruebe.\nconst crypto = require('crypto');\n\nconst SECRET = 'REEMPLAZAR_EN_N8N';\nconst MODO = 'simulacion';\nconst MAX_DESFASE_S = 300;\n\nconst item = $input.first();\nconst h = item.json.headers || {};\nconst ts = String(h['x-sobtree-timestamp'] || '');\nconst firma = String(h['x-sobtree-signature'] || '');\nlet raw = '';\ntry { raw = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8'); } catch (e) { raw = ''; }\n\nconst esperada = 'sha256=' + crypto.createHmac('sha256', SECRET).update(ts + '.' + raw).digest('hex');\nconst reciente = /^\\d+$/.test(ts) && Math.abs(Date.now() / 1000 - Number(ts)) <= MAX_DESFASE_S;\nconst a = Buffer.from(firma);\nconst b = Buffer.from(esperada);\nconst valida = SECRET !== 'REEMPLAZAR_EN_N8N' && reciente && a.length === b.length && crypto.timingSafeEqual(a, b);\nif (!valida) return [{ json: { valido: false, motivo: !reciente ? 'timestamp' : 'firma', modo: MODO } }];\n\nlet aviso;\ntry { aviso = JSON.parse(raw); } catch (e) { return [{ json: { valido: false, motivo: 'json', modo: MODO } }]; }\nconst cuerpo = aviso.cuerpo || {};\nconst sesion = String(cuerpo.sesion || '');\nconst empresa = String(cuerpo.empresa || '').slice(0, 80);\nconst semana = String(cuerpo.semana_lunes || '');\nconst eur = (centimos) => Math.round(Number(centimos || 0)) / 100;\nconst baseC = Number(cuerpo.importe_base_centimos || 0);\nconst totalC = Number(cuerpo.importe_total_centimos || 0);\n// Fila de la pestaña «Ventas» de la hoja «Sobtree · Contactos». El NIF no viaja en el aviso (solo país y tipo): se rellena a mano al facturar.\nconst venta = {\n  fecha: new Date().toISOString(),\n  id_sesion_stripe: sesion,\n  empresa,\n  nif: '',\n  email: String(cuerpo.email || '').trim().toLowerCase(),\n  producto: String(cuerpo.producto || 'diagnostico'),\n  importe_sin_iva: eur(baseC),\n  iva: eur(totalC - baseC),\n  total: eur(totalC),\n  semana_reservada: semana,\n  estado: 'pagada',\n};\n\nreturn [{ json: {\n  valido: true,\n  modo: MODO,\n  tipo: String(aviso.tipo || ''),\n  event_id: String(aviso.event_id || ''),\n  dedupe_clave: sesion,\n  venta,\n  venta_hoja: 'simulada',\n  venta_nodo: 'deshabilitado',\n  evento_calendario: 'simulado',\n  email: 'no_enviado',\n  aviso: true,\n  simulado: true,\n  nif_verificado: cuerpo.nif_verificado === true,\n  alerta_facturacion: cuerpo.alerta_facturacion || 'revisar_antes_de_facturar',\n  calendarios_consultados: [],\n  importe_total_centimos: Number(cuerpo.importe_total_centimos || 0),\n} }];\n"
+        "jsCode": "// Nodo Code del workflow «Sobtree · Contrata».\n// Verifica el HMAC del aviso de la web y prepara lo que escriben los nodos siguientes:\n// la fila de «Ventas», la línea de «Historial», el evento de «Sobtree · Proyectos» y el aviso interno.\n// MODO = 'simulacion' (por defecto): no se escribe nada fuera de n8n. MODO = 'produccion': se ejecuta la rama real.\nconst crypto = require('crypto');\n\nconst SECRET = 'REEMPLAZAR_EN_N8N';\nconst MODO = 'simulacion';\nconst LIVE = false; // true solo al cobrar de verdad: un aviso de test no escribe en la hoja real ni uno live en pruebas\nconst MAX_DESFASE_S = 300;\nconst AVISO_A = 'info@sobtree.com';\n\nconst item = $input.first();\nconst h = item.json.headers || {};\nconst ts = String(h['x-sobtree-timestamp'] || '');\nconst firma = String(h['x-sobtree-signature'] || '');\nlet raw = '';\ntry { raw = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8'); } catch (e) { raw = ''; }\n\nconst esperada = 'sha256=' + crypto.createHmac('sha256', SECRET).update(ts + '.' + raw).digest('hex');\nconst reciente = /^\\d+$/.test(ts) && Math.abs(Date.now() / 1000 - Number(ts)) <= MAX_DESFASE_S;\nconst a = Buffer.from(firma);\nconst b = Buffer.from(esperada);\nconst valida = SECRET !== 'REEMPLAZAR_EN_N8N' && reciente && a.length === b.length && crypto.timingSafeEqual(a, b);\nif (!valida) return [{ json: { valido: false, motivo: !reciente ? 'timestamp' : 'firma', modo: MODO } }];\n\nlet aviso;\ntry { aviso = JSON.parse(raw); } catch (e) { return [{ json: { valido: false, motivo: 'json', modo: MODO } }]; }\nconst tipo = String(aviso.tipo || '');\nconst cuerpo = aviso.cuerpo || {};\nconst sesion = String(cuerpo.sesion || '');\nif (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(sesion) && tipo === 'checkout.session.completed') {\n  return [{ json: { valido: false, motivo: 'sesion', modo: MODO } }];\n}\n// El modo del aviso tiene que ser el del flujo: un aviso de test no escribe en la hoja real ni al revés.\nif (MODO === 'produccion' && (cuerpo.livemode === true) !== LIVE) {\n  return [{ json: { valido: false, motivo: 'modo', modo: MODO } }];\n}\nconst empresa = String(cuerpo.empresa || '').replace(/[\\r\\n]+/g, ' ').slice(0, 200);\nconst semana = String(cuerpo.semana_lunes || '');\nconst eur = (centimos) => Math.round(Number(centimos || 0)) / 100;\nconst baseC = Number(cuerpo.importe_base_centimos || 0);\nconst totalC = Number(cuerpo.importe_total_centimos || 0);\nconst email = String(cuerpo.email || '').trim().toLowerCase();\nconst alerta = String(cuerpo.alerta_facturacion || '');\nconst ahora = new Date().toISOString();\nconst sumar = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };\n\nconst base = {\n  valido: true,\n  modo: MODO,\n  tipo,\n  event_id: String(aviso.event_id || ''),\n  dedupe_clave: sesion,\n  email,\n  alerta_facturacion: alerta,\n  nif_verificado: cuerpo.nif_verificado === true,\n  nif_coincide: cuerpo.nif_coincide === undefined ? null : cuerpo.nif_coincide,\n  aviso_a: AVISO_A,\n  calendarios_consultados: [],\n  importe_total_centimos: totalC,\n};\n\nif (tipo === 'checkout.session.completed') {\n  // Fila de «Ventas». El NIF viaja en el aviso firmado y se escribe aquí; no se registra en ningún otro sitio.\n  const venta = {\n    fecha: ahora,\n    id_sesion_stripe: sesion,\n    empresa,\n    nif: String(cuerpo.nif || ''),\n    email,\n    producto: String(cuerpo.producto || 'diagnostico'),\n    importe_sin_iva: eur(baseC),\n    iva: eur(totalC - baseC),\n    total: eur(totalC),\n    semana_reservada: semana,\n    estado: alerta ? 'revisar' : 'pagada',\n  };\n  const factura = String(cuerpo.factura || '');\n  const historial = {\n    fecha: ahora,\n    email,\n    tipo: 'venta',\n    campania: 'contrata',\n    detalle: `Pago ${sesion}. Semana de inicio: ${semana}. Total ${venta.total} €. Factura de Stripe: ${factura || 'se genera tras el pago'}. Alerta: ${alerta || 'ninguna'}.`,\n  };\n  return [{ json: { ...base,\n    accion: 'venta',\n    venta, historial,\n    venta_hoja: MODO === 'produccion' ? 'pendiente' : 'simulada',\n    venta_nodo: MODO === 'produccion' ? 'habilitado' : 'simulado',\n    evento_calendario: MODO === 'produccion' ? 'pendiente' : 'simulado',\n    // Se reserva una semana de calendario (lunes a viernes; el día de fin es exclusivo) aunque la entrega contractual sea de 10 días laborables como máximo.\n    evento: {\n      resumen: 'Diagnóstico · ' + empresa.slice(0, 80),\n      descripcion: `Sesión Stripe: ${sesion}\\nSemana de inicio: lunes ${semana}`,\n      inicio: semana,\n      fin: semana ? sumar(semana, 5) : '',\n    },\n    aviso_email: {\n      asunto: (alerta ? 'Contrata · venta a REVISAR: ' : 'Contrata · nueva venta: ') + empresa.slice(0, 60),\n      texto: `Nueva venta del diagnóstico.\\nEmpresa: ${empresa}\\nTotal: ${venta.total} €\\nSemana de inicio: lunes ${semana}\\nSesión: ${sesion}\\n` + (alerta ? `ALERTA de facturación: ${alerta}. Revisa la fila en «Ventas» y la factura en Stripe.\\n` : 'La factura la emite Stripe y se envía al cliente.\\n') + 'Los datos (incluido el NIF) están en la pestaña «Ventas».',\n    },\n    simulado: MODO !== 'produccion',\n    aviso: true,\n  } }];\n}\n\nif (tipo === 'charge.refunded') {\n  const parcial = String(cuerpo.estado || '') === 'reembolso_parcial';\n  const estado = parcial ? 'reembolso_parcial' : 'reembolsada';\n  return [{ json: { ...base,\n    accion: 'reembolso',\n    estado_venta: { id_sesion_stripe: sesion, estado },\n    historial: {\n      fecha: ahora,\n      email,\n      tipo: 'reembolso',\n      campania: 'contrata',\n      detalle: `Reembolso ${parcial ? 'parcial' : 'total'} de ${sesion || '(sesión desconocida)'}: ${eur(cuerpo.importe_reembolsado_centimos)} €. Si procede, emitir la factura rectificativa (abono) en Stripe.`,\n    },\n    aviso_email: {\n      asunto: 'Contrata · reembolso ' + (parcial ? 'parcial' : 'total'),\n      texto: `Stripe ha notificado un reembolso ${parcial ? 'parcial' : 'total'} (${eur(cuerpo.importe_reembolsado_centimos)} €) de la sesión ${sesion || '(desconocida)'}.\\nLa fila de «Ventas» pasa a «${estado}». Si procede, emite la factura rectificativa.`,\n    },\n    sin_sesion: sesion === '',\n    simulado: MODO !== 'produccion',\n    aviso: true,\n  } }];\n}\n\nreturn [{ json: { ...base, accion: 'ignorar', simulado: MODO !== 'produccion', aviso: true } }];\n"
       }
     },
     {
@@ -96,7 +98,7 @@
       "typeVersion": 1.1,
       "position": [
         840,
-        260
+        360
       ],
       "parameters": {
         "respondWith": "json",
@@ -145,14 +147,46 @@
       "typeVersion": 1.1,
       "position": [
         1120,
-        120
+        360
       ],
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ ok: true, simulado: true, aviso: true, venta: $json.venta_hoja, evento_calendario: $json.evento_calendario, email: $json.email }) }}",
+        "responseBody": "={{ JSON.stringify({ ok: true, simulado: true, aviso: true, accion: $json.accion, venta: $json.venta_hoja, evento_calendario: $json.evento_calendario, email: $json.email }) }}",
         "options": {
           "responseCode": 200
         }
+      }
+    },
+    {
+      "id": "c0a1b002-0000-4000-8000-000000000020",
+      "name": "¿Es una venta?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        40
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c0a1b002-0000-4000-8000-000000000021",
+              "leftValue": "={{ $json.accion }}",
+              "rightValue": "venta",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       }
     },
     {
@@ -160,10 +194,9 @@
       "name": "Añadir fila en Ventas",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
-      "disabled": true,
       "position": [
-        1120,
-        -120
+        1400,
+        -200
       ],
       "parameters": {
         "authentication": "oAuth2",
@@ -185,6 +218,7 @@
             "fecha": "={{ $json.venta.fecha }}",
             "id_sesion_stripe": "={{ $json.venta.id_sesion_stripe }}",
             "empresa": "={{ $json.venta.empresa }}",
+            "nif": "={{ $json.venta.nif }}",
             "email": "={{ $json.venta.email }}",
             "producto": "={{ $json.venta.producto }}",
             "importe_sin_iva": "={{ $json.venta.importe_sin_iva }}",
@@ -220,6 +254,16 @@
             {
               "id": "empresa",
               "displayName": "empresa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "nif",
+              "displayName": "nif",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -309,18 +353,118 @@
           "name": "Google Sheets Sobtree (info@)"
         }
       },
-      "notes": "DESHABILITADO en v1. Añade o actualiza (por id_sesion_stripe, sin duplicar) una fila en la pestaña «Ventas» de «Sobtree · Contactos». Credencial: marcador de posición, se elige en n8n. La columna nif no se escribe (el aviso no lo lleva): se rellena a mano y un reintento no la borra."
+      "notes": "Añade o actualiza (por id_sesion_stripe, sin duplicar) la fila de la venta en la pestaña «Ventas» de «Sobtree · Contactos», con el NIF que llega en el aviso firmado. Si falla, el flujo termina en error y la web reintenta."
+    },
+    {
+      "id": "c0a1b002-0000-4000-8000-000000000022",
+      "name": "Historial: venta",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1660,
+        -200
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "sheet",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1EWlyQCodNmxIwOvljQuyM1ZOq1s7QlNZVkPEydyNizQ"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Historial"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fecha": "={{ $('Verificar firma y preparar').first().json.historial.fecha }}",
+            "email": "={{ $('Verificar firma y preparar').first().json.historial.email }}",
+            "tipo": "={{ $('Verificar firma y preparar').first().json.historial.tipo }}",
+            "campania": "={{ $('Verificar firma y preparar').first().json.historial.campania }}",
+            "detalle": "={{ $('Verificar firma y preparar').first().json.historial.detalle }}"
+          },
+          "matchingColumns": [
+            "detalle"
+          ],
+          "schema": [
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "tipo",
+              "displayName": "tipo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "campania",
+              "displayName": "campania",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "detalle",
+              "displayName": "detalle",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REEMPLAZAR_ID_CREDENCIAL",
+          "name": "Google Sheets Sobtree (info@)"
+        }
+      },
+      "notes": "Una línea por venta en «Historial». Coincide por detalle (lleva la sesión), así un reintento no la duplica."
     },
     {
       "id": "c0a1b002-0000-4000-8000-000000000009",
-      "name": "Evento en Proyectos (DESHABILITADO)",
+      "name": "Evento en Proyectos",
       "type": "n8n-nodes-base.googleCalendar",
       "typeVersion": 1.3,
-      "disabled": true,
       "position": [
-        1380,
-        -120
+        1920,
+        -200
       ],
+      "onError": "continueRegularOutput",
       "parameters": {
         "operation": "create",
         "calendar": {
@@ -328,10 +472,12 @@
           "mode": "id",
           "value": "CONFIGURAR_ID_CALENDARIO_PROYECTOS"
         },
-        "start": "={{ $json.semana_lunes }}",
-        "end": "={{ $json.semana_lunes }}",
+        "start": "={{ $('Verificar firma y preparar').first().json.evento.inicio }}",
+        "end": "={{ $('Verificar firma y preparar').first().json.evento.fin }}",
         "additionalFields": {
-          "summary": "Diagnóstico"
+          "summary": "={{ $('Verificar firma y preparar').first().json.evento.resumen }}",
+          "description": "={{ $('Verificar firma y preparar').first().json.evento.descripcion }}",
+          "allday": "yes"
         }
       },
       "credentials": {
@@ -340,23 +486,23 @@
           "name": "Google Calendar Sobtree (info@)"
         }
       },
-      "notes": "DESHABILITADO. Solo el calendario «Sobtree · Proyectos»."
+      "notes": "Evento de día completo, de lunes a viernes (el día de fin es exclusivo), solo en «Sobtree · Proyectos». La descripción lleva la sesión de Stripe: así la web no cuenta dos veces la plaza. Si falla, el flujo sigue y el aviso a info@ lo cubre. Comprobar en la primera venta de prueba que el evento ocupa lunes–viernes."
     },
     {
       "id": "c0a1b002-0000-4000-8000-000000000010",
-      "name": "Correo al cliente (DESHABILITADO)",
+      "name": "Aviso a info@ (venta)",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
-      "disabled": true,
       "position": [
-        1640,
-        -120
+        2180,
+        -200
       ],
+      "onError": "continueRegularOutput",
       "parameters": {
-        "sendTo": "={{ $json.email_cliente }}",
-        "subject": "Tu diagnóstico en Sobtree",
+        "sendTo": "={{ $('Verificar firma y preparar').first().json.aviso_a }}",
+        "subject": "={{ $('Verificar firma y preparar').first().json.aviso_email.asunto }}",
         "emailType": "text",
-        "message": "La fecha se confirma por email en 1 día laborable.",
+        "message": "={{ $('Verificar firma y preparar').first().json.aviso_email.texto }}",
         "options": {
           "appendAttribution": false
         }
@@ -367,7 +513,285 @@
           "name": "Gmail Sobtree (info@)"
         }
       },
-      "notes": "DESHABILITADO. No se envía correo en v1."
+      "notes": "Aviso interno a info@sobtree.com. No va al cliente: la factura y el recibo los envía Stripe."
+    },
+    {
+      "id": "c0a1b002-0000-4000-8000-000000000023",
+      "name": "Responder 200 venta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2440,
+        -200
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, accion: 'venta', sesion: $('Verificar firma y preparar').first().json.dedupe_clave }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "c0a1b002-0000-4000-8000-000000000024",
+      "name": "¿Es un reembolso?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        220
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c0a1b002-0000-4000-8000-000000000025",
+              "leftValue": "={{ $json.accion }}",
+              "rightValue": "reembolso",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c0a1b002-0000-4000-8000-000000000026",
+      "name": "Marcar reembolso en Ventas",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1660,
+        120
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1EWlyQCodNmxIwOvljQuyM1ZOq1s7QlNZVkPEydyNizQ"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Ventas"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id_sesion_stripe": "={{ $('Verificar firma y preparar').first().json.estado_venta.id_sesion_stripe }}",
+            "estado": "={{ $('Verificar firma y preparar').first().json.estado_venta.estado }}"
+          },
+          "matchingColumns": [
+            "id_sesion_stripe"
+          ],
+          "schema": [
+            {
+              "id": "id_sesion_stripe",
+              "displayName": "id_sesion_stripe",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "estado",
+              "displayName": "estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REEMPLAZAR_ID_CREDENCIAL",
+          "name": "Google Sheets Sobtree (info@)"
+        }
+      },
+      "notes": "Cambia solo la columna estado de la fila de esa sesión. Si no existe la fila no pasa nada y el aviso a info@ lo cuenta.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c0a1b002-0000-4000-8000-000000000027",
+      "name": "Historial: reembolso",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1920,
+        120
+      ],
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "sheet",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1EWlyQCodNmxIwOvljQuyM1ZOq1s7QlNZVkPEydyNizQ"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Historial"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fecha": "={{ $('Verificar firma y preparar').first().json.historial.fecha }}",
+            "email": "={{ $('Verificar firma y preparar').first().json.historial.email }}",
+            "tipo": "={{ $('Verificar firma y preparar').first().json.historial.tipo }}",
+            "campania": "={{ $('Verificar firma y preparar').first().json.historial.campania }}",
+            "detalle": "={{ $('Verificar firma y preparar').first().json.historial.detalle }}"
+          },
+          "matchingColumns": [
+            "detalle"
+          ],
+          "schema": [
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "tipo",
+              "displayName": "tipo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "campania",
+              "displayName": "campania",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "detalle",
+              "displayName": "detalle",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REEMPLAZAR_ID_CREDENCIAL",
+          "name": "Google Sheets Sobtree (info@)"
+        }
+      },
+      "notes": "Una línea por reembolso en «Historial»."
+    },
+    {
+      "id": "c0a1b002-0000-4000-8000-000000000028",
+      "name": "Aviso a info@ (reembolso)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2180,
+        120
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "sendTo": "={{ $('Verificar firma y preparar').first().json.aviso_a }}",
+        "subject": "={{ $('Verificar firma y preparar').first().json.aviso_email.asunto }}",
+        "emailType": "text",
+        "message": "={{ $('Verificar firma y preparar').first().json.aviso_email.texto }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REEMPLAZAR_ID_CREDENCIAL",
+          "name": "Gmail Sobtree (info@)"
+        }
+      },
+      "notes": "Aviso interno: hay que valorar la factura rectificativa en Stripe."
+    },
+    {
+      "id": "c0a1b002-0000-4000-8000-000000000029",
+      "name": "Responder 200 reembolso",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2440,
+        120
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, accion: 'reembolso' }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "c0a1b002-0000-4000-8000-000000000030",
+      "name": "Responder 200 ignorado",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1660,
+        380
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, ignorado: true }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
     }
   ],
   "connections": {
@@ -375,14 +799,14 @@
       "main": [
         [
           {
-            "node": "Verificar firma y simular",
+            "node": "Verificar firma y preparar",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Verificar firma y simular": {
+    "Verificar firma y preparar": {
       "main": [
         [
           {
@@ -415,7 +839,7 @@
       "main": [
         [
           {
-            "node": "Añadir fila en Ventas",
+            "node": "¿Es una venta?",
             "type": "main",
             "index": 0
           }
@@ -429,22 +853,113 @@
         ]
       ]
     },
-    "Añadir fila en Ventas": {
+    "¿Es una venta?": {
       "main": [
         [
           {
-            "node": "Evento en Proyectos (DESHABILITADO)",
+            "node": "Añadir fila en Ventas",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "¿Es un reembolso?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Evento en Proyectos (DESHABILITADO)": {
+    "Añadir fila en Ventas": {
       "main": [
         [
           {
-            "node": "Correo al cliente (DESHABILITADO)",
+            "node": "Historial: venta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Historial: venta": {
+      "main": [
+        [
+          {
+            "node": "Evento en Proyectos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evento en Proyectos": {
+      "main": [
+        [
+          {
+            "node": "Aviso a info@ (venta)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aviso a info@ (venta)": {
+      "main": [
+        [
+          {
+            "node": "Responder 200 venta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es un reembolso?": {
+      "main": [
+        [
+          {
+            "node": "Marcar reembolso en Ventas",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 200 ignorado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar reembolso en Ventas": {
+      "main": [
+        [
+          {
+            "node": "Historial: reembolso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Historial: reembolso": {
+      "main": [
+        [
+          {
+            "node": "Aviso a info@ (reembolso)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aviso a info@ (reembolso)": {
+      "main": [
+        [
+          {
+            "node": "Responder 200 reembolso",
             "type": "main",
             "index": 0
           }

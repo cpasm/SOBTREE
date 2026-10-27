@@ -21,6 +21,10 @@ $decoded = json_decode($raw, true);
     'tipo' => is_array($decoded) ? ($decoded['tipo'] ?? '') : '',
     'id' => is_array($decoded) ? ($decoded['id'] ?? '') : '',
     'event_id' => is_array($decoded) ? ($decoded['event_id'] ?? '') : '',
+    'nif' => is_array($decoded) ? ($decoded['cuerpo']['nif'] ?? null) : null,
+    'nif_coincide' => is_array($decoded) ? ($decoded['cuerpo']['nif_coincide'] ?? null) : null,
+    'alerta' => is_array($decoded) ? ($decoded['cuerpo']['alerta_facturacion'] ?? null) : null,
+    'estado' => is_array($decoded) ? ($decoded['cuerpo']['estado'] ?? null) : null,
 ], JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND | LOCK_EX);
 header('Content-Type: application/json');
 if (!$ok) { http_response_code(401); echo '{"ok":false}'; exit; }

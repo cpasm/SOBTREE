@@ -42,5 +42,9 @@ $es = contrata_validar_identificacion('ESB12345674');
 $t('IVA UE formato sin VIES', is_array($de) && $de['pais'] === 'DE' && $de['verificado'] === false);
 $t('CIF con prefijo ES', is_array($es) && $es['tipo'] === 'cif' && $es['verificado'] === false);
 $t('identificación vacía', contrata_validar_identificacion('') === null);
+$t('NIF sin prefijo ES para el tax_id', contrata_nif_normal('ES B-1234567-4') === 'B12345674' && contrata_nif_normal('b12345674') === 'B12345674');
+$t('territorio con otro IVA', contrata_alerta_territorio(['address' => ['country' => 'ES', 'postal_code' => '38001']]) === 'territorio_sin_iva'
+    && contrata_alerta_territorio(['address' => ['country' => 'ES', 'postal_code' => '28001']]) === ''
+    && contrata_alerta_territorio(['address' => ['country' => 'DE', 'postal_code' => '10115']]) === 'direccion_fuera_de_espana');
 if ($fail > 0) exit(1);
 echo "ok\n";

@@ -93,15 +93,24 @@ estado_ret() {
 }
 libres() { disp | php -r '$j=json_decode(stream_get_contents(STDIN), true); foreach ($j["semanas"] as $s) if ($s["lunes"]===$argv[1]) { echo $s["libres"]; exit; } echo "no";' "$1"; }
 params_ok() {
-  php -r '$j=json_decode(file_get_contents($argv[1]), true); $p=$j["sesiones"][$argv[2]]["params"]; exit((($p["tax_id_collection"]["required"] ?? "")==="if_supported" && ($p["consent_collection"]["terms_of_service"] ?? "")==="required" && !isset($p["invoice_creation"])) ? 0 : 1);' "$1" "$2"
-}
-nif_de_ok() {
-  php -r '$j=json_decode(file_get_contents($argv[1]), true); $n=$j["sesiones"][$argv[2]]["cliente"]["nif"]; $m=$j["sesiones"][$argv[2]]["params"]["metadata"]; exit(($n["pais"]==="DE" && $n["verificado"]===false && ($m["nif_verificado"] ?? "")==="0") ? 0 : 1);' "$1" "$2"
+  php -r '$j=json_decode(file_get_contents($argv[1]), true); $p=$j["sesiones"][$argv[2]]["params"];
+    $ok = ($p["invoice_creation"]["enabled"] ?? "")==="true"
+      && ($p["billing_address_collection"] ?? "")==="required"
+      && ($p["customer_update"]["address"] ?? "")==="auto"
+      && !empty($p["customer"]) && !isset($p["customer_email"])
+      && !isset($p["tax_id_collection"])
+      && preg_match("/^txr_/", $p["line_items"][0]["tax_rates"][0] ?? "")===1
+      && ($p["consent_collection"]["terms_of_service"] ?? "")==="required";
+    exit($ok ? 0 : 1);' "$1" "$2"
 }
 semana_bloqueada() {
   php -r '$j=json_decode(stream_get_contents(STDIN), true); foreach ($j["semanas"] as $s) if ($s["lunes"]==="2026-11-16") exit(($s["libres"]===0 && $s["bloqueada"]===true && $s["texto_plazas"]===null) ? 0 : 1); exit(1);'
 }
-firmar() { php_s "$ROOT/tests/contrata/firmar-evento.php" "$1" "$2" "${3:-}" "$WORK/payload.json" "$WORK/stripe.sig"; }
+firmar() {
+  local extra="${4:-}"
+  [ -n "$extra" ] || extra='{}'
+  php_s "$ROOT/tests/contrata/firmar-evento.php" "$1" "$2" "${3:-}" "$WORK/payload.json" "$WORK/stripe.sig" "$extra"
+}
 webhook() {
   curl -s -D "$WORK/whhdr" -o "$WORK/whbody" -w '%{http_code}' -X POST "$WH" \
     -H "Stripe-Signature: $(cat "$WORK/stripe.sig")" --data-binary @"$WORK/payload.json"
@@ -128,7 +137,7 @@ sleep 0.4
 
 cd "$ROOT"
 echo "0. Sintaxis, unidad y lógica"
-for f in public/lib/contrata.php public/lib/reintentar-contrata.php public/api/contrata/disponibilidad.php public/api/contrata/crear-sesion.php public/api/contrata/stripe-webhook.php public/api/contrata/sim/checkout.php scripts/sembrar-disponibilidad.php tests/contrata/unit.php tests/contrata/abrir.php tests/contrata/firmar-evento.php tests/contrata/clave-live.php; do
+for f in public/lib/contrata.php public/lib/reintentar-contrata.php public/api/contrata/disponibilidad.php public/api/contrata/crear-sesion.php public/api/contrata/stripe-webhook.php public/api/contrata/sim/checkout.php scripts/sembrar-disponibilidad.php tests/contrata/unit.php tests/contrata/abrir.php tests/contrata/firmar-evento.php tests/contrata/clave-live.php tests/contrata/stripe-mock.php tests/contrata/mock-stripe.php scripts/stripe-preparar.php; do
   check "php -l $(basename "$f")" 'php -l "$ROOT/$f" >/dev/null'
 done
 check "unit.php" 'php_s tests/contrata/unit.php >/dev/null'
@@ -145,7 +154,7 @@ SESION=$(campo sesion || true)
 check "abre sesión de test" '[ "$CODE" = 200 ] && [[ "$SESION" == cs_test_* ]]'
 check "total 592,90 €" '[ "$(campo total_centimos || true)" = 59290 ]'
 check "la URL es el simulador local" 'campo url | grep -q "/api/contrata/sim/checkout.php?sesion=cs_test_"'
-check "pide NIF y condiciones, sin factura automática" 'params_ok "$DIR/sesiones.json" "$SESION"'
+check "factura automática, dirección obligatoria, IVA 21 % incluido, cliente con NIF y condiciones" 'params_ok "$DIR/sesiones.json" "$SESION"'
 PAY=$(pagar "$SESION" 4242424242424242 pagar)
 check "pagar redirige a gracias" '[ "$PAY" = 303 ] && grep -qi "^Location:.*gracias" "$WORK/payhdr"'
 check "la plaza baja a 0" '[ "$(libres "$SEMANA_A")" = 0 ]'
@@ -309,20 +318,136 @@ check "queda reembolsada y la plaza vuelve" '[ "$WR" = 200 ] && [ "$(estado_ret 
 check "n8n simulado recibe el reembolso" 'grep -q charge.refunded "$MOCK/received.jsonl"'
 cerrar 11 "Reembolso" simulada "charge.refunded firmado actualiza el PHP. No se ha reembolsado en el Dashboard ni borrado un evento." "$A"
 
-echo "12. NIF-IVA UE"
+echo "12. Solo España: NIF/CIF español, NIF-IVA UE rechazado"
 A=$FAIL
 reset_estado
 CODE=$(crear "$SEMANA_A" "123")
 check "NIF mal formado → 422" '[ "$CODE" = 422 ]'
 CODE=$(crear "$SEMANA_B" "DE123456789")
-SDE=$(campo sesion)
-check "acepta el formato DE y cobra el 21 %" '[ "$CODE" = 200 ] && [ "$(campo total_centimos)" = 59290 ]'
-check "no marca verificado" 'nif_de_ok "$DIR/sesiones.json" "$SDE"'
+check "un NIF-IVA de otro país no abre el pago (422, fuera_de_espana)" '[ "$CODE" = 422 ] && [ "$(campo motivo)" = fuera_de_espana ]'
+check "y no deja ninguna plaza retenida" '[ ! -f "$DIR/retenciones.json" ] || [ "$(grep -c "\"estado\":\"retenida\"" "$DIR/retenciones.json" || true)" = 0 ]'
+check "la web no llama a VIES" '! grep -q "ec.europa.eu" "$ROOT/public/lib/contrata.php"'
+CODE=$(crear "$SEMANA_B" "ESB12345674")
+SES=$(campo sesion)
+check "un NIF-IVA español (prefijo ES) sí entra" '[ "$CODE" = 200 ]'
+cerrar 12 "Solo España" pasa "El NIF-IVA UE se rechaza con mensaje de contacto: sin inversión del sujeto pasivo automática. VIES no se llama." "$A"
+
+echo "12b. NIF hasta la fila de Ventas, sin logs"
+A=$FAIL
+reset_estado
 : > "$MOCK/received.jsonl"
-firmar "$SDE" checkout.session.completed evt_test_iva_de
+CODE=$(crear "$SEMANA_A" "B12345674")
+SNI=$(campo sesion)
+check "la retención guarda el NIF solo hasta el pago" 'grep -q "B12345674" "$DIR/retenciones.json"'
+pagar "$SNI" 4242424242424242 pagar >/dev/null
+ULT=$(tail -1 "$MOCK/received.jsonl")
+check "el aviso a n8n lleva el NIF, coincide con Stripe y no hay alerta" 'echo "$ULT" | php -r '"'"'$j=json_decode(stream_get_contents(STDIN), true); exit(($j["nif"]==="B12345674" && $j["nif_coincide"]===true && $j["alerta"]==="") ? 0 : 1);'"'"''
+check "entregado el aviso, el NIF desaparece de la retención y de la cola" '! grep -q "B12345674" "$DIR/retenciones.json" && ! grep -q "B12345674" "$DIR/cola.jsonl"'
+check "ni en la auditoría, ni en el estado de la cola, ni en el log de PHP" '! grep -rq "B12345674" "$DIR/auditoria.jsonl" "$DIR/cola-estado.jsonl" "$DIR/eventos.jsonl" "$WORK/php.log" 2>/dev/null'
+CODE=$(crear "$SEMANA_B" "B12345674")
+SDIS=$(campo sesion)
+: > "$MOCK/received.jsonl"
+firmar "$SDIS" checkout.session.completed evt_test_nif_distinto '{"customer_details":{"email":"facturas@example.com","address":{"country":"ES","postal_code":"28001"},"tax_ids":[{"type":"es_cif","value":"A58818501"}]}}'
 webhook >/dev/null
-check "alerta de facturar y sin llamada a VIES" 'grep -q revisar_antes_de_facturar "$DIR/cola.jsonl" && ! grep -q "ec.europa.eu" "$ROOT/public/lib/contrata.php"'
-cerrar 12 "NIF-IVA UE" pasa "Formato y 21 % con alerta. VIES no se ha llamado." "$A"
+ULT=$(tail -1 "$MOCK/received.jsonl")
+check "si Stripe guarda otro NIF, el aviso lo marca nif_distinto y la fila irá a revisar" 'echo "$ULT" | php -r '"'"'$j=json_decode(stream_get_contents(STDIN), true); exit(($j["nif_coincide"]===false && $j["alerta"]==="nif_distinto") ? 0 : 1);'"'"''
+CODE=$(crear "$SEMANA_C" "B12345674")
+SCAN=$(campo sesion)
+: > "$MOCK/received.jsonl"
+firmar "$SCAN" checkout.session.completed evt_test_canarias '{"customer_details":{"email":"facturas@example.com","address":{"country":"ES","postal_code":"35001"},"tax_ids":[]}}'
+webhook >/dev/null
+ULT=$(tail -1 "$MOCK/received.jsonl")
+check "dirección de Canarias: alerta territorio_sin_iva" 'echo "$ULT" | grep -q "\"alerta\":\"territorio_sin_iva\""'
+CODE=$(crear "$SEMANA_A" "B12345674")
+SNP=$(campo sesion)
+: > "$MOCK/received.jsonl"
+firmar "$SNP" checkout.session.completed evt_test_no_pagado '{"payment_status":"unpaid"}'
+webhook >/dev/null
+check "un checkout.session.completed sin pago (unpaid) no crea venta ni aviso" '[ "$(lineas_evento evt_test_no_pagado)" = 0 ]'
+cerrar 12b "NIF a Ventas" simulada "El NIF viaja en el aviso firmado y se cruza con el tax_id de Stripe. No se escribe en logs ni se guarda tras entregarlo." "$A"
+
+echo "16. Stripe de pruebas (simulado): factura, IVA, NIF y modo test"
+A=$FAIL
+MS_PORT="${CONTRATA_TEST_STRIPE_PORT:-18085}"
+MSD="$WORK/mock-stripe"
+mkdir -p "$MSD"
+LIVE_K="rk_$(echo live)_mockclave1234abcd"
+TEST_K="rk_test_mockclave1234abcd"
+export CONTRATA_STRIPE_API_BASE="http://127.0.0.1:$MS_PORT"
+MOCK_STRIPE_DIR="$MSD" php -S "127.0.0.1:$MS_PORT" "$ROOT/tests/contrata/mock-stripe.php" >"$WORK/mock-stripe.log" 2>&1 &
+P_MS=$!
+sleep 0.4
+caso() { # nombre modo clave [extra secrets] -> base propia, secretos por fichero
+  local nombre="$1" modo="$2" clave="$3" extra="${4:-}"
+  local b="$WORK/base-$nombre"
+  mkdir -p "$b"
+  cat > "$b/sobtree-secrets.php" <<PHP
+<?php return [
+  'CONTRATA_MODO' => '$modo',
+  'STRIPE_RESTRICTED_KEY' => '$clave',
+  'STRIPE_PRICE_DIAGNOSTICO' => 'price_mock_1',
+  'STRIPE_TAX_RATE_IVA21' => 'txr_mock_1',
+  'CONTRATA_HMAC_SECRET' => '$HMAC',
+  'CONTRATA_N8N_WEBHOOK_URL' => 'https://127.0.0.1:9/webhook/sobtree-contrata',
+  'CONTRATA_PUBLIC_URL' => 'https://sobtree.com',
+  $extra
+];
+PHP
+  echo "$b"
+}
+prep_mock() { # modo(test|live): crea price y tax rate en el mock y devuelve sus ids vía archivos
+  local k="$1" modo="$2"
+  curl -s -X POST "http://127.0.0.1:$MS_PORT/v1/prices" -H "Authorization: Bearer $k" --data "currency=eur&unit_amount=59290&product=prod_x&lookup_key=mock_$modo" >/dev/null
+  curl -s -X POST "http://127.0.0.1:$MS_PORT/v1/tax_rates" -H "Authorization: Bearer $k" --data "display_name=IVA&percentage=21&inclusive=true&country=ES" >/dev/null
+}
+fijar_ids() { # sustituye price_mock_1 y txr_mock_1 por los ids reales del mock en esa base
+  local b="$1" modo="$2"
+  php -r '$e=json_decode(file_get_contents($argv[1]), true); $pr=""; $tx=""; foreach ($e["prices"] as $p) if ($p["livemode"]===($argv[3]==="live")) $pr=$p["id"]; foreach ($e["tax_rates"] as $t) if ($t["livemode"]===($argv[3]==="live")) $tx=$t["id"]; $f=$argv[2]."/sobtree-secrets.php"; file_put_contents($f, str_replace(["price_mock_1","txr_mock_1"], [$pr,$tx], file_get_contents($f)));' "$MSD/estado.json" "$b" "$modo"
+}
+correr() { # base modo-caso
+  SOBTREE_BASE_DIR="$1" MOCK_STRIPE_DIR="$MSD" TEST_CASO="$2" php_s "$ROOT/tests/contrata/stripe-mock.php"
+}
+prep_mock "$TEST_K" test
+prep_mock "$LIVE_K" live
+WH_T="whsec_$(openssl rand -hex 12)"
+WH_L="whsec_$(openssl rand -hex 12)"
+B_T=$(caso test stripe_test "$TEST_K" "'STRIPE_WEBHOOK_SECRET' => '$WH_T',")
+B_L=$(caso live stripe_live "$LIVE_K" "'STRIPE_WEBHOOK_SECRET' => '$WH_L',")
+fijar_ids "$B_T" test
+fijar_ids "$B_L" live
+: > "$MSD/requests.jsonl"
+check "stripe_test: cliente con NIF, factura, IVA 21 % incluido, dirección y eventos" 'correr "$B_T" normal'
+echo "17. Cambio a live (simulado): la misma lógica con clave, sesiones y eventos live"
+A2=$FAIL
+: > "$MSD/requests.jsonl"
+check "stripe_live: todo en modo live y los eventos de test se ignoran" 'correr "$B_L" normal'
+B_X=$(caso desajuste stripe_test "$LIVE_K" "'STRIPE_WEBHOOK_SECRET' => '$WH_T',")
+B_Y=$(caso desajuste2 stripe_live "$TEST_K" "'STRIPE_WEBHOOK_SECRET' => '$WH_L',")
+B_Z=$(caso incompleto stripe_live "$LIVE_K" "")
+rm -f "$MSD/requests.jsonl"
+check "clave live en modo test, clave test en modo live y live sin webhook secret: no abre el pago ni llama a Stripe" 'correr "$B_X" desajuste && correr "$B_Y" desajuste && correr "$B_Z" incompleto'
+cerrar 17 "Cambio a live" simulada "Stripe simulado con modo live: no se ha cobrado nada ni se ha tocado la cuenta real. Falta la prueba con la cuenta live del fundador." "$A2"
+
+echo "18. Script de preparación de Stripe (idempotente)"
+A3=$FAIL
+export STRIPE_PREP_ALLOW_LOCAL=1 STRIPE_PREP_BASE="http://127.0.0.1:$MS_PORT" STRIPE_WEBHOOK_URL="https://sobtree.example/api/contrata/stripe-webhook.php"
+rm -rf "$MSD"; mkdir -p "$MSD"
+SF="$WORK/whsec-prep.txt"
+prep() { STRIPE_PREP_KEY="$1" php_s "$ROOT/scripts/stripe-preparar.php" "${@:2}"; }
+check "sin --live y con clave live se niega (2)" '! STRIPE_PREP_KEY="$LIVE_K" php_s "$ROOT/scripts/stripe-preparar.php" --dry-run >/dev/null 2>&1'
+check "con clave test y --live se niega" '! prep "$TEST_K" --live --dry-run >/dev/null 2>&1'
+check "dry-run no crea nada" 'prep "$TEST_K" --dry-run > "$WORK/prep0.txt" && grep -q "crearía" "$WORK/prep0.txt" && ! grep -q "\"POST\"" "$MSD/requests.jsonl"'
+check "sin --secret-file se niega antes de crear nada" '! prep "$TEST_K" >/dev/null 2>&1 && ! grep -q "\"metodo\":\"POST\"" "$MSD/requests.jsonl"'
+check "primera ejecución crea Product, Price, tax rate y webhook" 'prep "$TEST_K" --secret-file="$SF" > "$WORK/prep1.txt" && grep -q "Product creado" "$WORK/prep1.txt" && grep -q "Price creado" "$WORK/prep1.txt" && grep -q "Tax rate creado" "$WORK/prep1.txt" && grep -q "Webhook creado" "$WORK/prep1.txt"'
+check "el secreto del webhook queda en un fichero 0600 y no sale por pantalla" '[ "$(stat -c %a "$SF")" = 600 ] && grep -q "^whsec_" "$SF" && ! grep -q "whsec_" "$WORK/prep1.txt" && ! grep -q "$TEST_K" "$WORK/prep1.txt"'
+POSTS1=$(grep -c "\"metodo\":\"POST\"" "$MSD/requests.jsonl")
+check "segunda ejecución no crea nada (idempotente)" 'prep "$TEST_K" --secret-file="$WORK/otro.txt" > "$WORK/prep2.txt" && grep -q "Product ya existe" "$WORK/prep2.txt" && grep -q "Price ya existe" "$WORK/prep2.txt" && grep -q "Tax rate ya existe" "$WORK/prep2.txt" && grep -q "Webhook ya existe" "$WORK/prep2.txt" && [ "$(grep -c "\"metodo\":\"POST\"" "$MSD/requests.jsonl")" = "$POSTS1" ] && [ ! -e "$WORK/otro.txt" ]'
+check "imprime los ids para sobtree-secrets.php" 'grep -q "STRIPE_PRICE_DIAGNOSTICO.*price_test_" "$WORK/prep2.txt" && grep -q "STRIPE_TAX_RATE_IVA21.*txr_test_" "$WORK/prep2.txt"'
+check "con clave live y --live funciona igual, en el modo live" 'prep "$LIVE_K" --live --secret-file="$WORK/whsec-live.txt" > "$WORK/prep3.txt" && grep -q "LIVE" "$WORK/prep3.txt" && grep -q "price_live_" "$WORK/prep3.txt"'
+cerrar 18 "Script de preparación" simulada "Probado contra Stripe simulado en test y live. Con la cuenta real lo ejecuta el fundador." "$A3"
+kill $P_MS 2>/dev/null || true
+unset CONTRATA_STRIPE_API_BASE STRIPE_PREP_ALLOW_LOCAL STRIPE_PREP_BASE STRIPE_WEBHOOK_URL
+cerrar 16 "Stripe de pruebas (factura, IVA, NIF)" simulada "Stripe simulado: se comprueba la forma de las peticiones (cliente es_cif, invoice_creation, tax rate inclusive, dirección). La primera factura real se verifica en el Dashboard." "$A"
 
 echo "13. Separación de calendarios"
 A=$FAIL

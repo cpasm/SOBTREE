@@ -39,7 +39,7 @@ const precio = CONTRATA.importes;
       <label>NIF o CIF
         <input name="nif" id="contrata-nif" autocomplete="off" maxlength="20" required inputmode="text" spellcheck="false" aria-describedby="ayuda-nif">
       </label>
-      <p id="ayuda-nif" class="fine" style="text-align:left">Solo empresas y autónomos. Comprobamos el formato. Stripe volverá a pedirte el NIF-IVA. No verificamos el censo VIES antes de cobrar: lo revisamos al facturar.</p>
+      <p id="ayuda-nif" class="fine" style="text-align:left">Solo empresas y autónomos con NIF o CIF español. Comprobamos el formato y lo usamos para tu factura, que recibirás por email tras el pago. Stripe te pedirá la dirección de facturación.</p>
       <label class="hp" aria-hidden="true">No rellenar<input name="web" tabindex="-1" autocomplete="off"></label>
       <label class="consent"><input type="checkbox" name="condiciones" id="contrata-condiciones" value="si" required><span>Acepto las condiciones de esta página y la <a href="/privacidad/">política de privacidad</a> (versión {POLITICA_VERSION}). El pago lo procesa Stripe en su página.</span></label>
       <button class="btn btn-primary" type="submit" id="contrata-pagar">Pagar {euros(precio.totalCentimos)}</button>
