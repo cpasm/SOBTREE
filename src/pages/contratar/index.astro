@@ -70,6 +70,14 @@ const varios = SERVICIOS.length > 1;
         <input name="nif" id="contrata-nif" autocomplete="off" maxlength="20" required inputmode="text" spellcheck="false" aria-describedby="ayuda-nif">
       </label>
       <p id="ayuda-nif" class="fine" style="text-align:left">Solo empresas y autónomos con NIF o CIF español. Comprobamos el formato y lo usamos para tu factura, que recibirás por email tras el pago. Stripe te pedirá la dirección de facturación.</p>
+      <aside class="contrata-impacto" aria-label="Qué obtienes con el diagnóstico">
+        <div class="contrata-impacto-icono" aria-hidden="true">↗</div>
+        <div class="contrata-impacto-cuerpo">
+          <p class="contrata-impacto-titulo">Antes de invertir en IA, descubre dónde compensa</p>
+          <p>Identificamos 3 casos de uso para tu empresa y estimamos el ahorro, el coste de implantación y el plazo de recuperación. Si los números no salen, te lo diremos: no recomendamos implantar por implantar.</p>
+          <p class="contrata-impacto-nota">Las cifras son estimaciones basadas en la información disponible, no una promesa de ahorro.</p>
+        </div>
+      </aside>
       <label class="hp" aria-hidden="true">No rellenar<input name="web" tabindex="-1" autocomplete="off"></label>
       <label class="consent"><input type="checkbox" name="condiciones" id="contrata-condiciones" value="si" required><span>Acepto las <a href="/condiciones/">condiciones de contratación</a> y la <a href="/privacidad/">política de privacidad</a> (versión {POLITICA_VERSION}). El pago lo procesa Stripe en su página.</span></label>
       <div class="contrata-acciones">
