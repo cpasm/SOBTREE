@@ -493,7 +493,7 @@ cerrar 16 "Stripe de pruebas (factura, IVA, NIF)" simulada "Stripe simulado: se 
 echo "13. Separación de calendarios"
 A=$FAIL
 check "JSON y nodos Code" 'node tests/contrata/test-n8n.mjs'
-cerrar 13 "Separación de calendarios" simulada "Revisión estática: dos IDs placeholder, nodos de Google deshabilitados y workflow inactivo. La ejecución real en n8n queda pendiente de cuenta." "$A"
+cerrar 13 "Separación de calendarios" simulada "Revisión estática y ejecución local de los nodos Code: un solo ID de calendario (marcador), clasificación CONTRATA/BLOQUEO, workflows inactivos. La ejecución real en n8n queda pendiente de cuenta." "$A"
 
 echo "14. Accesibilidad y móvil"
 A=$FAIL
@@ -539,7 +539,7 @@ check "con el flag, la portada tiene el botón y /contratar/ el selector de serv
 check "con el flag, el build no lleva claves (sk_, rk_, whsec_) ni el simulador de pago" '! grep -RInE --binary-files=without-match "sk_|rk_|whsec_" "$WORK/dist-on" && [ ! -e "$WORK/dist-on/api/contrata/sim" ] && ! grep -RIn --binary-files=without-match "Pago simulado" "$WORK/dist-on"'
 check "con el flag, los endpoints de Contrata están y .htaccess deniega sim/ y todo lo demás de api/" '[ -f "$WORK/dist-on/api/contrata/stripe-webhook.php" ] && grep -q "contrata/(disponibilidad|crear-sesion|stripe-webhook)" "$WORK/dist-on/api/.htaccess" && grep -q "RewriteRule ^ - \[F,L\]" "$WORK/dist-on/api/.htaccess" && grep -q "Require all denied" "$WORK/dist-on/lib/.htaccess"'
 check "con el flag siguen los 301 y 410 del .htaccess raíz" 'grep -q "RewriteRule ^diagnostico/?\$ https://sobtree.com/#servicios \[R=301" "$WORK/dist-on/.htaccess" && grep -q "invest/?\$ - \[G,L,NC\]" "$WORK/dist-on/.htaccess" && cmp -s "$ROOT/public/.htaccess" "$WORK/dist-on/.htaccess"'
-check "las páginas del resto del sitio son las mismas con y sin el flag (solo cambian la portada, los sitemaps y las dos páginas nuevas)" 'python3 "$ROOT/tests/contrata/comparar-dist.py" "$ROOT/dist" "$WORK/dist-on" > "$WORK/cmp.txt"; [ ! -s "$WORK/cmp.txt" ] || { head -5 "$WORK/cmp.txt"; false; }'
+check "las páginas del resto del sitio son las mismas con y sin el flag (solo cambian la portada, la privacidad, los sitemaps y las dos páginas nuevas)" 'python3 "$ROOT/tests/contrata/comparar-dist.py" "$ROOT/dist" "$WORK/dist-on" > "$WORK/cmp.txt"; [ ! -s "$WORK/cmp.txt" ] || { head -5 "$WORK/cmp.txt"; false; }'
 check "el flag encendido dice «máximo 10 días laborables» en Contrata y en gracias" 'grep -q "máximo 10 días laborables" "$WORK/dist-on/contratar/index.html" && grep -q "máximo 10 días laborables" "$WORK/dist-on/contratar/gracias/index.html"'
 cerrar 15 "Contenido de dist" pasa "Build con el flag apagado. Precio contrastado en unit.php (490 € + 21 % = 592,90 €). La regla CSS #contrata-boton puede quedar en la hoja y no pinta el botón." "$A"
 

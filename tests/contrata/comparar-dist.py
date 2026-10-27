@@ -13,7 +13,8 @@ def ficheros(r):
             out[os.path.relpath(p, r)] = p
     return out
 fa, fb = ficheros(a), ficheros(b)
-permitidos = lambda r: r.startswith(("contratar/", "condiciones/")) or r.startswith("sitemap") or r == "index.html"
+# privacidad: describe Stripe y enlaza las condiciones solo con el flag.
+permitidos = lambda r: r.startswith(("contratar/", "condiciones/", "privacidad/", "sitemap")) or r == "index.html"
 ignorar = lambda r: r.startswith(("collections/", "data-store.json", "content-", "settings.json")) or r == "content-assets.mjs"
 for r in sorted(set(fa) | set(fb)):
     if ignorar(r): continue
