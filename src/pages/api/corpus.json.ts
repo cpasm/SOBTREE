@@ -26,7 +26,7 @@ export const GET: APIRoute = async () => {
       "Servicios:",
       ...SERVICES.map((s) => `- ${s.name} (${s.duration}): ${s.description}`),
       "",
-      `El punto de entrada recomendado es el Diagnóstico IA exprés: 1 semana, ${TEXTOS.lineaCorta}${TEXTOS.condiciones ? " " + TEXTOS.condiciones : ""} Dice qué tareas automatizar primero, cuánto ahorrarías y cuánto costaría ponerlo en marcha.`
+      `El punto de entrada recomendado es el Diagnóstico IA exprés: máximo 10 días laborables, ${TEXTOS.lineaCorta}${TEXTOS.condiciones ? " " + TEXTOS.condiciones : ""} Dice qué tareas automatizar primero, cuánto ahorrarías y cuánto costaría ponerlo en marcha.`
     )
   });
 
@@ -35,7 +35,7 @@ export const GET: APIRoute = async () => {
     url: `${SITE.url}/#metodo`,
     text: lines(
       "1. Llamada de 25 minutos, gratis: entendemos tu empresa y te decimos si la IA te compensa.",
-      "2. Diagnóstico IA exprés (1 semana): qué tareas automatizar, cuánto ahorras y cuánto cuesta, por escrito.",
+      "2. Diagnóstico IA exprés (máximo 10 días laborables): qué tareas automatizar, cuánto ahorras y cuánto cuesta, por escrito.",
       "3. Puesta en marcha (2–3 semanas): el primer caso de uso funcionando y tu equipo formado.",
       "4. Cada mes, si quieres: medimos el ahorro y vamos a por la siguiente tarea.",
       "Se empieza siempre por una sola tarea, la que más horas quita. Si no hay ahorro claro, se dice antes de gastar más."

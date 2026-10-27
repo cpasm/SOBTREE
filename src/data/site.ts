@@ -141,9 +141,9 @@ function textosDiagnostico(d = DIAGNOSTICO) {
     calcSinContratar,
     calcSupuesto,
     corpus,
-    llmsPaso: `Diagnóstico IA exprés (1 semana, ${conCondiciones}): qué tareas automatizar, cuánto ahorras y cuánto cuesta.`,
-    llmsIntro: `El punto de entrada es un diagnóstico IA exprés de 1 semana (${conCondiciones.replace(/\.$/, "")}). Sede en Madrid; trabaja en remoto para toda España.`,
-    duracionServicio: `1 semana · ${conCondiciones}`
+    llmsPaso: `Diagnóstico IA exprés (máximo 10 días laborables, ${conCondiciones}): qué tareas automatizar, cuánto ahorras y cuánto cuesta.`,
+    llmsIntro: `El punto de entrada es un diagnóstico IA exprés con el informe en un máximo de 10 días laborables (${conCondiciones.replace(/\.$/, "")}). Sede en Madrid; trabaja en remoto para toda España.`,
+    duracionServicio: `Máximo 10 días laborables · ${conCondiciones}`
   };
 }
 
