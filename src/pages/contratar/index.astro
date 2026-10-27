@@ -10,21 +10,31 @@ const varios = SERVICIOS.length > 1;
 ---
 {activo ? (
 <Base title="Contrata el diagnóstico | Sobtree" description="Diagnóstico IA exprés a precio cerrado, con IVA, para empresas y autónomos.">
-<main id="main" class="section">
-  <div class="wrap" style="max-width: 760px;">
-    <p class="eyebrow">Diagnóstico IA exprés</p>
-    <h1>Contrata</h1>
-    <p class="section-sub">Un diagnóstico, una semana de inicio y el pago. El precio sale del diagnóstico publicado en la web: {DIAGNOSTICO.precio} € + IVA ({CONTRATA.ivaPorciento} %).</p>
-
-    <div class="contrata-precio" id="contrata-precio" data-base={DIAGNOSTICO.precio} data-total={precio.totalCentimos} data-iva={CONTRATA.ivaPorciento}>
+<main id="main" class="section contrata-page">
+  <div class="wrap contrata-wrap">
+    <div class="contrata-heading">
+      <p class="eyebrow">Diagnóstico IA exprés</p>
+      <h1>Contrata tu diagnóstico</h1>
+      <p class="section-sub">Elige una semana de inicio, completa los datos de tu empresa y paga de forma segura.</p>
+    </div>
+    <section class="contrata-resumen" aria-label="Resumen del servicio">
+      <div class="contrata-resumen-precio">
+        <p class="contrata-label">Precio total, IVA incluido</p>
+        <p class="contrata-total" id="contrata-total-visible">{euros(precio.totalCentimos)}</p>
+        <p class="fine">Base {euros(precio.baseCentimos)} · IVA {euros(precio.ivaCentimos)}</p>
+      </div>
+      <div class="contrata-resumen-detalle">
+        <p><strong>Qué incluye</strong><br />{TEXTOS.lineaCorta}</p>
+        <p class="fine">{TEXTOS.condiciones}</p>
+        <p class="fine">Confirmamos la fecha por email en 1 día laborable. Si no fuera posible, te ofrecemos otra semana o el reembolso íntegro. Entrega del informe: {PLAZO_DIAGNOSTICO}. La plaza se retiene 30 minutos mientras completas el pago.</p>
+      </div>
+    </section>
+    <div class="contrata-precio" id="contrata-precio" data-base={DIAGNOSTICO.precio} data-total={precio.totalCentimos} data-iva={CONTRATA.ivaPorciento} hidden>
       <p>Base <strong>{euros(precio.baseCentimos)}</strong></p>
       <p>IVA {CONTRATA.ivaPorciento} % <strong>{euros(precio.ivaCentimos)}</strong></p>
       <p class="contrata-total">Total {euros(precio.totalCentimos)}</p>
     </div>
-    <p>{TEXTOS.lineaCorta} {TEXTOS.condiciones}</p>
-    <p class="fine" style="text-align:left">La fecha de inicio se confirma por email en 1 día laborable; si no fuera posible, te ofrecemos otra semana o el reembolso íntegro. El informe del diagnóstico se entrega en un {PLAZO_DIAGNOSTICO}. La plaza se reserva 30 minutos mientras pagas.</p>
-
-    <div id="contrata-estado" role="status" class="form-status"></div>
+    <div id="contrata-estado" role="status" class="form-status contrata-status" aria-live="polite">Consultando las semanas disponibles…</div>
     <noscript>
       <p>Para ver las semanas hace falta JavaScript. Si no puedes usarlo, <a href="/#contacto">{TEXTO_RESERVA}</a>.</p>
     </noscript>
@@ -68,7 +78,8 @@ const varios = SERVICIOS.length > 1;
   var lista = document.getElementById("contrata-semanas");
   var precioBox = document.getElementById("contrata-precio");
   var datos = null;
-  if (new URLSearchParams(location.search).get("cancelado") === "1" && estado) {
+  var cancelado = new URLSearchParams(location.search).get("cancelado") === "1";
+  if (cancelado && estado) {
     estado.textContent = "Has vuelto sin pagar. La reserva de la plaza caduca a los 30 minutos.";
   }
   function fallo() {
@@ -125,6 +136,7 @@ const varios = SERVICIOS.length > 1;
         lista.appendChild(label);
       });
       if (!hay && disp.sin_plazas_texto && estado) estado.textContent = disp.sin_plazas_texto;
+      else if (estado && !cancelado) estado.textContent = "";
       form.hidden = false;
       if (precioBox) precioBox.setAttribute("data-listo", "1");
     })
@@ -140,6 +152,8 @@ const varios = SERVICIOS.length > 1;
     var ps = precioBox ? precioBox.querySelectorAll("strong") : [];
     if (ps.length > 1) { ps[0].textContent = eur(base); ps[1].textContent = eur(total - base); }
     if (tt) tt.textContent = "Total " + eur(total);
+    var visibleTotal = document.getElementById("contrata-total-visible");
+    if (visibleTotal) visibleTotal.textContent = eur(total);
     if (pb) pb.textContent = "Pagar " + eur(total);
   });
 
@@ -184,6 +198,27 @@ const varios = SERVICIOS.length > 1;
   });
 })();
 </script>
+<style>
+  .contrata-page { padding-top: clamp(1.5rem, 3vw, 2.5rem); padding-bottom: clamp(2rem, 4vw, 3.5rem); }
+  .contrata-wrap { max-width: 860px; }
+  .contrata-heading { margin-bottom: 1.25rem; }
+  .contrata-heading h1 { margin: 0.2rem 0 0.5rem; }
+  .contrata-heading .section-sub { max-width: 58ch; margin-bottom: 0; }
+  .contrata-resumen { display: grid; grid-template-columns: minmax(180px, 0.72fr) minmax(0, 1.5fr); gap: 1.25rem; align-items: center; margin: 1.25rem 0 1rem; padding: 1.15rem 1.25rem; border: 1px solid var(--line, #d9deea); border-radius: 16px; background: var(--surface, #fff); }
+  .contrata-resumen p { margin: 0 0 0.55rem; }
+  .contrata-resumen p:last-child { margin-bottom: 0; }
+  .contrata-resumen-precio { padding-right: 1.25rem; border-right: 1px solid var(--line, #d9deea); }
+  .contrata-label { font-size: 0.85rem; opacity: 0.78; }
+  .contrata-resumen .contrata-total { font-size: clamp(1.8rem, 4vw, 2.25rem); line-height: 1.1; font-weight: 750; letter-spacing: -0.03em; }
+  .contrata-resumen-detalle { min-width: 0; }
+  .contrata-status:empty { display: none; }
+  .contrata-status:not(:empty) { margin: 0.75rem 0; padding: 0.75rem 0.9rem; border-radius: 10px; background: var(--surface-alt, #f3f5f9); }
+  #contrata-form { margin-top: 0.75rem; }
+  @media (max-width: 640px) {
+    .contrata-resumen { grid-template-columns: 1fr; gap: 0.85rem; padding: 1rem; }
+    .contrata-resumen-precio { padding: 0 0 0.85rem; border-right: 0; border-bottom: 1px solid var(--line, #d9deea); }
+  }
+</style>
 </Base>
 ) : (
 <Base title="Sobtree" noindex={true}>
