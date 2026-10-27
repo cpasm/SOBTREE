@@ -1,6 +1,8 @@
 ---
 import Base from "../layouts/Base.astro";
 import { POLITICA_FECHA, POLITICA_VERSION } from "../data/site";
+// Stripe y el pago del diagnóstico solo se describen cuando Contrata está publicado (PUBLIC_CONTRATA_ACTIVO=1).
+const contrata = import.meta.env.PUBLIC_CONTRATA_ACTIVO === "1";
 ---
 <Base title="Privacidad y aviso legal | Sobtree" description="Política de privacidad y aviso legal de Sobtree." bare>
 <style is:global>
@@ -25,23 +27,31 @@ import { POLITICA_FECHA, POLITICA_VERSION } from "../data/site";
   <p>Cuando envías el formulario de contacto tratamos tu nombre, cargo (opcional), empresa, email, teléfono, el tamaño de tu empresa, el servicio que te interesa y el mensaje que nos escribas. Si llegas al formulario desde la calculadora de ahorro o desde el asistente, también recibimos el resultado de la calculadora (sector, número de personas, horas, coste por hora, áreas, ahorro y precio orientativos) o un resumen de lo que quieres resolver.</p>
   <p>Para saber cómo nos has conocido, registramos junto a tu solicitud la página desde la que la envías, la primera página que visitaste, la web de procedencia (por ejemplo, un buscador o una red social) y, si existen, los parámetros de campaña del enlace (utm_source, utm_medium, utm_campaign, utm_term y utm_content). Estos datos se guardan solo en el almacenamiento temporal de tu navegador mientras dura la visita (se borran al cerrar la pestaña) y únicamente se nos envían si envías el formulario. No usamos cookies para esto.</p>
   <p>Por seguridad y para evitar abusos, guardamos también un resumen cifrado de tu dirección IP (que no permite conocer la IP) y el tipo de navegador.</p>
-  <p>Usamos estos datos para responder a tu solicitud, preparar en su caso una propuesta, gestionar la relación comercial en nuestro CRM y conocer, de forma agregada, qué canales nos traen solicitudes.</p>
+  <p>Usamos estos datos para responder a tu solicitud, preparar en su caso una propuesta, gestionar la relación comercial en nuestra hoja de contactos (Google Sheets) y conocer, de forma agregada, qué canales nos traen solicitudes.</p>
   <!-- REVISAR FUNDADOR: la finalidad de comunicaciones comerciales, su base en el consentimiento (art. 6.1.a RGPD) y si además aplica el art. 21 de la LSSI son una decisión legal. Confírmalo antes de publicar. También si la prueba de este consentimiento puede suprimirse con el plazo de 12 meses de la sección Conservación. -->
   <p>Comunicaciones comerciales a quien marque la casilla del formulario de contacto: si la marcas, usamos tu email para enviarte novedades, análisis y ofertas de Sobtree. La base legal es tu consentimiento (art. 6.1.a del RGPD). La casilla es opcional y no viene marcada. Puedes retirar el consentimiento en cualquier momento escribiendo a <a href="mailto:info@sobtree.com">info@sobtree.com</a>.</p>
 
   <h2>Base legal</h2>
   <p>Para responder a tu solicitud y preparar una propuesta: tu consentimiento al enviar el formulario y la aplicación de medidas precontractuales a petición tuya (art. 6.1.a y 6.1.b del RGPD). Para registrar el origen de la solicitud (página, procedencia y campaña) y los datos técnicos antiabuso: nuestro interés legítimo en medir la eficacia de nuestros canales y proteger el formulario (art. 6.1.f del RGPD). Puedes oponerte a este tratamiento escribiendo a <a href="mailto:info@sobtree.com">info@sobtree.com</a>.</p>
 
+  {contrata && (
+  <Fragment>
+  <h2>Contratación y pago del diagnóstico</h2>
+  <p>Si contratas el diagnóstico desde la web (botón «Contrata») tratamos el nombre de tu empresa, tu email, tu NIF o CIF, la dirección de facturación, la semana de inicio que elijas y el resultado del pago (importe, fecha y estado; no los datos de la tarjeta, que trata Stripe). Los usamos para prestarte el servicio contratado, reservar tu plaza en nuestro calendario, emitir y enviarte la factura y atender un posible reembolso. Anotamos la venta en la pestaña de ventas de nuestra hoja de contactos (Google Sheets) y la fecha de inicio en nuestro calendario de Google Workspace.</p>
+  <p>Base legal: la ejecución del contrato que haces con nosotros al pagar (art. 6.1.b del RGPD) y el cumplimiento de nuestras obligaciones legales de facturación y contabilidad (art. 6.1.c). Conservamos estos datos durante los plazos que exige la normativa mercantil y tributaria. Las condiciones del servicio están en <a href="/condiciones/">Condiciones de contratación</a>.</p>
+  </Fragment>
+  )}
+
   <h2>Conservación</h2>
-  <p>Conservamos tus datos mientras dure la relación comercial o, si no llega a iniciarse, un máximo de 12 meses desde el último contacto. Esto incluye nuestro CRM y la copia de seguridad que guardamos en nuestro servidor para no perder ninguna solicitud. Después los suprimimos, salvo obligación legal de conservarlos.</p>
+  <p>Conservamos tus datos mientras dure la relación comercial o, si no llega a iniciarse, un máximo de 12 meses desde el último contacto. Esto incluye nuestra hoja de contactos y la copia de seguridad que guardamos en nuestro servidor para no perder ninguna solicitud. Después los suprimimos, salvo obligación legal de conservarlos.</p>
 
   <h2>Destinatarios y encargados del tratamiento</h2>
   <p>No cedemos tus datos a terceros salvo obligación legal. Para prestar el servicio usamos proveedores que tratan los datos por cuenta nuestra, como encargados del tratamiento y con contrato de encargo:</p>
   <ul>
     <li><strong>Hostinger</strong>, nuestro proveedor de alojamiento web, que aloja la web y la copia de seguridad de las solicitudes.</li>
-    <li><strong>n8n GmbH</strong> (Alemania), que automatiza el envío de tu solicitud a nuestro CRM y nuestro aviso interno.</li>
-    <li><strong>HubSpot Spain, S.L.</strong>, del grupo HubSpot, que presta el CRM donde gestionamos los contactos comerciales. Nuestra cuenta está alojada en el centro de datos de HubSpot en la Unión Europea (Alemania).</li>
-    <li><strong>Google Cloud EMEA Limited</strong> (Irlanda), que presta nuestro correo electrónico (Google Workspace), por el que recibimos los avisos de nuevas solicitudes.</li>
+    <li><strong>n8n GmbH</strong> (Alemania), que automatiza el envío de tu solicitud a nuestra hoja de contactos y nuestro aviso interno.</li>
+    <li><strong>Google Cloud EMEA Limited</strong> (Irlanda), que presta nuestro correo electrónico (Google Workspace), por el que recibimos los avisos de nuevas solicitudes, y la hoja de cálculo (Google Sheets) donde guardamos los contactos comerciales y las ventas.</li>
+    {contrata && (<li><strong>Stripe</strong> (Stripe Payments Europe, Limited, Irlanda, y las demás entidades de su grupo), que procesa el pago con tarjeta si contratas el diagnóstico en la web y emite tu factura. Stripe trata los datos de pago según su propia <a href="https://stripe.com/privacy" rel="noopener">política de privacidad</a>; nosotros no recibimos ni guardamos los datos de tu tarjeta.</li>)}
     <li>Los indicados más abajo para la newsletter (Zapier, Inc.) y el asistente (Anthropic, PBC).</li>
   </ul>
   <p>Si alguno de estos proveedores o sus subencargados trata datos fuera del Espacio Económico Europeo, lo hace con garantías adecuadas conforme al RGPD, como las cláusulas contractuales tipo de la Comisión Europea o el Marco de Privacidad de Datos UE-EE. UU.</p>

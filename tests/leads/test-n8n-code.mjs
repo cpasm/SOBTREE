@@ -76,12 +76,12 @@ async function conComercial(cc) {
   const [out] = await run(rawCc, { "x-sobtree-timestamp": ts, "x-sobtree-signature": sigCc });
   return out.json;
 }
-const marcado = await conComercial({ acepta: true, fecha: "2026-10-26T10:00:00+00:00", texto: TEXTO, version_politica: "2026-10-26" });
-t("casilla marcada: nota con fecha, texto y versión, sin propiedad nueva", marcado.valido === true && /Comunicaciones comerciales:<\/strong> sí · 2026-10-26T10:00:00\+00:00 · política 2026-10-26/.test(marcado.nota_html) && marcado.nota_html.includes(TEXTO) && !("sobtree_newsletter_consentimiento" in marcado.props_alta) && Object.keys(marcado.props_alta).filter((k) => k.startsWith("sobtree_")).length === 7);
+const marcado = await conComercial({ acepta: true, fecha: "2026-10-27T10:00:00+00:00", texto: TEXTO, version_politica: "2026-10-27" });
+t("casilla marcada: nota con fecha, texto y versión, sin propiedad nueva", marcado.valido === true && /Comunicaciones comerciales:<\/strong> sí · 2026-10-27T10:00:00\+00:00 · política 2026-10-27/.test(marcado.nota_html) && marcado.nota_html.includes(TEXTO) && !("sobtree_newsletter_consentimiento" in marcado.props_alta) && Object.keys(marcado.props_alta).filter((k) => k.startsWith("sobtree_")).length === 7);
 t("casilla marcada: el aviso lo dice y no hay suscripción", /Comunicaciones comerciales: sí/.test(marcado.aviso_texto) && marcado.aviso_texto.includes(TEXTO) && !/subscribe|communication-preferences/i.test(JSON.stringify(marcado)));
-const sinMarcar = await conComercial({ acepta: false, fecha: "2026-10-26T10:00:00+00:00", texto: "", version_politica: "2026-10-26" });
+const sinMarcar = await conComercial({ acepta: false, fecha: "2026-10-27T10:00:00+00:00", texto: "", version_politica: "2026-10-27" });
 t("casilla sin marcar: la nota dice no y no copia un texto aceptado", sinMarcar.valido === true && /Comunicaciones comerciales:<\/strong> no</.test(sinMarcar.nota_html) && !sinMarcar.nota_html.includes(TEXTO));
-const raro = await conComercial({ acepta: "si", fecha: "2026-10-26T10:00:00+00:00", texto: TEXTO, version_politica: "2026-10-26" });
+const raro = await conComercial({ acepta: "si", fecha: "2026-10-27T10:00:00+00:00", texto: TEXTO, version_politica: "2026-10-27" });
 t("acepta que no es el booleano true no cuenta como sí", raro.valido === true && /Comunicaciones comerciales:<\/strong> no</.test(raro.nota_html));
 const wf = fs.readFileSync(new URL("../../integraciones/n8n/sobtree-lead-a-hubspot.json", import.meta.url), "utf8");
 t("el flujo sigue inactivo y no suscribe por API", /"active": false/.test(wf) && !/communication-preferences|\/subscribe/.test(wf) && !/communication-preferences|\/subscribe/.test(src));
