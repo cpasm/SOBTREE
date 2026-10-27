@@ -91,8 +91,10 @@ function bump(string $file, int $window, int $max): bool {
     flock($fh, LOCK_UN); fclose($fh);
     return $ok;
 }
-$ipHash = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . date('Y-m-d'));
-if (!bump("$dir/ip_$ipHash", 3600, LIMIT_PER_IP_HOUR)) {
+require_once __DIR__ . '/../lib/ip-hash.php';
+// Sin IP_HASH_SECRET no hay identificador de la conexión: el límite por IP no se aplica y la pregunta sigue.
+$ipHash = sobtree_ip_hash($_SERVER['REMOTE_ADDR'] ?? '', date('Y-m-d'));
+if ($ipHash !== null && !bump("$dir/ip_$ipHash", 3600, LIMIT_PER_IP_HOUR)) {
     reply(429, ['error' => 'Has hecho muchas preguntas seguidas. Vuelve a intentarlo en un rato o escríbenos a info@sobtree.com.']);
 }
 if (!bump("$dir/day_" . date('Y-m-d'), 86400, LIMIT_PER_DAY)) {

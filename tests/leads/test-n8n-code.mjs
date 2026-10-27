@@ -85,6 +85,8 @@ const raro = await conComercial({ acepta: "si", fecha: "2026-10-26T10:00:00+00:0
 t("acepta que no es el booleano true no cuenta como sí", raro.valido === true && /Comunicaciones comerciales:<\/strong> no</.test(raro.nota_html));
 const wf = fs.readFileSync(new URL("../../integraciones/n8n/sobtree-lead-a-hubspot.json", import.meta.url), "utf8");
 t("el flujo sigue inactivo y no suscribe por API", /"active": false/.test(wf) && !/communication-preferences|\/subscribe/.test(wf) && !/communication-preferences|\/subscribe/.test(src));
+const prodHost = ["sobtree", "app", "n8n", "cloud"].join(".");
+t("el JSON no lleva la URL de producción: marcador y path del webhook", !wf.includes(prodHost) && wf.includes("${N8N_LEADS_WEBHOOK_URL}") && wf.includes('"path": "sobtree-lead"') && wf.includes("https://<TU-INSTANCIA>.app.n8n.cloud"));
 
 console.log(`\nResultado: ${ok} correctas, ${ko} fallidas`);
 process.exit(ko ? 1 : 0);

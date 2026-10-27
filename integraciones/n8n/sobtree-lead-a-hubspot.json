@@ -549,8 +549,8 @@
     "timezone": "Europe/Madrid"
   },
   "meta": {
-    "instancia": "https://sobtree.app.n8n.cloud",
-    "webhook_produccion": "https://sobtree.app.n8n.cloud/webhook/sobtree-lead"
+    "instancia": "https://<TU-INSTANCIA>.app.n8n.cloud",
+    "webhook_produccion": "${N8N_LEADS_WEBHOOK_URL}"
   },
   "tags": []
 }

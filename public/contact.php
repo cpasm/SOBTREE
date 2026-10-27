@@ -129,7 +129,7 @@ $lead = [
     'calculadora' => $calculadora,
     'asistente' => ['motivo' => $clean('motivo_asistente', 300)],
     'meta' => [
-        'ip_hash' => hash('sha256', $ip . gmdate('Y-m-d')),
+        'ip_hash' => sobtree_ip_hash($ip, gmdate('Y-m-d')),
         'user_agent' => mb_substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 200),
     ],
 ];
