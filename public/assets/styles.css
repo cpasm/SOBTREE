@@ -638,3 +638,46 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .semana.completa { opacity: .6; }
 .contrata-slot { display: grid; gap: 8px; }
 #contrata-pagar { min-height: 48px; white-space: normal; }
+
+
+/* Contrata: selector de semanas compacto, legible y adaptable. */
+#contrata-semanas.semanas {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 4px;
+}
+#contrata-semanas .semana {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+#contrata-semanas .semana input {
+  margin: 0;
+  width: 18px;
+  height: 18px;
+}
+#contrata-semanas .semana:has(input:checked) {
+  background: rgba(106, 162, 255, .12);
+  border-color: var(--accent);
+}
+#contrata-semanas .semana.completa {
+  background: rgba(255,255,255,.035);
+  border-style: dashed;
+}
+#contrata-paso-contacto .contrata-paso-titulo {
+  color: var(--white);
+}
+@media (max-width: 640px) {
+  #contrata-semanas.semanas {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+  #contrata-semanas .semana {
+    padding: 9px 11px;
+  }
+}
