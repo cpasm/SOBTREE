@@ -153,7 +153,7 @@ check "marcada: booleano true, texto, fecha ISO y versión en el registro" 'tail
 \$j=json_decode(stream_get_contents(STDIN), true); \$c=\$j[\"consentimiento_comercial\"] ?? null;
 \$ok=is_array(\$c) && \$c[\"acepta\"]===true && \$c[\"texto\"]===getenv(\"TEXTO_CC\")
   && preg_match(\"/^[0-9]{4}-[0-9]{2}-[0-9]{2}T/\", (string)(\$c[\"fecha\"] ?? \"\"))
-  && \$c[\"version_politica\"]===\"2026-10-26\";
+  && \$c[\"version_politica\"]===\"2026-10-27\";
 exit(\$ok ? 0 : 1);"'
 check "marcada: el webhook recibe el campo dentro del cuerpo firmado" 'tail -1 "$RECV" | TEXTO_CC="$TEXTO_CC" php -r "
 \$j=json_decode(stream_get_contents(STDIN), true); \$c=\$j[\"body\"][\"consentimiento_comercial\"] ?? null;
@@ -162,7 +162,7 @@ CODE=$(post "${VALID[@]}")
 check "sin marcar → 200 (el envío sigue igual)" '[ "$CODE" = 200 ]'
 check "sin marcar: acepta false y texto vacío" 'tail -1 "$LEADS" | php -r "
 \$j=json_decode(stream_get_contents(STDIN), true); \$c=\$j[\"consentimiento_comercial\"] ?? null;
-exit((is_array(\$c) && \$c[\"acepta\"]===false && (\$c[\"texto\"] ?? \"x\")===\"\" && \$c[\"version_politica\"]===\"2026-10-26\") ? 0 : 1);"'
+exit((is_array(\$c) && \$c[\"acepta\"]===false && (\$c[\"texto\"] ?? \"x\")===\"\" && \$c[\"version_politica\"]===\"2026-10-27\") ? 0 : 1);"'
 NLEADS=$(lines "$LEADS")
 CODE=$(post "${VALID[@]}" -d consentimiento_comercial=quizas)
 check "valor inválido → 422 y no se guarda" '[ "$CODE" = 422 ] && [ "$(lines "$LEADS")" = "$NLEADS" ]'

@@ -16,7 +16,7 @@ declare(strict_types=1);
 
 const LEADS_SCHEMA_VERSION = 1;
 // Versión publicada en /privacidad/ (POLITICA_VERSION en src/data/site.ts). Va firmada con el lead.
-const LEADS_POLITICA_VERSION = '2026-10-26';
+const LEADS_POLITICA_VERSION = '2026-10-27';
 // Texto exacto de la casilla opcional (COMERCIAL_CONSENT_TEXT en src/data/site.ts). Sin el enlace.
 const LEADS_COMERCIAL_TEXTO = 'Quiero recibir comunicaciones comerciales de Sobtree (novedades, análisis y ofertas) por email. Puedes darte de baja cuando quieras.';
 const LEADS_WEBHOOK_TIMEOUT = 10;       // segundos en total (el visitante ya tiene su respuesta)
