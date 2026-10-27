@@ -25,7 +25,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Contrata (botón, /contratar/ y /condiciones/) se publica con el flag encendido. Sin secretos: son claves públicas de build.
+      # Para apagarlo sin tocar código: variable del repo PUBLIC_CONTRATA_ACTIVO = 0 (Settings → Variables) y relanzar el workflow.
       - run: npm run build
+        env:
+          PUBLIC_CONTRATA_ACTIVO: ${{ vars.PUBLIC_CONTRATA_ACTIVO || '1' }}
       # Dependencias del asistente (api/asistente.php): SDK de Claude para PHP.
       - uses: shivammathur/setup-php@v2
         with:

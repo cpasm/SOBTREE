@@ -1,7 +1,10 @@
 import { defineConfig } from "astro/config";
 import mdx from "@astrojs/mdx";
 import sitemap from "@astrojs/sitemap";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, rmSync } from "node:fs";
+import http from "node:http";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 // /analisis/ y /radar/ solo entran en el sitemap cuando tienen algo publicado (sin draft: true).
 const hasPublished = (name) => {
@@ -27,9 +30,70 @@ const indexable = (page) => {
   if (empty.some((c) => path.startsWith(`/${c}/`))) return false;
   if (path.startsWith("/calculadora/") && path !== "/calculadora/") return false;
   if (path.startsWith("/lib/") || path.startsWith("/api/")) return false;
+  // Con el flag encendido /contratar/ y /condiciones/ son públicas e indexables; la confirmación de pago, no.
+  // Con el flag apagado no existen: ni en el sitemap ni en el build.
+  const contrataOn = process.env.PUBLIC_CONTRATA_ACTIVO === "1";
+  if ((path.startsWith("/contratar/") || path.startsWith("/condiciones/")) && !contrataOn) return false;
+  if (path.startsWith("/contratar/") && path !== "/contratar/") return false;
   if (/\/(gracias|thanks|thank-you|error)(\/|$)/i.test(path)) return false;
   return true;
 };
+
+// Con el flag apagado el build no publica /contratar/ ni /condiciones/. El botón tampoco se pinta.
+// En ningún caso se publica api/contrata/sim/ (simulador de pago).
+function quitarContrataSiApagado() {
+  return {
+    name: "contrata-no-publicar",
+    hooks: {
+      "astro:build:done": ({ dir }) => {
+        // El checkout simulado es una herramienta de pruebas: nunca va a producción (además, api/.htaccess lo deniega).
+        rmSync(path.join(fileURLToPath(dir), "api", "contrata", "sim"), { recursive: true, force: true });
+        if (process.env.PUBLIC_CONTRATA_ACTIVO === "1") return;
+        rmSync(path.join(fileURLToPath(dir), "contratar"), { recursive: true, force: true });
+        rmSync(path.join(fileURLToPath(dir), "condiciones"), { recursive: true, force: true });
+      }
+    }
+  };
+}
+
+const phpOrigin = process.env.CONTRATA_PHP_ORIGIN;
+
+// Vite sirve antes lo que ya está en public/, así que server.proxy no llega a
+// ejecutar los PHP. En dev, este middleware va delante y los reenvía a php -S.
+function proxyPhpEnDev(origin) {
+  if (!origin) return { name: "contrata-php-dev", hooks: {} };
+  let destino;
+  try { destino = new URL(origin); } catch { return { name: "contrata-php-dev", hooks: {} }; }
+  const local = destino.protocol === "http:" && (destino.hostname === "127.0.0.1" || destino.hostname === "localhost");
+  if (!local) return { name: "contrata-php-dev", hooks: {} };
+  return {
+    name: "contrata-php-dev",
+    hooks: {
+      "astro:server:setup": ({ server }) => {
+        server.middlewares.use((req, res, next) => {
+          const url = req.url || "/";
+          const ruta = url.split("?")[0];
+          if (!(ruta.startsWith("/api/") || ruta === "/contact.php")) return next();
+          const preq = http.request({
+            hostname: destino.hostname,
+            port: destino.port,
+            method: req.method,
+            path: url,
+            headers: { ...req.headers, host: destino.host }
+          }, (pres) => {
+            res.writeHead(pres.statusCode || 502, pres.headers);
+            pres.pipe(res);
+          });
+          preq.on("error", () => {
+            if (!res.headersSent) res.statusCode = 502;
+            res.end();
+          });
+          req.pipe(preq);
+        });
+      }
+    }
+  };
+}
 
 export default defineConfig({
   site: "https://sobtree.com",
@@ -37,6 +101,8 @@ export default defineConfig({
   trailingSlash: "always",
   integrations: [
     mdx(),
-    sitemap({ filter: indexable })
+    sitemap({ filter: indexable }),
+    quitarContrataSiApagado(),
+    proxyPhpEnDev(phpOrigin)
   ]
 });

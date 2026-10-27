@@ -20,4 +20,22 @@ return [
     // 'LEADS_DIR' => '/home/<usuario>/domains/sobtree.com/sobtree-leads',
     // 'LEADS_NOTIFY_TO' => 'info@sobtree.com',
     // 'LEADS_NOTIFY_FROM' => 'info@sobtree.com',   // por defecto; usa solo un buzón o alias que exista
+
+    // Botón Contrata (api/contrata + lib/contrata.php). Solo los nombres: los valores reales van en
+    // sobtree-secrets.php (fuera de public_html), nunca en el repositorio. Mira docs/contrata.md.
+    //
+    // MODO: apagado (vacío) | simulacion | stripe_test | stripe_live. La clave de Stripe tiene que ser del mismo
+    // modo: rk_test_/sk_test_ para stripe_test y rk_live_/sk_live_ para stripe_live; si no, el pago no se abre.
+    'CONTRATA_MODO' => '',
+    // ---- SECRETOS (no se muestran ni se suben a ningún sitio)
+    'STRIPE_RESTRICTED_KEY' => '',   // rk_live_… (clave restringida: Checkout Sessions, Customers y Prices en lectura/escritura mínima)
+    'STRIPE_WEBHOOK_SECRET' => '',   // whsec_… del endpoint del webhook
+    'CONTRATA_HMAC_SECRET' => '',    // openssl rand -hex 32; el mismo valor se pega en los dos flujos de n8n (constante SECRET)
+    // ---- IDs y URLs (no son secretos, pero tampoco se suben con valores reales)
+    'STRIPE_PRICE_DIAGNOSTICO' => '', // price_… (592,90 € EUR, IVA incluido). Un Price por servicio: STRIPE_PRICE_<ID EN MAYÚSCULAS>
+    'STRIPE_TAX_RATE_IVA21' => '',    // txr_… (IVA 21 % incluido, ES). Lo crea scripts/stripe-preparar.php
+    'CONTRATA_N8N_WEBHOOK_URL' => '', // URL de producción del webhook de «Sobtree · Contrata» (https). Vacía = no se abre el pago en live
+    // 'CONTRATA_PUBLIC_URL' => 'https://sobtree.com',
+    // 'CONTRATA_DIR' => '/home/<usuario>/domains/sobtree.com/sobtree-contrata',
+    // Los IDs de calendario NO van aquí: los lee n8n (build-contrata.mjs, CONTRATA_CAL_ID = info@sobtree.com).
 ];

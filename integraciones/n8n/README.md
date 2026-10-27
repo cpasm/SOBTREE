@@ -60,3 +60,13 @@ Nativas que se reutilizan: `email`, `firstname`, `lastname`, `phone`, `jobtitle`
 | `sobtree_contexto_lead` | Contexto del lead (calculadora/asistente) | Texto de varias líneas | resumen de la calculadora y motivo del asistente |
 
 Grupo: «Sobtree» (ver la ficha en Drive para el estado de creación).
+
+## Contrata (Stripe, hoja y calendario)
+
+Workflows aparte, con `"active": false` al importarlos. No comparten el secreto de los leads. Detalle en `docs/contrata.md`.
+
+- `sobtree-disponibilidad.json`: «Sobtree · Disponibilidad». Cada hora lee **un** calendario (info@sobtree.com), clasifica los eventos (`CONTRATA ·` = proyecto, `BLOQUEO` = bloqueo a mano, el resto se ignora) y publica las semanas en la web.
+- `sobtree-contrata.json`: «Sobtree · Contrata». Verifica el HMAC del aviso, escribe la venta (con NIF) en «Ventas» e «Historial», crea el evento `CONTRATA · …` y avisa a info@. Un reembolso cambia `estado` en «Ventas». No guarda las ejecuciones correctas.
+- `contrata-verificar.js` y `build-contrata.mjs`: fuente y regeneración (`node integraciones/n8n/build-contrata.mjs`; opciones en la cabecera del script).
+
+La constante `SECRET` de cada flujo se pega en n8n (nunca en el repositorio). Credenciales solo por nombre (`REEMPLAZAR_ID_CREDENCIAL`).

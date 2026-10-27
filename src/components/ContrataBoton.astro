@@ -1,0 +1,53 @@
+---
+// Botón «Contrata». Con el flag apagado no pinta nada.
+// Si la disponibilidad falla, el enlace pasa al formulario y no hay cifra de escasez.
+import { CONTRATA } from "../data/contrata";
+import { DIAGNOSTICO } from "../data/site";
+import { TEXTO_RESERVA } from "../data/contrata-logica.mjs";
+---
+{CONTRATA.activo && (
+  <div class="contrata-slot" data-disponibilidad={CONTRATA.endpoints.disponibilidad} data-reserva={TEXTO_RESERVA}>
+    <a class="btn btn-primary btn-block" id="contrata-boton" href="/contratar/" data-producto="diagnostico" data-precio={DIAGNOSTICO.precio}>Contrata</a>
+    <p class="fine" id="contrata-nota" hidden></p>
+    <script is:inline>
+      (function () {
+        var slot = document.querySelector(".contrata-slot");
+        var boton = document.getElementById("contrata-boton");
+        var nota = document.getElementById("contrata-nota");
+        if (!slot || !boton || !nota) return;
+        var reserva = slot.getAttribute("data-reserva") || "";
+        function segura(s) {
+          return typeof s === "string" && s.length > 0 && s.length < 180 && s.indexOf("<") === -1 && s.indexOf(">") === -1 &&
+            (/^Queda 1 plaza para la semana del \d{1,2} de [a-záéíóúñ]+( de \d{4})?$/.test(s) ||
+             /^Quedan [2-9]\d* plazas para la semana del \d{1,2} de [a-záéíóúñ]+( de \d{4})?$/.test(s) ||
+             /^Nuestros agentes pueden empezar a partir del lunes \d{1,2} de [a-záéíóúñ]+( de \d{4})?$/.test(s) ||
+             s === "No hay plazas en las próximas 4 semanas.");
+        }
+        function aplicar(disp) {
+          if (!disp || disp.ok !== true) {
+            boton.textContent = reserva;
+            boton.setAttribute("href", "/#contacto");
+            nota.hidden = true;
+            nota.textContent = "";
+            return;
+          }
+          boton.textContent = "Contrata";
+          boton.setAttribute("href", "/contratar/");
+          var partes = [];
+          if (disp.proxima && segura(disp.proxima.texto)) partes.push(disp.proxima.texto);
+          var semanas = Array.isArray(disp.semanas) ? disp.semanas : [];
+          var conPlaza = null;
+          for (var i = 0; i < semanas.length; i++) if (semanas[i] && semanas[i].libres >= 1) { conPlaza = semanas[i]; break; }
+          if (conPlaza && segura(conPlaza.texto_plazas)) partes.push(conPlaza.texto_plazas);
+          if (!conPlaza && segura(disp.sin_plazas_texto)) partes.push(disp.sin_plazas_texto);
+          if (partes.length) { nota.hidden = false; nota.textContent = partes.join(" "); }
+          else { nota.hidden = true; nota.textContent = ""; }
+        }
+        fetch(slot.getAttribute("data-disponibilidad"), { headers: { Accept: "application/json" } })
+          .then(function (r) { return r.json(); })
+          .then(aplicar)
+          .catch(function () { aplicar(null); });
+      })();
+    </script>
+  </div>
+)}

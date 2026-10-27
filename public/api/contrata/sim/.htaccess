@@ -1,0 +1,3 @@
+# El simulador de Checkout no es público. Apache lo niega siempre.
+# php -S (solo la demo local) ignora este fichero; el script exige CONTRATA_MODO=simulacion.
+Require all denied

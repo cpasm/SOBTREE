@@ -141,13 +141,19 @@ function textosDiagnostico(d = DIAGNOSTICO) {
     calcSinContratar,
     calcSupuesto,
     corpus,
-    llmsPaso: `Diagnóstico IA exprés (1 semana, ${conCondiciones}): qué tareas automatizar, cuánto ahorras y cuánto cuesta.`,
-    llmsIntro: `El punto de entrada es un diagnóstico IA exprés de 1 semana (${conCondiciones.replace(/\.$/, "")}). Sede en Madrid; trabaja en remoto para toda España.`,
-    duracionServicio: `1 semana · ${conCondiciones}`
+    llmsPaso: `Diagnóstico IA exprés (máximo 10 días laborables, ${conCondiciones}): qué tareas automatizar, cuánto ahorras y cuánto cuesta.`,
+    llmsIntro: `El punto de entrada es un diagnóstico IA exprés con el informe en un máximo de 10 días laborables (${conCondiciones.replace(/\.$/, "")}). Sede en Madrid; trabaja en remoto para toda España.`,
+    duracionServicio: `Máximo 10 días laborables · ${conCondiciones}`
   };
 }
 
 export const TEXTOS = textosDiagnostico();
+
+// Plazo de entrega del informe del diagnóstico (contractual). Se reserva una semana de calendario, pero al cliente se le dice esto.
+// Condiciones de contratación (/condiciones/). Tiene que coincidir con CONTRATA_CONDICIONES_VERSION en public/lib/contrata.php.
+export const CONDICIONES_VERSION = "2026-10-27";
+export const CONDICIONES_FECHA = "27 de octubre de 2026";
+export const PLAZO_DIAGNOSTICO = "máximo 10 días laborables";
 
 // Precios cerrados, IVA no incluido. La calculadora lee cfgPrecio() desde esta misma fuente.
 export const SERVICES = [

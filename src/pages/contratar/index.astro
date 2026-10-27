@@ -1,0 +1,192 @@
+---
+import Base from "../../layouts/Base.astro";
+import { CONTRATA, SERVICIOS, serviciosConImportes } from "../../data/contrata";
+import { DIAGNOSTICO, POLITICA_VERSION, TEXTOS, PLAZO_DIAGNOSTICO } from "../../data/site";
+import { euros, TEXTO_RESERVA } from "../../data/contrata-logica.mjs";
+
+const activo = CONTRATA.activo;
+const precio = CONTRATA.importes;
+const varios = SERVICIOS.length > 1;
+---
+{activo ? (
+<Base title="Contrata el diagnóstico | Sobtree" description="Diagnóstico IA exprés a precio cerrado, con IVA, para empresas y autónomos.">
+<main id="main" class="section">
+  <div class="wrap" style="max-width: 760px;">
+    <p class="eyebrow">Diagnóstico IA exprés</p>
+    <h1>Contrata</h1>
+    <p class="section-sub">Un diagnóstico, una semana de inicio y el pago. El precio sale del diagnóstico publicado en la web: {DIAGNOSTICO.precio} € + IVA ({CONTRATA.ivaPorciento} %).</p>
+
+    <div class="contrata-precio" id="contrata-precio" data-base={DIAGNOSTICO.precio} data-total={precio.totalCentimos} data-iva={CONTRATA.ivaPorciento}>
+      <p>Base <strong>{euros(precio.baseCentimos)}</strong></p>
+      <p>IVA {CONTRATA.ivaPorciento} % <strong>{euros(precio.ivaCentimos)}</strong></p>
+      <p class="contrata-total">Total {euros(precio.totalCentimos)}</p>
+    </div>
+    <p>{TEXTOS.lineaCorta} {TEXTOS.condiciones}</p>
+    <p class="fine" style="text-align:left">La fecha de inicio se confirma por email en 1 día laborable; si no fuera posible, te ofrecemos otra semana o el reembolso íntegro. El informe del diagnóstico se entrega en un {PLAZO_DIAGNOSTICO}. La plaza se reserva 30 minutos mientras pagas.</p>
+
+    <div id="contrata-estado" role="status" class="form-status"></div>
+    <noscript>
+      <p>Para ver las semanas hace falta JavaScript. Si no puedes usarlo, <a href="/#contacto">{TEXTO_RESERVA}</a>.</p>
+    </noscript>
+
+    <form class="contact" id="contrata-form" hidden>
+      {varios ? (
+        <fieldset class="semanas" id="contrata-servicios">
+          <legend>Elige el servicio</legend>
+          {serviciosConImportes.map((sv, i) => (
+            <label class="semana">
+              <input type="radio" name="servicio" value={sv.id} checked={i === 0} required data-total={sv.importes.totalCentimos} data-base={sv.importes.baseCentimos} />
+              <span>{sv.nombre} · {euros(sv.importes.totalCentimos)} con IVA</span>
+            </label>
+          ))}
+        </fieldset>
+      ) : (
+        <p class="contrata-servicio" id="contrata-servicio" data-servicio={serviciosConImportes[0].id}>Servicio: <strong>{serviciosConImportes[0].nombre}</strong> · {euros(serviciosConImportes[0].importes.totalCentimos)} con IVA</p>
+      )}
+      <fieldset class="semanas" id="contrata-semanas">
+        <legend>Elige la semana de inicio</legend>
+      </fieldset>
+      <div class="row-2">
+        <label>Empresa<input name="empresa" id="contrata-empresa" autocomplete="organization" maxlength="200" required></label>
+        <label>Email de la empresa<input name="email" id="contrata-email" type="email" autocomplete="email" maxlength="254" required></label>
+      </div>
+      <label>NIF o CIF
+        <input name="nif" id="contrata-nif" autocomplete="off" maxlength="20" required inputmode="text" spellcheck="false" aria-describedby="ayuda-nif">
+      </label>
+      <p id="ayuda-nif" class="fine" style="text-align:left">Solo empresas y autónomos con NIF o CIF español. Comprobamos el formato y lo usamos para tu factura, que recibirás por email tras el pago. Stripe te pedirá la dirección de facturación.</p>
+      <label class="hp" aria-hidden="true">No rellenar<input name="web" tabindex="-1" autocomplete="off"></label>
+      <label class="consent"><input type="checkbox" name="condiciones" id="contrata-condiciones" value="si" required><span>Acepto las <a href="/condiciones/">condiciones de contratación</a> y la <a href="/privacidad/">política de privacidad</a> (versión {POLITICA_VERSION}). El pago lo procesa Stripe en su página.</span></label>
+      <button class="btn btn-primary" type="submit" id="contrata-pagar">Pagar {euros(precio.totalCentimos)}</button>
+      <p class="fine" style="text-align:left"><a href="/#contacto">Prefiero que me confirméis la fecha</a></p>
+    </form>
+  </div>
+</main>
+<script is:inline define:vars={{ endpointDisp: CONTRATA.endpoints.disponibilidad, endpointPago: CONTRATA.endpoints.crearSesion, reserva: TEXTO_RESERVA, baseEsperada: DIAGNOSTICO.precio, totalEsperado: precio.totalCentimos, serviciosEsperados: serviciosConImportes.map((sv) => ({ id: sv.id, total: sv.importes.totalCentimos, base: sv.importes.baseCentimos })) }}>
+(function () {
+  var estado = document.getElementById("contrata-estado");
+  var form = document.getElementById("contrata-form");
+  var lista = document.getElementById("contrata-semanas");
+  var precioBox = document.getElementById("contrata-precio");
+  var datos = null;
+  if (new URLSearchParams(location.search).get("cancelado") === "1" && estado) {
+    estado.textContent = "Has vuelto sin pagar. La reserva de la plaza caduca a los 30 minutos.";
+  }
+  function fallo() {
+    if (form) form.hidden = true;
+    if (estado) estado.innerHTML = "";
+    if (estado) {
+      estado.textContent = reserva + " ";
+      var a = document.createElement("a");
+      a.href = "/#contacto";
+      a.textContent = "Ir al formulario";
+      estado.appendChild(a);
+    }
+  }
+  function textoSemana(iso) {
+    var p = iso.split("-");
+    var meses = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+    return "Lunes " + Number(p[2]) + " de " + meses[Number(p[1]) - 1];
+  }
+  fetch(endpointDisp, { headers: { Accept: "application/json" } })
+    .then(function (r) { return r.json(); })
+    .then(function (disp) {
+      if (!disp || disp.ok !== true || !disp.precio || disp.precio.base_centimos !== baseEsperada * 100 || disp.precio.total_centimos !== totalEsperado) {
+        fallo();
+        return;
+      }
+      // Los servicios y sus importes que anuncia el servidor tienen que ser los que muestra la página.
+      var lista_s = disp.servicios || [];
+      var cuadra = serviciosEsperados.every(function (e) {
+        return lista_s.some(function (r) { return r.id === e.id && r.total_centimos === e.total && r.base_centimos === e.base; });
+      });
+      if (!cuadra) { fallo(); return; }
+      datos = disp;
+      if (!lista || !form) return;
+      var hay = false;
+      (disp.semanas || []).forEach(function (s, i) {
+        var id = "semana-" + i;
+        var label = document.createElement("label");
+        label.className = "semana" + (s.libres < 1 ? " completa" : "");
+        var input = document.createElement("input");
+        input.type = "radio";
+        input.name = "semana";
+        input.value = s.lunes;
+        input.id = id;
+        input.required = true;
+        if (s.libres < 1) input.disabled = true;
+        else if (!hay) { input.checked = true; hay = true; }
+        var span = document.createElement("span");
+        var linea = textoSemana(s.lunes);
+        if (s.libres < 1) linea += " · Sin plazas esta semana";
+        else if (s.texto_plazas) linea += " · " + s.texto_plazas;
+        span.textContent = linea;
+        label.appendChild(input);
+        label.appendChild(span);
+        lista.appendChild(label);
+      });
+      if (!hay && disp.sin_plazas_texto && estado) estado.textContent = disp.sin_plazas_texto;
+      form.hidden = false;
+      if (precioBox) precioBox.setAttribute("data-listo", "1");
+    })
+    .catch(fallo);
+
+  // Con más de un servicio, el desglose y el botón siguen al servicio elegido.
+  function eur(c) { return (c / 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €"; }
+  if (form) form.addEventListener("change", function (ev) {
+    var r = ev.target;
+    if (!r || r.name !== "servicio") return;
+    var total = Number(r.getAttribute("data-total")), base = Number(r.getAttribute("data-base"));
+    var tt = document.querySelector(".contrata-total"), pb = document.getElementById("contrata-pagar");
+    var ps = precioBox ? precioBox.querySelectorAll("strong") : [];
+    if (ps.length > 1) { ps[0].textContent = eur(base); ps[1].textContent = eur(total - base); }
+    if (tt) tt.textContent = "Total " + eur(total);
+    if (pb) pb.textContent = "Pagar " + eur(total);
+  });
+
+  if (form) form.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var marcada = form.querySelector("input[name=semana]:checked");
+    var status = document.getElementById("contrata-estado");
+    if (!datos || !datos.csrf || !marcada) {
+      if (status) status.textContent = "Elige una semana con plazas.";
+      return;
+    }
+    var elegido = form.querySelector("input[name=servicio]:checked");
+    var fijo = document.getElementById("contrata-servicio");
+    var producto = elegido ? elegido.value : (fijo ? fijo.getAttribute("data-servicio") : "");
+    var body = {
+      producto: producto,
+      semana: marcada.value,
+      csrf: datos.csrf,
+      empresa: document.getElementById("contrata-empresa").value,
+      email: document.getElementById("contrata-email").value,
+      nif: document.getElementById("contrata-nif").value,
+      condiciones: document.getElementById("contrata-condiciones").checked ? "si" : "",
+      web: (form.querySelector("input[name=web]") || {}).value || ""
+    };
+    try {
+      var o = JSON.parse(sessionStorage.getItem("sobtree_origen") || "null");
+      if (o && o.utm) Object.keys(o.utm).forEach(function (k) { body[k] = o.utm[k]; });
+    } catch (e) {}
+    var boton = document.getElementById("contrata-pagar");
+    if (boton) boton.disabled = true;
+    fetch(endpointPago, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().then(function (j) { return { okhttp: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (res.j && res.j.ok && res.j.url) { location.href = res.j.url; return; }
+        if (status) status.textContent = (res.j && res.j.error) || "No hemos podido abrir el pago; inténtalo en un minuto o escríbenos.";
+        if (boton) boton.disabled = false;
+      })
+      .catch(function () {
+        if (status) status.textContent = "No hemos podido abrir el pago; inténtalo en un minuto o escríbenos.";
+        if (boton) boton.disabled = false;
+      });
+  });
+})();
+</script>
+</Base>
+) : (
+<Base title="Sobtree" noindex={true}>
+<main id="main" class="section"><div class="wrap"><p>Esta página no está publicada.</p></div></main>
+</Base>
+)}
