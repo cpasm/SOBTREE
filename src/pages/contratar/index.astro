@@ -15,7 +15,7 @@ const varios = SERVICIOS.length > 1;
     <div class="contrata-heading">
       <p class="eyebrow">Diagnóstico IA exprés</p>
       <h1>Contrata tu diagnóstico</h1>
-      <p class="section-sub">Elige una semana de inicio, completa los datos de tu empresa y paga de forma segura.</p>
+      <p class="section-sub">Primero elige la semana de inicio. Después completarás los datos de contacto y facturación.</p>
     </div>
     <section class="contrata-resumen" aria-label="Resumen del servicio">
       <div class="contrata-resumen-precio">
@@ -53,9 +53,15 @@ const varios = SERVICIOS.length > 1;
       ) : (
         <p class="contrata-servicio" id="contrata-servicio" data-servicio={serviciosConImportes[0].id}>Servicio: <strong>{serviciosConImportes[0].nombre}</strong> · {euros(serviciosConImportes[0].importes.totalCentimos)} con IVA</p>
       )}
+      <div id="contrata-paso-semana">
       <fieldset class="semanas" id="contrata-semanas">
-        <legend>Elige la semana de inicio</legend>
+        <legend>1. Elige la semana de inicio</legend>
       </fieldset>
+      <p class="fine contrata-ayuda-semana">La fecha es la semana prevista de inicio, de lunes a viernes. Te confirmaremos el día exacto por email.</p>
+      <button class="btn btn-primary" type="button" id="contrata-continuar">Continuar a los datos de contacto</button>
+      </div>
+      <section id="contrata-paso-contacto" hidden aria-label="Datos de contacto y facturación">
+      <h2 class="contrata-paso-titulo">2. Datos de contacto y facturación</h2>
       <div class="row-2">
         <label>Empresa<input name="empresa" id="contrata-empresa" autocomplete="organization" maxlength="200" required></label>
         <label>Email de la empresa<input name="email" id="contrata-email" type="email" autocomplete="email" maxlength="254" required></label>
@@ -66,8 +72,12 @@ const varios = SERVICIOS.length > 1;
       <p id="ayuda-nif" class="fine" style="text-align:left">Solo empresas y autónomos con NIF o CIF español. Comprobamos el formato y lo usamos para tu factura, que recibirás por email tras el pago. Stripe te pedirá la dirección de facturación.</p>
       <label class="hp" aria-hidden="true">No rellenar<input name="web" tabindex="-1" autocomplete="off"></label>
       <label class="consent"><input type="checkbox" name="condiciones" id="contrata-condiciones" value="si" required><span>Acepto las <a href="/condiciones/">condiciones de contratación</a> y la <a href="/privacidad/">política de privacidad</a> (versión {POLITICA_VERSION}). El pago lo procesa Stripe en su página.</span></label>
-      <button class="btn btn-primary" type="submit" id="contrata-pagar">Pagar {euros(precio.totalCentimos)}</button>
+      <div class="contrata-acciones">
+        <button class="btn btn-ghost" type="button" id="contrata-volver">Volver a elegir semana</button>
+        <button class="btn btn-primary" type="submit" id="contrata-pagar">Pagar {euros(precio.totalCentimos)}</button>
+      </div>
       <p class="fine" style="text-align:left"><a href="/#contacto">Prefiero que me confirméis la fecha</a></p>
+      </section>
     </form>
   </div>
 </main>
@@ -157,6 +167,28 @@ const varios = SERVICIOS.length > 1;
     if (pb) pb.textContent = "Pagar " + eur(total);
   });
 
+  var pasoSemana = document.getElementById("contrata-paso-semana");
+  var pasoContacto = document.getElementById("contrata-paso-contacto");
+  var continuar = document.getElementById("contrata-continuar");
+  var volver = document.getElementById("contrata-volver");
+  if (continuar) continuar.addEventListener("click", function () {
+    var elegida = form && form.querySelector("input[name=semana]:checked");
+    if (!elegida) {
+      if (estado) estado.textContent = "Elige una semana disponible para continuar.";
+      return;
+    }
+    if (estado) estado.textContent = "";
+    if (pasoSemana) pasoSemana.hidden = true;
+    if (pasoContacto) pasoContacto.hidden = false;
+    var empresa = document.getElementById("contrata-empresa");
+    if (empresa) empresa.focus();
+  });
+  if (volver) volver.addEventListener("click", function () {
+    if (pasoContacto) pasoContacto.hidden = true;
+    if (pasoSemana) pasoSemana.hidden = false;
+    if (continuar) continuar.focus();
+  });
+
   if (form) form.addEventListener("submit", function (ev) {
     ev.preventDefault();
     var marcada = form.querySelector("input[name=semana]:checked");
@@ -215,6 +247,12 @@ const varios = SERVICIOS.length > 1;
   .contrata-status:empty { display: none; }
   .contrata-status:not(:empty) { margin: 0.75rem 0; padding: 0.75rem 0.9rem; border-radius: 10px; background: var(--surface-alt, #f3f5f9); }
   #contrata-form { margin-top: 0.75rem; }
+  #contrata-paso-semana[hidden], #contrata-paso-contacto[hidden] { display: none !important; }
+  .contrata-ayuda-semana { text-align: left; margin: 0.65rem 0 0.9rem; }
+  .contrata-paso-titulo { font-size: 1.25rem; margin: 0 0 1rem; }
+  .contrata-acciones { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; }
+  .contrata-acciones .btn { white-space: normal; }
+  #contrata-continuar { width: 100%; margin-top: 0.25rem; }
   @media (max-width: 640px) {
     .contrata-resumen { grid-template-columns: 1fr; gap: 0.85rem; padding: 1rem; }
     .contrata-resumen-precio { padding: 0 0 0.85rem; border-right: 0; border-bottom: 1px solid var(--line, #d9deea); }
