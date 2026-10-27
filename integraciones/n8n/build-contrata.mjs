@@ -81,6 +81,8 @@ const code = (id, name, js, x, y) => ({
   parameters: { jsCode: js }
 });
 
+const HOJA_ID = "1EWlyQCodNmxIwOvljQuyM1ZOq1s7QlNZVkPEydyNizQ"; // «Sobtree · Contactos». No es un secreto.
+const COLUMNAS_VENTAS = ["fecha", "id_sesion_stripe", "empresa", "nif", "email", "producto", "importe_sin_iva", "iva", "total", "semana_reservada", "estado"];
 const cred = (tipo, nombre) => ({ [tipo]: { id: "REEMPLAZAR_ID_CREDENCIAL", name: nombre } });
 
 const disponibilidad = {
@@ -264,7 +266,7 @@ const contrata = {
       typeVersion: 1,
       position: [-40, -240],
       parameters: {
-        content: "## Simulación\n\nEl deal de HubSpot está DESHABILITADO: no se han pedido permisos de deals.\nCalendario, Gmail y HubSpot no se ejecutan. La respuesta es un acuse simulado.\nCredenciales por nombre. Secreto: REEMPLAZAR_EN_N8N, el mismo que CONTRATA_HMAC_SECRET.",
+        content: "## Simulación\n\nEl nodo «Añadir fila en Ventas» (hoja «Sobtree · Contactos») está DESHABILITADO.\nCalendario, Gmail y la hoja no se ejecutan. La respuesta es un acuse simulado.\nCredenciales por nombre. Secreto: REEMPLAZAR_EN_N8N, el mismo que CONTRATA_HMAC_SECRET.",
         width: 540,
         height: 200,
         color: 5
@@ -345,29 +347,33 @@ const contrata = {
       position: [1120, 120],
       parameters: {
         respondWith: "json",
-        responseBody: "={{ JSON.stringify({ ok: true, simulado: true, aviso: true, deal: $json.deal, evento_calendario: $json.evento_calendario, email: $json.email }) }}",
+        responseBody: "={{ JSON.stringify({ ok: true, simulado: true, aviso: true, venta: $json.venta_hoja, evento_calendario: $json.evento_calendario, email: $json.email }) }}",
         options: { responseCode: 200 }
       }
     },
     {
       id: "c0a1b002-0000-4000-8000-000000000008",
-      name: "Crear deal (SIMULADO — deshabilitado)",
-      type: "n8n-nodes-base.httpRequest",
-      typeVersion: 4.2,
+      name: "Añadir fila en Ventas",
+      type: "n8n-nodes-base.googleSheets",
+      typeVersion: 4.7,
       disabled: true,
       position: [1120, -120],
       parameters: {
-        method: "POST",
-        url: "https://api.hubapi.com/crm/v3/objects/deals",
-        authentication: "predefinedCredentialType",
-        nodeCredentialType: "hubspotAppToken",
-        sendBody: true,
-        specifyBody: "json",
-        jsonBody: "={{ JSON.stringify({ properties: { dealname: $json.deal_nombre } }) }}",
-        options: {}
+        authentication: "oAuth2",
+        resource: "sheet",
+        operation: "appendOrUpdate",
+        documentId: { __rl: true, mode: "id", value: HOJA_ID },
+        sheetName: { __rl: true, mode: "name", value: "Ventas" },
+        columns: {
+          mappingMode: "defineBelow",
+          value: Object.fromEntries(COLUMNAS_VENTAS.filter((c) => c !== "nif").map((c) => [c, `={{ $json.venta.${c} }}`])),
+          matchingColumns: ["id_sesion_stripe"],
+          schema: COLUMNAS_VENTAS.filter((c) => c !== "nif").map((c) => ({ id: c, displayName: c, required: false, defaultMatch: c === "id_sesion_stripe", display: true, type: "string", canBeUsedToMatch: true, removed: false }))
+        },
+        options: { cellFormat: "RAW" }
       },
-      credentials: cred("hubspotAppToken", "HubSpot Service Key account"),
-      notes: "SIMULADO Y DESHABILITADO. Crear el deal exige crm.objects.deals.read/write. Esos permisos no se han pedido ni se tocan en v1."
+      credentials: cred("googleSheetsOAuth2Api", "Google Sheets Sobtree (info@)"),
+      notes: "DESHABILITADO en v1. Añade o actualiza (por id_sesion_stripe, sin duplicar) una fila en la pestaña «Ventas» de «Sobtree · Contactos». Credencial: marcador de posición, se elige en n8n. La columna nif no se escribe (el aviso no lo lleva): se rellena a mano y un reintento no la borra."
     },
     {
       id: "c0a1b002-0000-4000-8000-000000000009",
@@ -412,10 +418,10 @@ const contrata = {
       [{ node: "Responder 401", type: "main", index: 0 }]
     ] },
     "¿Rama real?": { main: [
-      [{ node: "Crear deal (SIMULADO — deshabilitado)", type: "main", index: 0 }],
+      [{ node: "Añadir fila en Ventas", type: "main", index: 0 }],
       [{ node: "Responder 200 simulado", type: "main", index: 0 }]
     ] },
-    "Crear deal (SIMULADO — deshabilitado)": { main: [[{ node: "Evento en Proyectos (DESHABILITADO)", type: "main", index: 0 }]] },
+    "Añadir fila en Ventas": { main: [[{ node: "Evento en Proyectos (DESHABILITADO)", type: "main", index: 0 }]] },
     "Evento en Proyectos (DESHABILITADO)": { main: [[{ node: "Correo al cliente (DESHABILITADO)", type: "main", index: 0 }]] }
   }
 };

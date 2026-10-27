@@ -1,5 +1,5 @@
 <?php
-// n8n simulado: comprueba el HMAC y responde. No llama a HubSpot, Google ni Gmail.
+// n8n simulado: comprueba el HMAC y responde. No llama a Google Sheets, Google Calendar ni Gmail.
 // php -S 127.0.0.1:PUERTO tests/contrata/mock-n8n.php
 // MOCK_SECRET, MOCK_DIR. MOCK_DIR/mode = 200 | 500 | sleep
 declare(strict_types=1);

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Las 15 pruebas del diseño de Contrata, con simulación local.
-# No llama a Stripe, Google, HubSpot ni n8n reales. No cobra y no envía correo.
+# No llama a Stripe, Google ni n8n reales. No cobra y no envía correo.
 # Uso: npm run test:contrata
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -153,7 +153,7 @@ check "la siguiente semana sigue libre" '[ "$(libres "$SEMANA_B")" = 1 ]'
 check "un aviso de pago firmado" '[ "$(grep -c checkout.session.completed "$MOCK/received.jsonl")" = 1 ]'
 ULT=$(tail -1 "$MOCK/received.jsonl")
 check "el aviso lleva firma válida" 'echo "$ULT" | grep -q "\"ok\":true"'
-cerrar 1 "Camino feliz" simulada "Sesión, webhook firmado, plaza −1 y cola. No hay recibo, deal, evento ni correo reales." "$A"
+cerrar 1 "Camino feliz" simulada "Sesión, webhook firmado, plaza −1 y cola. No hay recibo, fila en la hoja de Ventas, evento ni correo reales." "$A"
 
 echo "2. 3D Secure simulado"
 A=$FAIL
@@ -232,7 +232,7 @@ check "el primero entra y el segundo es duplicado" '[ "$W1" = 200 ] && [ "$W2" =
 check "un solo aviso a n8n" '[ "$(lineas_evento evt_test_duplicado_fijo)" = 1 ]'
 NCOLA=$(grep -c evt_test_duplicado_fijo "$DIR/cola.jsonl" || true)
 check "una sola fila en la cola" '[ "$NCOLA" = 1 ]'
-cerrar 6 "Webhook duplicado" simulada "El PHP deduplica por event.id. No se ha creado un deal en HubSpot." "$A"
+cerrar 6 "Webhook duplicado" simulada "El PHP deduplica por event.id. No se ha escrito en la hoja de Ventas." "$A"
 
 echo "7. Firma no válida"
 A=$FAIL

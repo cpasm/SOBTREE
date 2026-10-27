@@ -18,7 +18,7 @@
         -240
       ],
       "parameters": {
-        "content": "## Simulación\n\nEl deal de HubSpot está DESHABILITADO: no se han pedido permisos de deals.\nCalendario, Gmail y HubSpot no se ejecutan. La respuesta es un acuse simulado.\nCredenciales por nombre. Secreto: REEMPLAZAR_EN_N8N, el mismo que CONTRATA_HMAC_SECRET.",
+        "content": "## Simulación\n\nEl nodo «Añadir fila en Ventas» (hoja «Sobtree · Contactos») está DESHABILITADO.\nCalendario, Gmail y la hoja no se ejecutan. La respuesta es un acuse simulado.\nCredenciales por nombre. Secreto: REEMPLAZAR_EN_N8N, el mismo que CONTRATA_HMAC_SECRET.",
         "width": 540,
         "height": 200,
         "color": 5
@@ -53,7 +53,7 @@
         80
       ],
       "parameters": {
-        "jsCode": "// Nodo Code del workflow «Sobtree · Contrata».\n// Verifica el HMAC de la web y deja el alta en HubSpot, el calendario y el correo SIMULADOS.\n// El nodo de crear deal está deshabilitado: no hay permiso de deals y no se pide en v1.\nconst crypto = require('crypto');\n\nconst SECRET = 'REEMPLAZAR_EN_N8N';\nconst MODO = 'simulacion';\nconst MAX_DESFASE_S = 300;\n\nconst item = $input.first();\nconst h = item.json.headers || {};\nconst ts = String(h['x-sobtree-timestamp'] || '');\nconst firma = String(h['x-sobtree-signature'] || '');\nlet raw = '';\ntry { raw = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8'); } catch (e) { raw = ''; }\n\nconst esperada = 'sha256=' + crypto.createHmac('sha256', SECRET).update(ts + '.' + raw).digest('hex');\nconst reciente = /^\\d+$/.test(ts) && Math.abs(Date.now() / 1000 - Number(ts)) <= MAX_DESFASE_S;\nconst a = Buffer.from(firma);\nconst b = Buffer.from(esperada);\nconst valida = SECRET !== 'REEMPLAZAR_EN_N8N' && reciente && a.length === b.length && crypto.timingSafeEqual(a, b);\nif (!valida) return [{ json: { valido: false, motivo: !reciente ? 'timestamp' : 'firma', modo: MODO } }];\n\nlet aviso;\ntry { aviso = JSON.parse(raw); } catch (e) { return [{ json: { valido: false, motivo: 'json', modo: MODO } }]; }\nconst cuerpo = aviso.cuerpo || {};\nconst sesion = String(cuerpo.sesion || '');\nconst empresa = String(cuerpo.empresa || '').slice(0, 80);\nconst semana = String(cuerpo.semana_lunes || '');\nconst dealNombre = `Diagnóstico – ${empresa} – ${semana} – ${sesion}`.slice(0, 200);\n\nreturn [{ json: {\n  valido: true,\n  modo: MODO,\n  tipo: String(aviso.tipo || ''),\n  event_id: String(aviso.event_id || ''),\n  dedupe_clave: sesion,\n  deal_nombre: dealNombre,\n  deal: 'simulado',\n  deal_nodo: 'deshabilitado',\n  evento_calendario: 'simulado',\n  email: 'no_enviado',\n  aviso: true,\n  simulado: true,\n  nif_verificado: cuerpo.nif_verificado === true,\n  alerta_facturacion: cuerpo.alerta_facturacion || 'revisar_antes_de_facturar',\n  calendarios_consultados: [],\n  importe_total_centimos: Number(cuerpo.importe_total_centimos || 0),\n} }];\n"
+        "jsCode": "// Nodo Code del workflow «Sobtree · Contrata».\n// Verifica el HMAC de la web y deja el alta en la hoja de Ventas, el calendario y el correo SIMULADOS.\n// El nodo «Añadir fila en Ventas» está deshabilitado en v1: no escribe en la hoja hasta que se apruebe.\nconst crypto = require('crypto');\n\nconst SECRET = 'REEMPLAZAR_EN_N8N';\nconst MODO = 'simulacion';\nconst MAX_DESFASE_S = 300;\n\nconst item = $input.first();\nconst h = item.json.headers || {};\nconst ts = String(h['x-sobtree-timestamp'] || '');\nconst firma = String(h['x-sobtree-signature'] || '');\nlet raw = '';\ntry { raw = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8'); } catch (e) { raw = ''; }\n\nconst esperada = 'sha256=' + crypto.createHmac('sha256', SECRET).update(ts + '.' + raw).digest('hex');\nconst reciente = /^\\d+$/.test(ts) && Math.abs(Date.now() / 1000 - Number(ts)) <= MAX_DESFASE_S;\nconst a = Buffer.from(firma);\nconst b = Buffer.from(esperada);\nconst valida = SECRET !== 'REEMPLAZAR_EN_N8N' && reciente && a.length === b.length && crypto.timingSafeEqual(a, b);\nif (!valida) return [{ json: { valido: false, motivo: !reciente ? 'timestamp' : 'firma', modo: MODO } }];\n\nlet aviso;\ntry { aviso = JSON.parse(raw); } catch (e) { return [{ json: { valido: false, motivo: 'json', modo: MODO } }]; }\nconst cuerpo = aviso.cuerpo || {};\nconst sesion = String(cuerpo.sesion || '');\nconst empresa = String(cuerpo.empresa || '').slice(0, 80);\nconst semana = String(cuerpo.semana_lunes || '');\nconst eur = (centimos) => Math.round(Number(centimos || 0)) / 100;\nconst baseC = Number(cuerpo.importe_base_centimos || 0);\nconst totalC = Number(cuerpo.importe_total_centimos || 0);\n// Fila de la pestaña «Ventas» de la hoja «Sobtree · Contactos». El NIF no viaja en el aviso (solo país y tipo): se rellena a mano al facturar.\nconst venta = {\n  fecha: new Date().toISOString(),\n  id_sesion_stripe: sesion,\n  empresa,\n  nif: '',\n  email: String(cuerpo.email || '').trim().toLowerCase(),\n  producto: String(cuerpo.producto || 'diagnostico'),\n  importe_sin_iva: eur(baseC),\n  iva: eur(totalC - baseC),\n  total: eur(totalC),\n  semana_reservada: semana,\n  estado: 'pagada',\n};\n\nreturn [{ json: {\n  valido: true,\n  modo: MODO,\n  tipo: String(aviso.tipo || ''),\n  event_id: String(aviso.event_id || ''),\n  dedupe_clave: sesion,\n  venta,\n  venta_hoja: 'simulada',\n  venta_nodo: 'deshabilitado',\n  evento_calendario: 'simulado',\n  email: 'no_enviado',\n  aviso: true,\n  simulado: true,\n  nif_verificado: cuerpo.nif_verificado === true,\n  alerta_facturacion: cuerpo.alerta_facturacion || 'revisar_antes_de_facturar',\n  calendarios_consultados: [],\n  importe_total_centimos: Number(cuerpo.importe_total_centimos || 0),\n} }];\n"
       }
     },
     {
@@ -149,7 +149,7 @@
       ],
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ ok: true, simulado: true, aviso: true, deal: $json.deal, evento_calendario: $json.evento_calendario, email: $json.email }) }}",
+        "responseBody": "={{ JSON.stringify({ ok: true, simulado: true, aviso: true, venta: $json.venta_hoja, evento_calendario: $json.evento_calendario, email: $json.email }) }}",
         "options": {
           "responseCode": 200
         }
@@ -157,31 +157,159 @@
     },
     {
       "id": "c0a1b002-0000-4000-8000-000000000008",
-      "name": "Crear deal (SIMULADO — deshabilitado)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "name": "Añadir fila en Ventas",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
       "disabled": true,
       "position": [
         1120,
         -120
       ],
       "parameters": {
-        "method": "POST",
-        "url": "https://api.hubapi.com/crm/v3/objects/deals",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "hubspotAppToken",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ properties: { dealname: $json.deal_nombre } }) }}",
-        "options": {}
-      },
-      "credentials": {
-        "hubspotAppToken": {
-          "id": "REEMPLAZAR_ID_CREDENCIAL",
-          "name": "HubSpot Service Key account"
+        "authentication": "oAuth2",
+        "resource": "sheet",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1EWlyQCodNmxIwOvljQuyM1ZOq1s7QlNZVkPEydyNizQ"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Ventas"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fecha": "={{ $json.venta.fecha }}",
+            "id_sesion_stripe": "={{ $json.venta.id_sesion_stripe }}",
+            "empresa": "={{ $json.venta.empresa }}",
+            "email": "={{ $json.venta.email }}",
+            "producto": "={{ $json.venta.producto }}",
+            "importe_sin_iva": "={{ $json.venta.importe_sin_iva }}",
+            "iva": "={{ $json.venta.iva }}",
+            "total": "={{ $json.venta.total }}",
+            "semana_reservada": "={{ $json.venta.semana_reservada }}",
+            "estado": "={{ $json.venta.estado }}"
+          },
+          "matchingColumns": [
+            "id_sesion_stripe"
+          ],
+          "schema": [
+            {
+              "id": "fecha",
+              "displayName": "fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "id_sesion_stripe",
+              "displayName": "id_sesion_stripe",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "empresa",
+              "displayName": "empresa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "producto",
+              "displayName": "producto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "importe_sin_iva",
+              "displayName": "importe_sin_iva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "iva",
+              "displayName": "iva",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total",
+              "displayName": "total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "semana_reservada",
+              "displayName": "semana_reservada",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "estado",
+              "displayName": "estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
         }
       },
-      "notes": "SIMULADO Y DESHABILITADO. Crear el deal exige crm.objects.deals.read/write. Esos permisos no se han pedido ni se tocan en v1."
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REEMPLAZAR_ID_CREDENCIAL",
+          "name": "Google Sheets Sobtree (info@)"
+        }
+      },
+      "notes": "DESHABILITADO en v1. Añade o actualiza (por id_sesion_stripe, sin duplicar) una fila en la pestaña «Ventas» de «Sobtree · Contactos». Credencial: marcador de posición, se elige en n8n. La columna nif no se escribe (el aviso no lo lleva): se rellena a mano y un reintento no la borra."
     },
     {
       "id": "c0a1b002-0000-4000-8000-000000000009",
@@ -287,7 +415,7 @@
       "main": [
         [
           {
-            "node": "Crear deal (SIMULADO — deshabilitado)",
+            "node": "Añadir fila en Ventas",
             "type": "main",
             "index": 0
           }
@@ -301,7 +429,7 @@
         ]
       ]
     },
-    "Crear deal (SIMULADO — deshabilitado)": {
+    "Añadir fila en Ventas": {
       "main": [
         [
           {

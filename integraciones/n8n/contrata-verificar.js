@@ -1,6 +1,6 @@
 // Nodo Code del workflow «Sobtree · Contrata».
-// Verifica el HMAC de la web y deja el alta en HubSpot, el calendario y el correo SIMULADOS.
-// El nodo de crear deal está deshabilitado: no hay permiso de deals y no se pide en v1.
+// Verifica el HMAC de la web y deja el alta en la hoja de Ventas, el calendario y el correo SIMULADOS.
+// El nodo «Añadir fila en Ventas» está deshabilitado en v1: no escribe en la hoja hasta que se apruebe.
 const crypto = require('crypto');
 
 const SECRET = 'REEMPLAZAR_EN_N8N';
@@ -27,7 +27,23 @@ const cuerpo = aviso.cuerpo || {};
 const sesion = String(cuerpo.sesion || '');
 const empresa = String(cuerpo.empresa || '').slice(0, 80);
 const semana = String(cuerpo.semana_lunes || '');
-const dealNombre = `Diagnóstico – ${empresa} – ${semana} – ${sesion}`.slice(0, 200);
+const eur = (centimos) => Math.round(Number(centimos || 0)) / 100;
+const baseC = Number(cuerpo.importe_base_centimos || 0);
+const totalC = Number(cuerpo.importe_total_centimos || 0);
+// Fila de la pestaña «Ventas» de la hoja «Sobtree · Contactos». El NIF no viaja en el aviso (solo país y tipo): se rellena a mano al facturar.
+const venta = {
+  fecha: new Date().toISOString(),
+  id_sesion_stripe: sesion,
+  empresa,
+  nif: '',
+  email: String(cuerpo.email || '').trim().toLowerCase(),
+  producto: String(cuerpo.producto || 'diagnostico'),
+  importe_sin_iva: eur(baseC),
+  iva: eur(totalC - baseC),
+  total: eur(totalC),
+  semana_reservada: semana,
+  estado: 'pagada',
+};
 
 return [{ json: {
   valido: true,
@@ -35,9 +51,9 @@ return [{ json: {
   tipo: String(aviso.tipo || ''),
   event_id: String(aviso.event_id || ''),
   dedupe_clave: sesion,
-  deal_nombre: dealNombre,
-  deal: 'simulado',
-  deal_nodo: 'deshabilitado',
+  venta,
+  venta_hoja: 'simulada',
+  venta_nodo: 'deshabilitado',
   evento_calendario: 'simulado',
   email: 'no_enviado',
   aviso: true,
