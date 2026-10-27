@@ -307,6 +307,29 @@ check "otra semana sigue en 1" '[ "$(libres "$SEMANA_B")" = 1 ]'
 sembrar >/dev/null
 cerrar 10 "Bloqueo" pasa "Publicación firmada con un bloqueo de calendario. Google no se ha llamado." "$A"
 
+echo "10b. Proyecto con sesión live en el calendario (publicación y retención)"
+A=$FAIL
+reset_estado
+CODE=$(crear "$SEMANA_A")
+SLV=$(campo sesion)
+check "retención de la semana A abierta (la plaza está ocupada)" '[ "$CODE" = 200 ] && [ "$(libres "$SEMANA_A")" = 0 ]'
+cat > "$WORK/fixture-live.json" <<'JSON'
+{"proyectos":[{"inicio":"2026-11-02","fin":"2026-11-07","sesion":"cs_live_Ab12Cd34Ef56Gh78Ij90"}],"bloqueos":[]}
+JSON
+SEM_LIVE=$(sembrar "$WORK/fixture-live.json"); SEM_LIVE_RC=$?
+check "la publicación con un proyecto cs_live_ se acepta" '[ "$SEM_LIVE_RC" = 0 ] && echo "$SEM_LIVE" | json ok | grep -qx true'
+check "la semana A sigue en 0 y el resto no se ve afectado" '[ "$(libres "$SEMANA_A")" = 0 ] && [ "$(libres "$SEMANA_B")" = 1 ]'
+php -r '$f=$argv[1]; $j=json_decode(file_get_contents($f), true); foreach ($j["retenciones"] as &$r) $r["sesion"]="cs_live_Ab12Cd34Ef56Gh78Ij90"; file_put_contents($f, json_encode($j));' "$DIR/retenciones.json"
+check "con la retención casada por la misma sesión cs_live_ no se cuenta doble (0, no negativo; sigue siendo 0 y no cierra)" '[ "$(libres "$SEMANA_A")" = 0 ] && [ "$(disp | json ok)" = true ]'
+php -r '$f=$argv[1]; $j=json_decode(file_get_contents($f), true); foreach ($j["retenciones"] as &$r) $r["sesion"]="cs_live_OtraSesion"; file_put_contents($f, json_encode($j));' "$DIR/retenciones.json"
+cat > "$WORK/fixture-live2.json" <<'JSON'
+{"proyectos":[],"bloqueos":[]}
+JSON
+sembrar "$WORK/fixture-live2.json" >/dev/null
+check "sin el proyecto en el calendario, la retención sigue ocupando la plaza" '[ "$(libres "$SEMANA_A")" = 0 ]'
+sembrar >/dev/null
+cerrar "10b" "Sesión live en el calendario" pasa "Se siembra una publicación firmada con un proyecto cs_live_. Antes de este cambio el PHP la rechazaba (400) y la disponibilidad se quedaba vieja." "$A"
+
 echo "11. Reembolso"
 A=$FAIL
 reset_estado

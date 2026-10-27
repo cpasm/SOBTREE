@@ -73,5 +73,23 @@ try { contrata_price_coincide(59290, 'eur', false, 'otro'); } catch (InvalidArgu
 $t('un Price para un servicio que no existe no se compara', $lanzo);
 $t('días de bloqueo entre 1 y 5', array_reduce(contrata_servicios(), fn($ok, $s) => $ok && $s['dias_bloqueo'] >= 1 && $s['dias_bloqueo'] <= CONTRATA_DIAS_BLOQUEO_MAX, true));
 $t('el Price del diagnóstico sale de STRIPE_PRICE_DIAGNOSTICO', CONTRATA_SERVICIOS['diagnostico']['env_price'] === 'STRIPE_PRICE_DIAGNOSTICO');
+// ---- Sesiones de Stripe en lo publicado por «Disponibilidad»: test y live (un pago real deja un cs_live_ en el calendario)
+$hoyU = contrata_hoy();
+$lunesU = contrata_primer_lunes($hoyU);
+$pubU = function (string $sesion) use ($hoyU, $lunesU): array {
+    $sem = contrata_calcular_semanas($hoyU, [['inicio' => $lunesU, 'fin' => contrata_sumar_dias($lunesU, 5), 'sesion' => $sesion]], []);
+    return ['generado' => gmdate('c'), 'max_proyectos_simultaneos' => CONTRATA_MAX_PROYECTOS, 'semanas' => $sem];
+};
+$t('publicación con proyecto cs_live_ se acepta', contrata_validar_cuerpo_publicado($pubU('cs_live_a1ZInu98Ig9Z7B0e3BHeKGoNtbujwbdX6g0IPv2ImKB2KRYiK3IEeQtnAN')) === null);
+$t('publicación con proyecto cs_test_ se sigue aceptando', contrata_validar_cuerpo_publicado($pubU('cs_test_abc123')) === null);
+foreach (['cs_prod_abc', 'cs_live_', 'cs_live_a b', 'cs_live_<x>', 'xcs_live_abc', 'CS_LIVE_abc', 'cs_live_abc@x'] as $malo) {
+    $t("sesión no permitida: $malo", contrata_validar_cuerpo_publicado($pubU($malo)) !== null);
+}
+$ahoraU = 1800000000;
+$retLive = ['semana' => $lunesU, 'estado' => 'retenida', 'expira' => $ahoraU + 600, 'sesion' => 'cs_live_abc123'];
+$t('retención cs_live_: sin evento en el calendario cuenta', contrata_retencion_cuenta($retLive, $lunesU, [], $ahoraU) === true);
+$t('retención cs_live_ ya en el calendario no cuenta doble', contrata_retencion_cuenta($retLive, $lunesU, ['cs_live_abc123'], $ahoraU) === false);
+$t('retención cs_live_ pagada ya en el calendario no cuenta doble', contrata_retencion_cuenta(['estado' => 'pagada'] + $retLive, $lunesU, ['cs_live_abc123'], $ahoraU) === false);
+$t('retención cs_live_ de otra sesión sí cuenta', contrata_retencion_cuenta($retLive, $lunesU, ['cs_live_otra'], $ahoraU) === true);
 if ($fail > 0) exit(1);
 echo "ok\n";

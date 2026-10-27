@@ -601,7 +601,7 @@ function contrata_validar_cuerpo_publicado(array $data): ?string {
         $sesiones = $s['sesiones'] ?? [];
         if (!is_array($sesiones)) return 'Sesiones no válidas.';
         foreach ($sesiones as $sid) {
-            if (!is_string($sid) || !preg_match('/^cs_test_[A-Za-z0-9_]+$/', $sid)) return 'Identificador de sesión no permitido.';
+            if (!is_string($sid) || !preg_match('/^cs_(?:test|live)_[A-Za-z0-9_]+$/', $sid)) return 'Identificador de sesión no permitido.';
         }
     }
     return null;
