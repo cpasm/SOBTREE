@@ -27,6 +27,21 @@ const CONTRATA_PLAZO_TEXTO = 'máximo 10 días laborables';   // PLAZO_DIAGNOSTI
 const CONTRATA_MSG_FECHA = 'La fecha de inicio se confirma por email en 1 día laborable; si no fuera posible, te ofrecemos otra semana o el reembolso íntegro. El informe del diagnóstico se entrega en un ' . CONTRATA_PLAZO_TEXTO . '.';
 const CONTRATA_MSG_SIN_PLAZAS = 'No hay plazas en las próximas 4 semanas.';
 const CONTRATA_PRICE_TEST = 'price_test_diagnostico';
+const CONTRATA_PRODUCTO_DEFECTO = 'diagnostico';
+const CONTRATA_DIAS_BLOQUEO_MAX = 5;           // la disponibilidad es por semana (lunes a viernes): un servicio no puede bloquear más
+/**
+ * Servicios que se pueden contratar online. Es la lista que el PHP acepta; la copia de textos del front
+ * está en SERVICIOS de src/data/contrata.ts y una prueba comprueba que coinciden (id, nombre, base, días).
+ * El ID de Price de cada servicio NO está aquí: viene de sobtree-secrets.php (clave env_price).
+ */
+const CONTRATA_SERVICIOS = [
+    'diagnostico' => [
+        'nombre' => 'Diagnóstico de implantación de IA',
+        'base_eur' => CONTRATA_PRECIO_BASE_EUR,
+        'dias_bloqueo' => 5,
+        'env_price' => 'STRIPE_PRICE_DIAGNOSTICO',
+    ],
+];
 const CONTRATA_TAX_RATE_TEST = 'txr_test_iva21';
 
 function contrata_base_dirs(): array {
@@ -89,6 +104,8 @@ function contrata_config(): array {
         $wh = '';
         $prohibida = true;
     }
+    $prices = [];
+    foreach (CONTRATA_SERVICIOS as $sid => $sdef) $prices[$sid] = $get($sdef['env_price']);
     $public = rtrim($get('CONTRATA_PUBLIC_URL', 'https://sobtree.com'), '/');
     $httpLocal = (bool)preg_match('#^http://(127\.0\.0\.1|localhost)(:\d+)?$#', $public);
     if (!preg_match('#^https://[a-z0-9.-]+$#i', $public) && !($modo === 'simulacion' && $httpLocal)) {
@@ -103,6 +120,7 @@ function contrata_config(): array {
         'clave_prohibida' => $prohibida,
         'webhook_secret' => $wh,
         'stripe_price' => $get('STRIPE_PRICE_DIAGNOSTICO'),
+        'stripe_prices' => $prices,
         'stripe_tax_rate' => $get('STRIPE_TAX_RATE_IVA21'),
         'live' => $modo === 'stripe_live',
         'hmac_secret' => $get('CONTRATA_HMAC_SECRET'),
@@ -126,8 +144,11 @@ function contrata_stripe_utilizable(): bool {
     $c = contrata_config();
     if ($c['clave_prohibida']) return false;
     if ($c['modo'] === 'simulacion') return true;
-    $comun = preg_match('/^price_[A-Za-z0-9_]+$/', $c['stripe_price']) === 1
-        && preg_match('/^txr_[A-Za-z0-9_]+$/', $c['stripe_tax_rate']) === 1;
+    $comun = preg_match('/^txr_[A-Za-z0-9_]+$/', $c['stripe_tax_rate']) === 1;
+    // Cada servicio de la lista necesita su Price; si falta alguno no se abre el pago.
+    foreach (contrata_servicios() as $sid => $_) {
+        if (preg_match('/^price_[A-Za-z0-9_]+$/', (string)($c['stripe_prices'][$sid] ?? '')) !== 1) $comun = false;
+    }
     if ($c['modo'] === 'stripe_test') return $comun && preg_match('/^(rk|sk)_test_/', $c['stripe_key']) === 1;
     if ($c['modo'] === 'stripe_live') {
         // Para cobrar de verdad hace falta todo: clave live, webhook firmado, aviso a n8n firmado y web en https.
@@ -265,12 +286,37 @@ function contrata_texto_proxima(string $lunes, string $hoy): string {
     return 'Nuestros agentes pueden empezar a partir del lunes ' . contrata_fecha_larga($lunes, $hoy);
 }
 
-function contrata_importes(): array {
-    $base = CONTRATA_PRECIO_BASE_EUR * 100;
+/** Servicios de la lista con datos coherentes (id con letras minúsculas, base entera > 0, 1 a 5 días de bloqueo). */
+function contrata_servicios(): array {
+    $out = [];
+    foreach (CONTRATA_SERVICIOS as $id => $d) {
+        if (!is_string($id) || preg_match('/^[a-z][a-z0-9_]{0,31}$/', $id) !== 1) continue;
+        if (!is_int($d['base_eur'] ?? null) || $d['base_eur'] < 1) continue;
+        $dias = $d['dias_bloqueo'] ?? 0;
+        if (!is_int($dias) || $dias < 1 || $dias > CONTRATA_DIAS_BLOQUEO_MAX) continue;
+        $out[$id] = ['id' => $id] + $d;
+    }
+    return $out;
+}
+
+/** El servicio solo existe si su id está en la lista; cualquier otro valor (también «Diagnostico» o con espacios) da null. */
+function contrata_servicio(string $id): ?array {
+    return contrata_servicios()[$id] ?? null;
+}
+
+function contrata_price_de(string $servicio): string {
+    return (string)(contrata_config()['stripe_prices'][$servicio] ?? '');
+}
+
+function contrata_importes(string $servicio = CONTRATA_PRODUCTO_DEFECTO): array {
+    $def = contrata_servicio($servicio);
+    if ($def === null) throw new InvalidArgumentException('servicio');
+    $baseEur = (int)$def['base_eur'];
+    $base = $baseEur * 100;
     $iva = intdiv($base * CONTRATA_IVA_PORCIENTO, 100);
     $total = $base + $iva;
     return [
-        'base_eur' => CONTRATA_PRECIO_BASE_EUR,
+        'base_eur' => $baseEur,
         'iva_porcentaje' => CONTRATA_IVA_PORCIENTO,
         'base_centimos' => $base,
         'iva_centimos' => $iva,
@@ -298,8 +344,8 @@ function contrata_euros(int $centimos): string {
     return $signo . $entero . ',' . str_pad((string)($centimos % 100), 2, '0', STR_PAD_LEFT) . ' €';
 }
 
-function contrata_price_coincide(int $unitAmount, string $currency, bool $livemode): bool {
-    return $livemode === contrata_livemode_esperado() && strtolower($currency) === 'eur' && $unitAmount === contrata_importes()['total_centimos'];
+function contrata_price_coincide(int $unitAmount, string $currency, bool $livemode, string $servicio = CONTRATA_PRODUCTO_DEFECTO): bool {
+    return $livemode === contrata_livemode_esperado() && strtolower($currency) === 'eur' && $unitAmount === contrata_importes($servicio)['total_centimos'];
 }
 
 function contrata_texto_descuento(): string {
@@ -615,11 +661,24 @@ function contrata_estado_publico(): array {
     }
     $precio = contrata_importes();
     unset($precio['base_eur']);
+    $servicios = [];
+    foreach (contrata_servicios() as $sid => $sdef) {
+        $im = contrata_importes($sid);
+        $servicios[] = [
+            'id' => $sid,
+            'nombre' => $sdef['nombre'],
+            'base_centimos' => $im['base_centimos'],
+            'total_centimos' => $im['total_centimos'],
+            'total_texto' => $im['total_texto'],
+            'dias_bloqueo' => (int)$sdef['dias_bloqueo'],
+        ];
+    }
     $out = [
         'ok' => true,
         'generado' => $pub['generado'],
         'max_proyectos_simultaneos' => CONTRATA_MAX_PROYECTOS,
         'precio' => $precio,
+        'servicios' => $servicios,
         'proxima' => $proxima,
         'semanas' => $semanas,
         'csrf' => contrata_csrf_emitir(),
@@ -691,7 +750,8 @@ function contrata_abrir_sesion(array $in, array $ctx = []): array {
         return ['http' => 400, 'body' => ['ok' => false, 'error' => 'La sesión del formulario ha caducado. Vuelve a cargar la página.']];
     }
     $producto = (string)($in['producto'] ?? '');
-    if ($producto !== 'diagnostico') {
+    $servicio = contrata_servicio($producto);
+    if ($servicio === null) {
         return ['http' => 422, 'body' => ['ok' => false, 'error' => 'Ese producto no se puede contratar online.']];
     }
     $empresa = trim((string)($in['empresa'] ?? ''));
@@ -741,7 +801,7 @@ function contrata_abrir_sesion(array $in, array $ctx = []): array {
 
     $ret = null;
     try {
-        $ret = contrata_con_bloqueo(function () use ($semana) {
+        $ret = contrata_con_bloqueo(function () use ($semana, $producto) {
             $ahora = contrata_ahora();
             $pub = contrata_cargar_publicacion();
             if (!contrata_publicacion_fresca($pub, $ahora)) return null;
@@ -773,10 +833,11 @@ function contrata_abrir_sesion(array $in, array $ctx = []): array {
                 'expira' => $expira,
                 'estado' => 'retenida',
                 'sesion' => '',
+                'servicio' => $producto,
                 'creada' => gmdate('c', $ahora),
             ];
             contrata_guardar_json(contrata_file_ret(), $data);
-            return ['id' => $id, 'semana' => $semana, 'expira' => $expira];
+            return ['id' => $id, 'semana' => $semana, 'expira' => $expira, 'servicio' => $producto];
         });
     } catch (Throwable $e) {
         error_log('contrata retener: ' . $e->getMessage());
@@ -801,9 +862,10 @@ function contrata_abrir_sesion(array $in, array $ctx = []): array {
     }
     // El NIF se guarda solo en la retención (fuera de la web, 0600) hasta que llega el pago; ahí se usa y se borra.
     contrata_marcar_retencion($ret['id'], ['sesion' => $sesion['id'], 'nif' => contrata_nif_normal((string)$nif['normalizado'])]);
-    $imp = contrata_importes();
+    $imp = contrata_importes($producto);
     return ['http' => 200, 'body' => [
         'ok' => true,
+        'servicio' => $producto,
         'url' => $sesion['url'],
         'sesion' => $sesion['id'],
         'expira' => $ret['expira'],
@@ -837,9 +899,12 @@ function contrata_nif_normal(string $v): string {
  * $nifEnFactura: solo si Stripe no aceptó el NIF como tax_id; entonces va como campo personalizado de la factura.
  */
 function contrata_parametros_sesion(array $ret, array $cliente, string $customerId = '', bool $nifEnFactura = false): array {
-    $imp = contrata_importes();
+    $servicioId = (string)($ret['servicio'] ?? CONTRATA_PRODUCTO_DEFECTO);
+    $servicio = contrata_servicio($servicioId);
+    if ($servicio === null) throw new RuntimeException('servicio');
+    $imp = contrata_importes($servicioId);
     $cfg = contrata_config();
-    $price = $cfg['stripe_price'];
+    $price = contrata_price_de($servicioId);
     if ($price === '') {
         if (contrata_modo() !== 'simulacion') throw new RuntimeException('sin price');
         $price = CONTRATA_PRICE_TEST;
@@ -862,7 +927,7 @@ function contrata_parametros_sesion(array $ret, array $cliente, string $customer
         . CONTRATA_MSG_FECHA;
     if (mb_strlen($mensaje) > 1100) $mensaje = mb_substr($mensaje, 0, 1100);
     $meta = [
-        'producto' => 'diagnostico',
+        'producto' => $servicioId,
         'semana_lunes' => $ret['semana'],
         'retencion_id' => $ret['id'],
         'politica_version' => CONTRATA_POLITICA_VERSION,
@@ -879,8 +944,8 @@ function contrata_parametros_sesion(array $ret, array $cliente, string $customer
     if ($cliente['lead_id'] !== '') $meta['lead_id'] = $cliente['lead_id'];
     $base = $cfg['public_url'];
     $datosFactura = [
-        'description' => 'Diagnóstico de implantación de IA. Semana de inicio: ' . $semanaTxt . '.',
-        'metadata' => ['retencion_id' => $ret['id'], 'semana_lunes' => $ret['semana'], 'producto' => 'diagnostico'],
+        'description' => $servicio['nombre'] . '. Semana de inicio: ' . $semanaTxt . '.',
+        'metadata' => ['retencion_id' => $ret['id'], 'semana_lunes' => $ret['semana'], 'producto' => $servicioId],
     ];
     if ($nifEnFactura) {
         $datosFactura['custom_fields'] = [['name' => 'NIF/CIF', 'value' => contrata_nif_normal((string)$cliente['nif']['normalizado'])]];
@@ -912,11 +977,12 @@ function contrata_parametros_sesion(array $ret, array $cliente, string $customer
 }
 
 function contrata_stripe_crear_sesion(array $ret, array $cliente): array {
-    $imp = contrata_importes();
+    $servicioId = (string)($ret['servicio'] ?? CONTRATA_PRODUCTO_DEFECTO);
+    $imp = contrata_importes($servicioId);
     $live = contrata_livemode_esperado();
     if (contrata_modo() === 'simulacion') {
         $params = contrata_parametros_sesion($ret, $cliente);
-        if (!contrata_price_coincide($imp['total_centimos'], 'eur', false)) {
+        if (!contrata_price_coincide($imp['total_centimos'], 'eur', false, $servicioId)) {
             throw new RuntimeException('importe');
         }
         $id = 'cs_test_' . bin2hex(random_bytes(12));
@@ -947,9 +1013,9 @@ function contrata_stripe_crear_sesion(array $ret, array $cliente): array {
         return ['id' => $id, 'url' => $url];
     }
     $cfg = contrata_config();
-    $price = contrata_stripe_leer_price($cfg['stripe_price']);
-    if (!contrata_price_coincide((int)($price['unit_amount'] ?? 0), (string)($price['currency'] ?? ''), (bool)($price['livemode'] ?? false))) {
-        throw new RuntimeException('El Price de Stripe no coincide con el diagnóstico (base + IVA) o su modo (test/live) no es el configurado.');
+    $price = contrata_stripe_leer_price(contrata_price_de($servicioId));
+    if (!contrata_price_coincide((int)($price['unit_amount'] ?? 0), (string)($price['currency'] ?? ''), (bool)($price['livemode'] ?? false), $servicioId)) {
+        throw new RuntimeException('El Price de Stripe no coincide con el servicio (base + IVA) o su modo (test/live) no es el configurado.');
     }
     $tr = contrata_stripe_request('GET', '/v1/tax_rates/' . rawurlencode($cfg['stripe_tax_rate']));
     if (!(abs((float)($tr['percentage'] ?? 0) - CONTRATA_IVA_PORCIENTO) < 0.0001 && ($tr['inclusive'] ?? null) === true
@@ -1185,7 +1251,9 @@ function contrata_aplicar_pago(array $obj, string $eventId): void {
             contrata_guardar_json(contrata_file_ses(), $all);
         });
     }
-    $imp = contrata_importes();
+    $servicioId = (string)($meta['producto'] ?? CONTRATA_PRODUCTO_DEFECTO);
+    $servicio = contrata_servicio($servicioId);
+    $imp = contrata_importes($servicio !== null ? $servicioId : CONTRATA_PRODUCTO_DEFECTO);
     $detalles = is_array($obj['customer_details'] ?? null) ? $obj['customer_details'] : [];
     // NIF: el de la retención (lo que validó la web) y el tax_id que guarda Stripe tienen que coincidir.
     $nifStripe = '';
@@ -1195,7 +1263,9 @@ function contrata_aplicar_pago(array $obj, string $eventId): void {
     $nif = $nifGuardado !== '' ? contrata_nif_normal($nifGuardado) : $nifStripe;
     $coincide = ($nifGuardado !== '' && $nifStripe !== '') ? ($nifStripe === contrata_nif_normal($nifGuardado)) : null;
     $alerta = '';
-    if ((int)($obj['amount_total'] ?? $imp['total_centimos']) !== $imp['total_centimos'] || strtolower((string)($obj['currency'] ?? 'eur')) !== 'eur') {
+    if ($servicio === null) {
+        $alerta = 'servicio_desconocido';
+    } elseif ((int)($obj['amount_total'] ?? $imp['total_centimos']) !== $imp['total_centimos'] || strtolower((string)($obj['currency'] ?? 'eur')) !== 'eur') {
         $alerta = 'importe_inesperado';
     } elseif ($coincide === false) {
         $alerta = 'nif_distinto';
@@ -1214,7 +1284,9 @@ function contrata_aplicar_pago(array $obj, string $eventId): void {
         'cuerpo' => [
             'sesion' => $sesion,
             'retencion_id' => $retId,
-            'producto' => (string)($meta['producto'] ?? 'diagnostico'),
+            'producto' => $servicio !== null ? $servicioId : '',
+            'servicio_nombre' => $servicio !== null ? (string)$servicio['nombre'] : '',
+            'dias_bloqueo' => $servicio !== null ? (int)$servicio['dias_bloqueo'] : CONTRATA_DIAS_BLOQUEO_MAX,
             'semana_lunes' => (string)($meta['semana_lunes'] ?? ''),
             'importe_base_centimos' => $imp['base_centimos'],
             'iva_porcentaje' => CONTRATA_IVA_PORCIENTO,
@@ -1270,13 +1342,15 @@ function contrata_aplicar_reembolso(array $obj, string $eventId): void {
     $total = array_key_exists('refunded', $obj) ? ($obj['refunded'] === true) : ($amount === 0 || $devuelto >= $amount);
     $semana = (string)($meta['semana_lunes'] ?? '');
     $encontrada = false;
-    contrata_con_bloqueo(function () use (&$retId, &$sesion, &$semana, $pi, $total, &$encontrada) {
+    $servicioRet = '';
+    contrata_con_bloqueo(function () use (&$retId, &$sesion, &$semana, $pi, $total, &$encontrada, &$servicioRet) {
         $data = contrata_leer_retenciones();
         foreach ($data['retenciones'] as &$r) {
             $match = ($retId !== '' && ($r['id'] ?? '') === $retId) || ($sesion !== '' && ($r['sesion'] ?? '') === $sesion)
                 || ($pi !== '' && ($r['payment_intent'] ?? '') === $pi);
             if (!$match) continue;
             $encontrada = true;
+            $servicioRet = (string)($r['servicio'] ?? '');
             if ($retId === '') $retId = (string)($r['id'] ?? '');
             if ($sesion === '') $sesion = (string)($r['sesion'] ?? '');
             if ($semana === '') $semana = (string)($r['semana'] ?? '');
@@ -1296,7 +1370,7 @@ function contrata_aplicar_reembolso(array $obj, string $eventId): void {
             'sesion' => $sesion,
             'retencion_id' => $retId,
             'semana_lunes' => $semana,
-            'producto' => 'diagnostico',
+            'producto' => contrata_servicio($servicioRet) !== null ? $servicioRet : CONTRATA_PRODUCTO_DEFECTO,
             'estado' => $total ? 'reembolsada' : 'reembolso_parcial',
             'importe_reembolsado_centimos' => $devuelto,
             'livemode' => contrata_livemode_esperado(),

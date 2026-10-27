@@ -14,6 +14,29 @@ import {
 
 const activo = import.meta.env.PUBLIC_CONTRATA_ACTIVO === "1";
 
+// Servicios que se pueden pagar online. Textos e importes del front; el PHP (CONTRATA_SERVICIOS en
+// public/lib/contrata.php) es quien manda y solo acepta estos ids. El ID de Price de Stripe de cada
+// servicio vive en sobtree-secrets.php (STRIPE_PRICE_<ID en mayúsculas>), nunca aquí.
+// Una prueba comprueba que id, nombre, base y días de bloqueo coinciden con el PHP.
+export type ServicioContrata = {
+  id: string;
+  nombre: string;
+  baseEur: number;
+  diasBloqueo: number; // días laborables de calendario que bloquea desde el lunes de inicio (1 a 5)
+  resumen: string;
+};
+export const SERVICIOS: ServicioContrata[] = [
+  {
+    id: "diagnostico",
+    nombre: "Diagnóstico de implantación de IA",
+    baseEur: DIAGNOSTICO.precio,
+    diasBloqueo: 5,
+    resumen: "Informe a precio cerrado con prioridades, plan y ahorro estimado."
+  }
+];
+export const SERVICIO_DEFECTO = SERVICIOS[0];
+export const serviciosConImportes = SERVICIOS.map((s) => ({ ...s, importes: importes(s.baseEur, IVA_PORCIENTO) }));
+
 export const CONTRATA = {
   activo,
   productos: ["diagnostico"] as const,

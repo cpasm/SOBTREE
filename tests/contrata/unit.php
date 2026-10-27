@@ -49,5 +49,27 @@ $t('NIF sin prefijo ES para el tax_id', contrata_nif_normal('ES B-1234567-4') ==
 $t('territorio con otro IVA', contrata_alerta_territorio(['address' => ['country' => 'ES', 'postal_code' => '38001']]) === 'territorio_sin_iva'
     && contrata_alerta_territorio(['address' => ['country' => 'ES', 'postal_code' => '28001']]) === ''
     && contrata_alerta_territorio(['address' => ['country' => 'DE', 'postal_code' => '10115']]) === 'direccion_fuera_de_espana');
+// ---- Servicios: la lista del PHP y la del front (src/data/contrata.ts) coinciden, y solo valen los ids de la lista
+$ts = file_get_contents(dirname(__DIR__, 2) . '/src/data/contrata.ts');
+preg_match_all('/id:\s*"([a-z0-9_]+)",\s*nombre:\s*"([^"]+)",\s*baseEur:\s*([A-Za-z_.0-9]+),\s*diasBloqueo:\s*(\d+)/', $ts, $m, PREG_SET_ORDER);
+$t('hay un servicio en el front y uno en el PHP', count($m) === 1 && count(contrata_servicios()) === 1);
+$ids_ts = array_map(fn($x) => $x[1], $m);
+$t('mismos ids en PHP y front', $ids_ts === array_keys(contrata_servicios()));
+foreach ($m as $x) {
+    $sv = contrata_servicio($x[1]);
+    $t('servicio ' . $x[1] . ': nombre y días de bloqueo iguales', $sv !== null && $sv['nombre'] === $x[2] && (int)$sv['dias_bloqueo'] === (int)$x[4]);
+    $t('servicio ' . $x[1] . ': la base sale de DIAGNOSTICO.precio', $x[3] === 'DIAGNOSTICO.precio' && $sv !== null && $sv['base_eur'] === CONTRATA_PRECIO_BASE_EUR);
+}
+$t('solo diagnóstico', array_keys(contrata_servicios()) === ['diagnostico']);
+$t('un id fuera de la lista no existe', contrata_servicio('Diagnostico') === null && contrata_servicio('diagnostico ') === null && contrata_servicio('proyecto') === null && contrata_servicio('') === null);
+$lanzo = false;
+try { contrata_importes('proyecto'); } catch (InvalidArgumentException $e) { $lanzo = true; }
+$t('importes de un servicio desconocido falla', $lanzo);
+$t('el Price se valida contra el importe de ese servicio', contrata_price_coincide(59290, 'eur', false, 'diagnostico'));
+$lanzo = false;
+try { contrata_price_coincide(59290, 'eur', false, 'otro'); } catch (InvalidArgumentException $e) { $lanzo = true; }
+$t('un Price para un servicio que no existe no se compara', $lanzo);
+$t('días de bloqueo entre 1 y 5', array_reduce(contrata_servicios(), fn($ok, $s) => $ok && $s['dias_bloqueo'] >= 1 && $s['dias_bloqueo'] <= CONTRATA_DIAS_BLOQUEO_MAX, true));
+$t('el Price del diagnóstico sale de STRIPE_PRICE_DIAGNOSTICO', CONTRATA_SERVICIOS['diagnostico']['env_price'] === 'STRIPE_PRICE_DIAGNOSTICO');
 if ($fail > 0) exit(1);
 echo "ok\n";

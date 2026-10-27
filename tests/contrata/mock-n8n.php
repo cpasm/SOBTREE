@@ -24,6 +24,9 @@ $decoded = json_decode($raw, true);
     'nif' => is_array($decoded) ? ($decoded['cuerpo']['nif'] ?? null) : null,
     'nif_coincide' => is_array($decoded) ? ($decoded['cuerpo']['nif_coincide'] ?? null) : null,
     'alerta' => is_array($decoded) ? ($decoded['cuerpo']['alerta_facturacion'] ?? null) : null,
+    'producto' => is_array($decoded) ? ($decoded['cuerpo']['producto'] ?? null) : null,
+    'servicio_nombre' => is_array($decoded) ? ($decoded['cuerpo']['servicio_nombre'] ?? null) : null,
+    'dias_bloqueo' => is_array($decoded) ? ($decoded['cuerpo']['dias_bloqueo'] ?? null) : null,
     'estado' => is_array($decoded) ? ($decoded['cuerpo']['estado'] ?? null) : null,
 ], JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND | LOCK_EX);
 header('Content-Type: application/json');

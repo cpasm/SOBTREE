@@ -1,11 +1,12 @@
 ---
 import Base from "../../layouts/Base.astro";
-import { CONTRATA } from "../../data/contrata";
+import { CONTRATA, SERVICIOS, serviciosConImportes } from "../../data/contrata";
 import { DIAGNOSTICO, POLITICA_VERSION, TEXTOS, PLAZO_DIAGNOSTICO } from "../../data/site";
 import { euros, TEXTO_RESERVA } from "../../data/contrata-logica.mjs";
 
 const activo = CONTRATA.activo;
 const precio = CONTRATA.importes;
+const varios = SERVICIOS.length > 1;
 ---
 {activo ? (
 <Base title="Contrata el diagnóstico | Sobtree" description="Diagnóstico IA exprés a precio cerrado, con IVA, para empresas y autónomos." noindex={true}>
@@ -29,6 +30,19 @@ const precio = CONTRATA.importes;
     </noscript>
 
     <form class="contact" id="contrata-form" hidden>
+      {varios ? (
+        <fieldset class="semanas" id="contrata-servicios">
+          <legend>Elige el servicio</legend>
+          {serviciosConImportes.map((sv, i) => (
+            <label class="semana">
+              <input type="radio" name="servicio" value={sv.id} checked={i === 0} required data-total={sv.importes.totalCentimos} data-base={sv.importes.baseCentimos} />
+              <span>{sv.nombre} · {euros(sv.importes.totalCentimos)} con IVA</span>
+            </label>
+          ))}
+        </fieldset>
+      ) : (
+        <p class="contrata-servicio" id="contrata-servicio" data-servicio={serviciosConImportes[0].id}>Servicio: <strong>{serviciosConImportes[0].nombre}</strong> · {euros(serviciosConImportes[0].importes.totalCentimos)} con IVA</p>
+      )}
       <fieldset class="semanas" id="contrata-semanas">
         <legend>Elige la semana de inicio</legend>
       </fieldset>
@@ -47,7 +61,7 @@ const precio = CONTRATA.importes;
     </form>
   </div>
 </main>
-<script is:inline define:vars={{ endpointDisp: CONTRATA.endpoints.disponibilidad, endpointPago: CONTRATA.endpoints.crearSesion, reserva: TEXTO_RESERVA, baseEsperada: DIAGNOSTICO.precio, totalEsperado: precio.totalCentimos }}>
+<script is:inline define:vars={{ endpointDisp: CONTRATA.endpoints.disponibilidad, endpointPago: CONTRATA.endpoints.crearSesion, reserva: TEXTO_RESERVA, baseEsperada: DIAGNOSTICO.precio, totalEsperado: precio.totalCentimos, serviciosEsperados: serviciosConImportes.map((sv) => ({ id: sv.id, total: sv.importes.totalCentimos, base: sv.importes.baseCentimos })) }}>
 (function () {
   var estado = document.getElementById("contrata-estado");
   var form = document.getElementById("contrata-form");
@@ -80,6 +94,12 @@ const precio = CONTRATA.importes;
         fallo();
         return;
       }
+      // Los servicios y sus importes que anuncia el servidor tienen que ser los que muestra la página.
+      var lista_s = disp.servicios || [];
+      var cuadra = serviciosEsperados.every(function (e) {
+        return lista_s.some(function (r) { return r.id === e.id && r.total_centimos === e.total && r.base_centimos === e.base; });
+      });
+      if (!cuadra) { fallo(); return; }
       datos = disp;
       if (!lista || !form) return;
       var hay = false;
@@ -110,6 +130,19 @@ const precio = CONTRATA.importes;
     })
     .catch(fallo);
 
+  // Con más de un servicio, el desglose y el botón siguen al servicio elegido.
+  function eur(c) { return (c / 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €"; }
+  if (form) form.addEventListener("change", function (ev) {
+    var r = ev.target;
+    if (!r || r.name !== "servicio") return;
+    var total = Number(r.getAttribute("data-total")), base = Number(r.getAttribute("data-base"));
+    var tt = document.querySelector(".contrata-total"), pb = document.getElementById("contrata-pagar");
+    var ps = precioBox ? precioBox.querySelectorAll("strong") : [];
+    if (ps.length > 1) { ps[0].textContent = eur(base); ps[1].textContent = eur(total - base); }
+    if (tt) tt.textContent = "Total " + eur(total);
+    if (pb) pb.textContent = "Pagar " + eur(total);
+  });
+
   if (form) form.addEventListener("submit", function (ev) {
     ev.preventDefault();
     var marcada = form.querySelector("input[name=semana]:checked");
@@ -118,8 +151,11 @@ const precio = CONTRATA.importes;
       if (status) status.textContent = "Elige una semana con plazas.";
       return;
     }
+    var elegido = form.querySelector("input[name=servicio]:checked");
+    var fijo = document.getElementById("contrata-servicio");
+    var producto = elegido ? elegido.value : (fijo ? fijo.getAttribute("data-servicio") : "");
     var body = {
-      producto: "diagnostico",
+      producto: producto,
       semana: marcada.value,
       csrf: datos.csrf,
       empresa: document.getElementById("contrata-empresa").value,

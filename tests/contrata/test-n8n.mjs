@@ -30,15 +30,15 @@ t("la configuración sale en modo simulación y el flujo de contrata no guarda l
 
 // ---- Calendarios: reales pero solo tras la rama de producción
 const google = [...disp.nodes, ...cont.nodes].filter((n) => n.type === "n8n-nodes-base.googleCalendar");
-t("nodos de Google Calendar habilitados pero solo en la rama de producción", google.length === 3 && google.every((n) => !n.disabled)
-  && disp.connections["¿Simulación?"].main[1][0].node === "Google · Proyectos"
+t("nodos de Google Calendar habilitados pero solo en la rama de producción", google.length === 2 && google.every((n) => !n.disabled)
+  && disp.connections["¿Simulación?"].main[1][0].node === "Google · Calendario"
   && cont.connections["¿Rama real?"].main[0][0].node === "¿Es una venta?");
-const ids = [...texto.matchAll(/CONFIGURAR_ID_CALENDARIO_[A-Z]+/g)].map((m) => m[0]);
-t("solo los dos IDs placeholder", ids.includes("CONFIGURAR_ID_CALENDARIO_PROYECTOS") && ids.includes("CONFIGURAR_ID_CALENDARIO_BLOQUEOS"));
-t("Contrata solo escribe en el calendario de Proyectos",
-  cont.nodes.find((n) => n.name === "Evento en Proyectos").parameters.calendar.value === "CONFIGURAR_ID_CALENDARIO_PROYECTOS"
-  && !JSON.stringify(cont).includes("CONFIGURAR_ID_CALENDARIO_BLOQUEOS"));
-t("Bloqueos se lee una vez (executeOnce) y solo para fechas", disp.nodes.find((n) => n.name === "Google · Bloqueos").executeOnce === true);
+const ids = new Set([...texto.matchAll(/CONFIGURAR_ID_CALENDARIO[A-Z_]*/g)].map((m) => m[0]));
+t("un solo ID de calendario (placeholder) en ambos flujos", ids.size === 1 && ids.has("CONFIGURAR_ID_CALENDARIO"));
+t("Contrata escribe en ese calendario; la disponibilidad lo lee una sola vez (un nodo de lectura)",
+  cont.nodes.find((n) => n.name === "Evento en el calendario").parameters.calendar.value === "CONFIGURAR_ID_CALENDARIO"
+  && disp.nodes.filter((n) => n.type === "n8n-nodes-base.googleCalendar").length === 1
+  && !disp.nodes.some((n) => /Bloqueos|Proyectos/.test(n.name)));
 
 // ---- Hoja
 const COLS_VENTAS = ["fecha", "id_sesion_stripe", "empresa", "nif", "email", "producto", "importe_sin_iva", "iva", "total", "semana_reservada", "estado"];
@@ -60,11 +60,11 @@ const reemb = nodo("Marcar reembolso en Ventas");
 t("el reembolso solo cambia la columna estado de la fila de esa sesión", reemb.parameters.operation === "update" && JSON.stringify(Object.keys(reemb.parameters.columns.value)) === '["id_sesion_stripe","estado"]' && reemb.parameters.columns.matchingColumns[0] === "id_sesion_stripe");
 const c = cont.connections;
 t("orden de la venta: Ventas → Historial → Evento → Aviso → Respuesta",
-  c["Añadir fila en Ventas"].main[0][0].node === "Historial: venta" && c["Historial: venta"].main[0][0].node === "Evento en Proyectos"
-  && c["Evento en Proyectos"].main[0][0].node === "Aviso a info@ (venta)" && c["Aviso a info@ (venta)"].main[0][0].node === "Responder 200 venta");
+  c["Añadir fila en Ventas"].main[0][0].node === "Historial: venta" && c["Historial: venta"].main[0][0].node === "Evento en el calendario"
+  && c["Evento en el calendario"].main[0][0].node === "Aviso a info@ (venta)" && c["Aviso a info@ (venta)"].main[0][0].node === "Responder 200 venta");
 t("si falla Calendario o Gmail el flujo sigue; si falla Ventas o Historial termina en error y la web reintenta",
-  nodo("Evento en Proyectos").onError === "continueRegularOutput" && nodo("Aviso a info@ (venta)").onError === "continueRegularOutput" && !ventas.onError && !nodo("Historial: venta").onError);
-t("el evento es de día completo y su descripción lleva la sesión de Stripe", nodo("Evento en Proyectos").parameters.additionalFields.allday === "yes" && /evento\.descripcion/.test(nodo("Evento en Proyectos").parameters.additionalFields.description));
+  nodo("Evento en el calendario").onError === "continueRegularOutput" && nodo("Aviso a info@ (venta)").onError === "continueRegularOutput" && !ventas.onError && !nodo("Historial: venta").onError);
+t("el evento es de día completo y su descripción lleva la sesión de Stripe", nodo("Evento en el calendario").parameters.additionalFields.allday === "yes" && /evento\.descripcion/.test(nodo("Evento en el calendario").parameters.additionalFields.description));
 
 const AsyncFn = Object.getPrototypeOf(async function () {}).constructor;
 const codigo = (wf, n) => wf.nodes.find((x) => x.name === n).parameters.jsCode;
@@ -77,7 +77,7 @@ const run = async (js, item, ctx = {}) => new AsyncFn("$input", "$", "require", 
 
 // ---- Disponibilidad
 const [calc] = await run(codigo(disp, "Calcular plazas"), {
-  modo: "simulacion", calendario_proyectos: "CONFIGURAR_ID_CALENDARIO_PROYECTOS", calendario_bloqueos: "CONFIGURAR_ID_CALENDARIO_BLOQUEOS",
+  modo: "simulacion", calendario: "CONFIGURAR_ID_CALENDARIO",
   max_proyectos_simultaneos: 1, plazo_minimo_dias_laborables: 3, semanas_visibles: 4, hoy: "2026-10-27",
   proyectos: [{ inicio: "2026-11-02", fin: "2026-11-07", sesion: "cs_test_abc" }], bloqueos: [{ inicio: "2026-11-16", fin: "2026-11-21" }],
   url_publicacion: "https://ejemplo.invalid/api/contrata/disponibilidad.php"
@@ -85,24 +85,60 @@ const [calc] = await run(codigo(disp, "Calcular plazas"), {
 t("calcular devuelve 4 semanas, aplica proyecto y bloqueo", calc.json.cuerpo.semanas.length === 4 && calc.json.cuerpo.semanas[0].plazas === 0 && calc.json.cuerpo.semanas[2].bloqueada === true && calc.json.cuerpo.semanas[1].plazas === 1);
 t("no publica con el placeholder", calc.json.enviar === false && calc.json.firma === "");
 let lanzo = false;
-try { await run(codigo(disp, "Calcular plazas"), { modo: "produccion", calendario_proyectos: "x", calendario_bloqueos: "y", max_proyectos_simultaneos: 1, plazo_minimo_dias_laborables: 3, semanas_visibles: 4, hoy: "2026-10-27", url_publicacion: "https://ejemplo.invalid/x" }); } catch (e) { lanzo = true; }
+try { await run(codigo(disp, "Calcular plazas"), { modo: "produccion", calendario: "x", max_proyectos_simultaneos: 1, plazo_minimo_dias_laborables: 3, semanas_visibles: 4, hoy: "2026-10-27", url_publicacion: "https://ejemplo.invalid/x" }); } catch (e) { lanzo = true; }
 t("en producción sin secreto ni URL real, calcular falla en vez de no publicar en silencio", lanzo);
 
-const cfg = { modo: "produccion", calendario_proyectos: "p", calendario_bloqueos: "b", hoy: "2026-10-27" };
+const cfg = { modo: "produccion", calendario: "info@sobtree.com", hoy: "2026-10-27" };
 const evs = (arr) => ({ all: () => arr.map((json) => ({ json })) });
-const [mapa] = await run(codigo(disp, "Mapear calendarios"), {}, {
+const clasificar = async (lista) => (await run(codigo(disp, "Mapear calendarios"), {}, {
   "Configuración": { first: () => ({ json: cfg }) },
-  "Google · Proyectos": evs([
-    { status: "confirmed", start: { date: "2026-11-02" }, end: { date: "2026-11-07" }, description: "Sesión Stripe: cs_test_abc123\nSemana de inicio", summary: "Diagnóstico · Acme" },
-    { status: "confirmed", start: { dateTime: "2026-11-09T10:00:00+01:00" }, end: { dateTime: "2026-11-09T11:00:00+01:00" } },
-    { status: "cancelled", start: { date: "2026-11-23" }, end: { date: "2026-11-28" } },
-    {}
-  ]),
-  "Google · Bloqueos": evs([{ status: "confirmed", start: { date: "2026-11-16" }, end: { date: "2026-11-21" }, summary: "Vacaciones privadas" }, {}])
+  "Google · Calendario": evs(lista)
+}))[0].json;
+const mapa = await clasificar([
+  { status: "confirmed", start: { date: "2026-11-02" }, end: { date: "2026-11-07" }, description: "Sesión Stripe: cs_test_abc123\nSemana de inicio", summary: "CONTRATA · Diagnóstico de implantación de IA · Acme" },
+  { status: "confirmed", start: { dateTime: "2026-11-09T10:00:00+01:00" }, end: { dateTime: "2026-11-09T11:00:00+01:00" }, summary: "contrata · otro" },
+  { status: "cancelled", start: { date: "2026-11-23" }, end: { date: "2026-11-28" }, summary: "CONTRATA · cancelado" },
+  { status: "confirmed", start: { date: "2026-11-16" }, end: { date: "2026-11-21" }, summary: "BLOQUEO · vacaciones privadas" },
+  {}
+]);
+t("mapear: proyecto de día completo con sesión y proyecto con hora (+1 día de fin); cancelado y vacío ignorados",
+  JSON.stringify(mapa.proyectos) === JSON.stringify([{ inicio: "2026-11-02", fin: "2026-11-07", sesion: "cs_test_abc123" }, { inicio: "2026-11-09", fin: "2026-11-10" }]));
+t("mapear: los bloqueos solo llevan fechas (nada de títulos)", JSON.stringify(mapa.bloqueos) === JSON.stringify([{ inicio: "2026-11-16", fin: "2026-11-21" }]) && !JSON.stringify(mapa).includes("vacaciones"));
+
+// Calendario único (info@): las reuniones normales no bloquean semanas y un proyecto de Contrata nunca cuenta como bloqueo.
+const reuniones = await clasificar([
+  { status: "confirmed", start: { dateTime: "2026-11-10T09:00:00+01:00" }, end: { dateTime: "2026-11-10T10:00:00+01:00" }, summary: "Reunión con cliente" },
+  { status: "confirmed", start: { date: "2026-11-16" }, end: { date: "2026-11-21" }, summary: "Vacaciones" },
+  { status: "confirmed", start: { date: "2026-11-23" }, end: { date: "2026-11-28" }, summary: "Bloqueado el jueves" },
+  { status: "confirmed", start: { date: "2026-11-30" }, end: { date: "2026-12-05" }, summary: "Mi BLOQUEO no es el primero" },
+  { status: "confirmed", start: { date: "2026-12-07" }, end: { date: "2026-12-12" } }
+]);
+t("mapear: reuniones, vacaciones sin marcador y títulos que no empiezan por BLOQUEO ni CONTRATA no cuentan", reuniones.proyectos.length === 0 && reuniones.bloqueos.length === 0 && reuniones.eventos_ignorados === 5);
+const marcados = await clasificar([
+  { status: "confirmed", start: { date: "2026-11-02" }, end: { date: "2026-11-07" }, summary: "CONTRATA · Diagnóstico · BLOQUEO Acme", description: "Sesión Stripe: cs_live_zzz" },
+  { status: "confirmed", start: { date: "2026-11-09" }, end: { date: "2026-11-14" }, summary: "Reservado", extendedProperties: { private: { sobtree_contrata: "1" } } },
+  { status: "confirmed", start: { date: "2026-11-16" }, end: { date: "2026-11-21" }, summary: "  bloqueo - festivo" },
+  { status: "confirmed", start: { date: "2026-11-23" }, end: { date: "2026-11-28" }, summary: "BLOQUEO" }
+]);
+t("mapear: un evento de Contrata no es bloqueo aunque su título lleve la palabra BLOQUEO; la propiedad extendida también lo marca como proyecto",
+  marcados.proyectos.length === 2 && marcados.proyectos[0].sesion === "cs_live_zzz" && marcados.bloqueos.length === 2 && marcados.eventos_ignorados === 0);
+// Capacidad: el proyecto del calendario y su retención de la web se cuentan una vez (por la sesión), no dos.
+const [conCal] = await run(codigo(disp, "Calcular plazas"), {
+  modo: "simulacion", calendario: "info@sobtree.com", max_proyectos_simultaneos: 1, plazo_minimo_dias_laborables: 3, semanas_visibles: 4, hoy: "2026-10-27",
+  proyectos: marcados.proyectos, bloqueos: marcados.bloqueos, url_publicacion: "https://ejemplo.invalid/x"
 });
-t("mapear: evento de día completo con sesión, evento con hora (+1 día de fin), cancelado y vacío ignorados",
-  JSON.stringify(mapa.json.proyectos) === JSON.stringify([{ inicio: "2026-11-02", fin: "2026-11-07", sesion: "cs_test_abc123" }, { inicio: "2026-11-09", fin: "2026-11-10" }]));
-t("mapear: los bloqueos solo llevan fechas (nada de títulos)", JSON.stringify(mapa.json.bloqueos) === JSON.stringify([{ inicio: "2026-11-16", fin: "2026-11-21" }]) && !JSON.stringify(mapa.json).includes("Vacaciones"));
+const sem = conCal.json.cuerpo.semanas;
+t("calcular con el calendario único: proyectos de Contrata ocupan su semana (1 por semana, no 2 por proyecto+bloqueo) y los bloqueos cierran la suya",
+  sem[0].plazas === 0 && sem[0].bloqueada === false && sem[1].plazas === 0 && sem[2].bloqueada === true && sem[3].bloqueada === true);
+const unaSola = await clasificar([{ status: "confirmed", start: { date: "2026-11-02" }, end: { date: "2026-11-07" }, summary: "CONTRATA · Diagnóstico · Acme", description: "cs_test_dup1" }]);
+const [dup] = await run(codigo(disp, "Calcular plazas"), {
+  modo: "simulacion", calendario: "info@sobtree.com", max_proyectos_simultaneos: 2, plazo_minimo_dias_laborables: 3, semanas_visibles: 4, hoy: "2026-10-27",
+  proyectos: unaSola.proyectos, bloqueos: unaSola.bloqueos, url_publicacion: "https://ejemplo.invalid/x"
+});
+t("con capacidad 2, un solo evento de Contrata deja 1 plaza (no cuenta doble)", dup.json.cuerpo.semanas[0].plazas === 1 && dup.json.cuerpo.semanas[0].bloqueada === false);
+let calMalo = false;
+try { await run(codigo(disp, "Calcular plazas"), { modo: "simulacion", calendario: "primary", max_proyectos_simultaneos: 1, plazo_minimo_dias_laborables: 3, semanas_visibles: 4, hoy: "2026-10-27" }); } catch (e) { calMalo = true; }
+t("«primary» no se acepta como ID de calendario", calMalo);
 
 // ---- Contrata
 const src = fs.readFileSync(new URL("contrata-verificar.js", dir), "utf8");
@@ -130,6 +166,10 @@ t("importes en euros: 490 sin IVA + 102,90 de IVA = 592,90", v.importe_sin_iva =
 t("estado «pagada» sin alerta, fecha ISO, y las 11 columnas exactas", v.estado === "pagada" && !isNaN(Date.parse(v.fecha)) && JSON.stringify(Object.keys(v)) === JSON.stringify(COLS_VENTAS));
 t("Historial con las 5 columnas y sin NIF", JSON.stringify(Object.keys(prod.json.historial)) === JSON.stringify(COLS_HIST) && prod.json.historial.tipo === "venta" && !JSON.stringify(prod.json.historial).includes("B12345674") && !prod.json.aviso_email.texto.includes("B12345674"));
 t("evento: lunes a viernes (fin exclusivo el sábado), descripción con la sesión", prod.json.evento.inicio === "2026-11-09" && prod.json.evento.fin === "2026-11-14" && prod.json.evento.descripcion.includes("cs_test_abc"));
+t("evento: el título empieza por «CONTRATA ·» (la web lo lee como proyecto, no como bloqueo) y lleva el servicio",
+  /^CONTRATA · /.test(prod.json.evento.resumen) && !/^\s*BLOQUEO/i.test(prod.json.evento.resumen));
+const [tres] = await run(preparar({ modo: "produccion" }), firmar(venta({ producto: "diagnostico", servicio_nombre: "Diagnóstico de implantación de IA", dias_bloqueo: 3 })));
+t("evento: los días de bloqueo del servicio mandan (3 días → fin el jueves) y la fila de Ventas registra el servicio", tres.json.evento.fin === "2026-11-12" && tres.json.venta.producto === "diagnostico" && /Diagnóstico de implantación de IA/.test(tres.json.evento.resumen));
 const [rev] = await run(preparar({ modo: "produccion" }), firmar(venta({ alerta_facturacion: "nif_distinto", nif_coincide: false })));
 t("con alerta de facturación la fila queda «revisar» y el aviso lo dice", rev.json.venta.estado === "revisar" && /REVISAR/.test(rev.json.aviso_email.asunto));
 const [live] = await run(preparar({ modo: "produccion" }), firmar(venta({ livemode: true })));

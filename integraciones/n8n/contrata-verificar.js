@@ -69,7 +69,7 @@ if (tipo === 'checkout.session.completed') {
     empresa,
     nif: String(cuerpo.nif || ''),
     email,
-    producto: String(cuerpo.producto || 'diagnostico'),
+    producto: String(cuerpo.producto || 'diagnostico'), // id del servicio (lista de contrata.php)
     importe_sin_iva: eur(baseC),
     iva: eur(totalC - baseC),
     total: eur(totalC),
@@ -77,6 +77,8 @@ if (tipo === 'checkout.session.completed') {
     estado: alerta ? 'revisar' : 'pagada',
   };
   const factura = String(cuerpo.factura || '');
+  const servicioNombre = String(cuerpo.servicio_nombre || '').replace(/[\r\n]+/g, ' ').slice(0, 80);
+  const diasBloqueo = Math.min(5, Math.max(1, Math.trunc(Number(cuerpo.dias_bloqueo)) || 5));
   const historial = {
     fecha: ahora,
     email,
@@ -90,16 +92,17 @@ if (tipo === 'checkout.session.completed') {
     venta_hoja: MODO === 'produccion' ? 'pendiente' : 'simulada',
     venta_nodo: MODO === 'produccion' ? 'habilitado' : 'simulado',
     evento_calendario: MODO === 'produccion' ? 'pendiente' : 'simulado',
-    // Se reserva una semana de calendario (lunes a viernes; el día de fin es exclusivo) aunque la entrega contractual sea de 10 días laborables como máximo.
+    // Se bloquean los días del servicio desde el lunes de inicio (5 = lunes a viernes; el día de fin es exclusivo), aunque la entrega contractual sea de 10 días laborables como máximo.
+    // El título empieza por «CONTRATA ·»: la web lo lee como proyecto, nunca como bloqueo manual.
     evento: {
-      resumen: 'Diagnóstico · ' + empresa.slice(0, 80),
-      descripcion: `Sesión Stripe: ${sesion}\nSemana de inicio: lunes ${semana}`,
+      resumen: 'CONTRATA · ' + (servicioNombre || 'Servicio') + ' · ' + empresa.slice(0, 80),
+      descripcion: `Sesión Stripe: ${sesion}\nServicio: ${venta.producto}\nSemana de inicio: lunes ${semana}`,
       inicio: semana,
-      fin: semana ? sumar(semana, 5) : '',
+      fin: semana ? sumar(semana, diasBloqueo) : '',
     },
     aviso_email: {
       asunto: (alerta ? 'Contrata · venta a REVISAR: ' : 'Contrata · nueva venta: ') + empresa.slice(0, 60),
-      texto: `Nueva venta del diagnóstico.\nEmpresa: ${empresa}\nTotal: ${venta.total} €\nSemana de inicio: lunes ${semana}\nSesión: ${sesion}\n` + (alerta ? `ALERTA de facturación: ${alerta}. Revisa la fila en «Ventas» y la factura en Stripe.\n` : 'La factura la emite Stripe y se envía al cliente.\n') + 'Los datos (incluido el NIF) están en la pestaña «Ventas».',
+      texto: `Nueva venta (${servicioNombre || venta.producto}).\nEmpresa: ${empresa}\nTotal: ${venta.total} €\nSemana de inicio: lunes ${semana}\nSesión: ${sesion}\n` + (alerta ? `ALERTA de facturación: ${alerta}. Revisa la fila en «Ventas» y la factura en Stripe.\n` : 'La factura la emite Stripe y se envía al cliente.\n') + 'Los datos (incluido el NIF) están en la pestaña «Ventas».',
     },
     simulado: MODO !== 'produccion',
     aviso: true,

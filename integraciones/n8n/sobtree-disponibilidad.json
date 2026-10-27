@@ -17,7 +17,7 @@
         -220
       ],
       "parameters": {
-        "content": "## Modo\n\nLa constante MODO del nodo «Configuración» manda: «simulacion» (por defecto) no llama a Google ni publica; «produccion» lee los dos calendarios de info@sobtree.com («Sobtree · Proyectos» y «Sobtree · Bloqueos») y publica en la web.\nIDs, URL y SECRET: se ponen al pasar a producción (el secreto se pega en n8n, no en el repositorio).",
+        "content": "## Modo\n\nLa constante MODO del nodo «Configuración» manda: «simulacion» (por defecto) no llama a Google ni publica; «produccion» lee UN calendario (info@sobtree.com) y publica en la web. Solo cuentan los eventos «CONTRATA · …» (proyectos) y «BLOQUEO …» (bloqueos a mano); el resto del calendario se ignora.\nIDs, URL y SECRET: se ponen al pasar a producción (el secreto se pega en n8n, no en el repositorio).",
         "width": 520,
         "height": 180,
         "color": 4
@@ -70,7 +70,7 @@
         120
       ],
       "parameters": {
-        "jsCode": "const MODO = \"simulacion\";\nconst CALENDARIO_PROYECTOS = \"CONFIGURAR_ID_CALENDARIO_PROYECTOS\";\nconst CALENDARIO_BLOQUEOS = \"CONFIGURAR_ID_CALENDARIO_BLOQUEOS\";\nconst SECRET = \"REEMPLAZAR_EN_N8N\";\nconst URL_PUBLICACION = \"https://ejemplo.invalid/api/contrata/disponibilidad.php\";\nconst CUENTA = \"info@sobtree.com\";\nfunction idOk(id) {\n  if (!id || id === \"primary\") return false;\n  if (/@gmail\\.com$/i.test(id)) return false;\n  if (String(id).toLowerCase() === CUENTA) return false;\n  return true;\n}\nif (MODO !== \"simulacion\" && MODO !== \"produccion\") throw new Error(\"modo desconocido\");\nif (!idOk(CALENDARIO_PROYECTOS) || !idOk(CALENDARIO_BLOQUEOS) || CALENDARIO_PROYECTOS === CALENDARIO_BLOQUEOS) {\n  throw new Error(\"IDs de calendario no permitidos\");\n}\nconst hoy = new Intl.DateTimeFormat(\"en-CA\", { timeZone: \"Europe/Madrid\" }).format(new Date());\nreturn [{ json: {\n  modo: MODO,\n  cuenta: CUENTA,\n  calendario_proyectos: CALENDARIO_PROYECTOS,\n  calendario_bloqueos: CALENDARIO_BLOQUEOS,\n  max_proyectos_simultaneos: 1,\n  plazo_minimo_dias_laborables: 3,\n  semanas_visibles: 4,\n  hoy,\n  proyectos: [],\n  bloqueos: [],\n  secreto_configurado: SECRET !== \"REEMPLAZAR_EN_N8N\",\n  url_publicacion: URL_PUBLICACION\n} }];\n"
+        "jsCode": "const MODO = \"simulacion\";\nconst CALENDARIO = \"CONFIGURAR_ID_CALENDARIO\";\nconst SECRET = \"REEMPLAZAR_EN_N8N\";\nconst URL_PUBLICACION = \"https://ejemplo.invalid/api/contrata/disponibilidad.php\";\nconst CUENTA = \"info@sobtree.com\";\nfunction idOk(id) {\n  if (!id || id === \"primary\") return false;\n  if (/@gmail\\.com$/i.test(id)) return false;\n  return true;\n}\nif (MODO !== \"simulacion\" && MODO !== \"produccion\") throw new Error(\"modo desconocido\");\nif (!idOk(CALENDARIO)) {\n  throw new Error(\"ID de calendario no permitido\");\n}\nconst hoy = new Intl.DateTimeFormat(\"en-CA\", { timeZone: \"Europe/Madrid\" }).format(new Date());\nreturn [{ json: {\n  modo: MODO,\n  cuenta: CUENTA,\n  calendario: CALENDARIO,\n  max_proyectos_simultaneos: 1,\n  plazo_minimo_dias_laborables: 3,\n  semanas_visibles: 4,\n  hoy,\n  proyectos: [],\n  bloqueos: [],\n  secreto_configurado: SECRET !== \"REEMPLAZAR_EN_N8N\",\n  url_publicacion: URL_PUBLICACION\n} }];\n"
       }
     },
     {
@@ -120,7 +120,7 @@
     },
     {
       "id": "c0a1b001-0000-4000-8000-000000000007",
-      "name": "Google · Proyectos",
+      "name": "Google · Calendario",
       "type": "n8n-nodes-base.googleCalendar",
       "typeVersion": 1.3,
       "position": [
@@ -133,7 +133,7 @@
         "calendar": {
           "__rl": true,
           "mode": "id",
-          "value": "={{ $json.calendario_proyectos }}"
+          "value": "={{ $json.calendario }}"
         },
         "returnAll": true,
         "options": {
@@ -148,40 +148,7 @@
           "name": "Google Calendar Sobtree (info@)"
         }
       },
-      "notes": "Solo se alcanza con MODO = produccion. events.list solo del ID «Sobtree · Proyectos». No lista calendarios. No usar una cuenta personal."
-    },
-    {
-      "id": "c0a1b001-0000-4000-8000-000000000008",
-      "name": "Google · Bloqueos",
-      "type": "n8n-nodes-base.googleCalendar",
-      "typeVersion": 1.3,
-      "position": [
-        1020,
-        280
-      ],
-      "alwaysOutputData": true,
-      "executeOnce": true,
-      "parameters": {
-        "operation": "getAll",
-        "calendar": {
-          "__rl": true,
-          "mode": "id",
-          "value": "={{ $('Configuración').first().json.calendario_bloqueos }}"
-        },
-        "returnAll": true,
-        "options": {
-          "timeMin": "={{ $now.minus({ days: 1 }).toISO() }}",
-          "timeMax": "={{ $now.plus({ weeks: 9 }).toISO() }}",
-          "singleEvents": true
-        }
-      },
-      "credentials": {
-        "googleCalendarOAuth2Api": {
-          "id": "REEMPLAZAR_ID_CREDENCIAL",
-          "name": "Google Calendar Sobtree (info@)"
-        }
-      },
-      "notes": "Solo se alcanza con MODO = produccion. events.list solo del ID «Sobtree · Bloqueos»; de aquí solo se usan las fechas. Se ejecuta una vez aunque el calendario de proyectos devuelva varios eventos."
+      "notes": "Solo se alcanza con MODO = produccion. events.list de UN calendario (info@sobtree.com). No lista calendarios. El nodo «Mapear calendarios» se queda solo con los eventos «CONTRATA · …» y «BLOQUEO …»; el resto del calendario no afecta a las plazas."
     },
     {
       "id": "c0a1b001-0000-4000-8000-000000000017",
@@ -193,7 +160,7 @@
         460
       ],
       "parameters": {
-        "jsCode": "// Convierte los eventos de los dos calendarios en rangos de fechas [inicio, fin).\n// Los bloqueos solo aportan fechas (nunca títulos ni descripciones). Los proyectos aportan además el id de sesión de Stripe\n// (de la descripción del evento) para no contar dos veces una plaza ya reservada en el calendario.\nconst cfg = $(\"Configuración\").first().json;\nconst sumar = (iso, n) => { const d = new Date(iso + \"T00:00:00Z\"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };\nconst eventos = (nombre) => $(nombre).all().map((i) => i.json).filter((e) => e && e.start && e.end && e.status !== \"cancelled\");\nconst rango = (e) => {\n  const ini = e.start.date || String(e.start.dateTime).slice(0, 10);\n  let fin;\n  if (e.end.date) fin = e.end.date;\n  else {\n    const f = String(e.end.dateTime);\n    fin = f.slice(0, 10);\n    if (!/T00:00:00/.test(f.slice(10, 19))) fin = sumar(fin, 1);\n  }\n  if (fin <= ini) fin = sumar(ini, 1);\n  return { inicio: ini, fin };\n};\nconst proyectos = eventos(\"Google · Proyectos\").map((e) => {\n  const m = String(e.description || \"\").match(/cs_(?:test|live)_[A-Za-z0-9]+/);\n  return { ...rango(e), ...(m ? { sesion: m[0] } : {}) };\n});\nconst bloqueos = eventos(\"Google · Bloqueos\").map((e) => rango(e));\nreturn [{ json: { ...cfg, proyectos, bloqueos } }];\n"
+        "jsCode": "// Clasifica los eventos del calendario de info@sobtree.com y los convierte en rangos de fechas [inicio, fin).\n// Un solo calendario: solo cuentan dos tipos de evento y el resto (reuniones, citas, recordatorios) se ignora.\n//   · PROYECTO: lo crea Contrata. Título que empieza por «CONTRATA ·» o propiedad extendida privada sobtree_contrata = 1.\n//   · BLOQUEO: lo pones tú a mano. Título que empieza por «BLOQUEO» (p. ej. «BLOQUEO · vacaciones»).\n// Los bloqueos solo aportan fechas (nunca títulos ni descripciones). Los proyectos aportan además el id de sesión de Stripe\n// (de la descripción del evento) para no contar dos veces una plaza ya reservada en el calendario.\nconst cfg = $(\"Configuración\").first().json;\nconst sumar = (iso, n) => { const d = new Date(iso + \"T00:00:00Z\"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };\nconst eventos = $(\"Google · Calendario\").all().map((i) => i.json).filter((e) => e && e.start && e.end && e.status !== \"cancelled\");\nconst esProyecto = (e) => /^\\s*CONTRATA\\s*·/i.test(String(e.summary || \"\")) || String(((e.extendedProperties || {}).private || {}).sobtree_contrata || \"\") === \"1\";\nconst esBloqueo = (e) => !esProyecto(e) && /^\\s*BLOQUEO(?![A-Za-zÁÉÍÓÚáéíóúÑñ])/i.test(String(e.summary || \"\"));\nconst rango = (e) => {\n  const ini = e.start.date || String(e.start.dateTime).slice(0, 10);\n  let fin;\n  if (e.end.date) fin = e.end.date;\n  else {\n    const f = String(e.end.dateTime);\n    fin = f.slice(0, 10);\n    if (!/T00:00:00/.test(f.slice(10, 19))) fin = sumar(fin, 1);\n  }\n  if (fin <= ini) fin = sumar(ini, 1);\n  return { inicio: ini, fin };\n};\nconst proyectos = eventos.filter(esProyecto).map((e) => {\n  const m = String(e.description || \"\").match(/cs_(?:test|live)_[A-Za-z0-9]+/);\n  return { ...rango(e), ...(m ? { sesion: m[0] } : {}) };\n});\nconst bloqueos = eventos.filter(esBloqueo).map((e) => rango(e));\nreturn [{ json: { ...cfg, proyectos, bloqueos, eventos_ignorados: eventos.length - proyectos.length - bloqueos.length } }];\n"
       }
     },
     {
@@ -206,7 +173,7 @@
         40
       ],
       "parameters": {
-        "jsCode": "// Lógica compartida del botón «Contrata» (importes, textos honestos y estado del botón).\n// La usa el front y las pruebas. No inventa plazas: solo acepta textos que ya cuadran\n// con la fórmula publicada por el servidor.\n\nconst IVA_PORCIENTO = 21;\nconst RETENCION_MINUTOS = 30;\nconst SEMANAS_VISIBLES = 4;\nconst PLAZO_MINIMO_DIAS_LABORABLES = 3;\nconst MAX_PROYECTOS_SIMULTANEOS = 1;\n\nconst TEXTO_RESERVA =\n  \"Reserva tu diagnóstico; te confirmamos la fecha en 1 día laborable\";\n\nconst MESES = [\n  \"enero\", \"febrero\", \"marzo\", \"abril\", \"mayo\", \"junio\",\n  \"julio\", \"agosto\", \"septiembre\", \"octubre\", \"noviembre\", \"diciembre\"\n];\n\nfunction importes(precioBaseEur, ivaPorciento = IVA_PORCIENTO) {\n  const base = Number(precioBaseEur);\n  if (!Number.isInteger(base) || base < 0) throw new Error(\"precio\");\n  const baseCentimos = base * 100;\n  const ivaCentimos = Math.trunc((baseCentimos * ivaPorciento) / 100);\n  const totalCentimos = baseCentimos + ivaCentimos;\n  return { baseEur: base, ivaPorciento, baseCentimos, ivaCentimos, totalCentimos };\n}\n\nfunction euros(centimos) {\n  const signo = centimos < 0 ? \"-\" : \"\";\n  const abs = Math.abs(centimos);\n  const entero = Math.trunc(abs / 100);\n  const dec = String(abs % 100).padStart(2, \"0\");\n  return `${signo}${entero.toLocaleString(\"es-ES\")},${dec} €`;\n}\n\nfunction diaSemana(iso) {\n  const [y, m, d] = iso.split(\"-\").map(Number);\n  const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();\n  return wd === 0 ? 7 : wd;\n}\n\nfunction sumarDias(iso, n) {\n  const [y, m, d] = iso.split(\"-\").map(Number);\n  const dt = new Date(Date.UTC(y, m - 1, d));\n  dt.setUTCDate(dt.getUTCDate() + n);\n  return dt.toISOString().slice(0, 10);\n}\n\nfunction esLaborable(iso) {\n  return diaSemana(iso) <= 5;\n}\n\nfunction sumarLaborables(iso, n) {\n  let d = iso;\n  let rest = n;\n  while (rest > 0) {\n    d = sumarDias(d, 1);\n    if (esLaborable(d)) rest -= 1;\n  }\n  return d;\n}\n\nfunction siguienteLunes(iso) {\n  const n = diaSemana(iso);\n  if (n === 1) return iso;\n  return sumarDias(iso, 8 - n);\n}\n\nfunction primerLunes(hoy, plazo = PLAZO_MINIMO_DIAS_LABORABLES) {\n  return siguienteLunes(sumarLaborables(hoy, plazo));\n}\n\nfunction solapa(aIni, aFin, bIni, bFin) {\n  return aIni < bFin && aFin > bIni;\n}\n\nfunction fechaLarga(iso, anoReferencia) {\n  const [y, m, d] = iso.split(\"-\").map(Number);\n  let txt = `${d} de ${MESES[m - 1]}`;\n  if (anoReferencia && y !== anoReferencia) txt += ` de ${y}`;\n  return txt;\n}\n\nfunction textoPlazas(n, lunes, max, anoReferencia) {\n  if (!Number.isInteger(n) || n < 1 || n > max) return null;\n  const fecha = fechaLarga(lunes, anoReferencia);\n  if (n === 1) return `Queda 1 plaza para la semana del ${fecha}`;\n  return `Quedan ${n} plazas para la semana del ${fecha}`;\n}\n\nfunction textoProxima(lunes, anoReferencia) {\n  return `Nuestros agentes pueden empezar a partir del lunes ${fechaLarga(lunes, anoReferencia)}`;\n}\n\nfunction calcularSemanas({ hoy, max, plazo, visibles, proyectos, bloqueos }) {\n  const primero = primerLunes(hoy, plazo);\n  const ano = Number(hoy.slice(0, 4));\n  const semanas = [];\n  for (let i = 0; i < visibles; i += 1) {\n    const lunes = sumarDias(primero, i * 7);\n    const fin = sumarDias(lunes, 5);\n    const eventos = (proyectos || []).filter((p) => solapa(p.inicio, p.fin, lunes, fin));\n    const bloqueada = (bloqueos || []).some((b) => solapa(b.inicio, b.fin, lunes, fin));\n    const plazas = bloqueada ? 0 : Math.max(0, max - eventos.length);\n    semanas.push({\n      lunes,\n      plazas,\n      bloqueada,\n      proyectos: eventos.length,\n      sesiones: eventos.map((e) => e.sesion).filter(Boolean)\n    });\n  }\n  return { hoy, ano, primero, semanas, max };\n}\n\nconst RE_PLAZA_1 = /^Queda 1 plaza para la semana del \\d{1,2} de [a-záéíóúñ]+( de \\d{4})?$/;\nconst RE_PLAZAS_N = /^Quedan [2-9]\\d* plazas para la semana del \\d{1,2} de [a-záéíóúñ]+( de \\d{4})?$/;\nconst RE_PROXIMA = /^Nuestros agentes pueden empezar a partir del lunes \\d{1,2} de [a-záéíóúñ]+( de \\d{4})?$/;\nconst TEXTO_SIN_PLAZAS = \"No hay plazas en las próximas 4 semanas.\";\n\nfunction notaPermitida(s) {\n  if (typeof s !== \"string\" || s.length > 180 || /[<>]/.test(s)) return null;\n  if (s === TEXTO_SIN_PLAZAS) return s;\n  if (RE_PLAZA_1.test(s) || RE_PLAZAS_N.test(s) || RE_PROXIMA.test(s)) return s;\n  return null;\n}\n\nfunction estadoBoton(disp) {\n  const reserva = { href: \"/#contacto\", texto: TEXTO_RESERVA, nota: null };\n  if (!disp || disp.ok !== true) return reserva;\n  const notas = [];\n  const proxima = notaPermitida(disp.proxima && disp.proxima.texto);\n  if (proxima) notas.push(proxima);\n  const semana = Array.isArray(disp.semanas)\n    ? disp.semanas.find((s) => s && s.libres >= 1)\n    : null;\n  const plazas = notaPermitida(semana && semana.texto_plazas);\n  if (plazas) notas.push(plazas);\n  const sin = notaPermitida(disp.sin_plazas_texto);\n  if (!semana && sin) notas.push(sin);\n  return { href: \"/contratar/\", texto: \"Contrata\", nota: notas.join(\" \") || null };\n}\n\nconst item = $input.first().json;\nif (item.modo !== \"simulacion\" && item.modo !== \"produccion\") throw new Error(\"modo desconocido\");\nconst ids = [item.calendario_proyectos, item.calendario_bloqueos];\nif (ids.length !== 2 || new Set(ids).size !== 2) throw new Error(\"hacen falta exactamente dos calendarios\");\nfor (const id of ids) {\n  if (!id || id === \"primary\" || /@gmail\\.com$/i.test(id) || String(id).toLowerCase() === \"info@sobtree.com\") {\n    throw new Error(\"calendario no permitido\");\n  }\n}\nconst calc = calcularSemanas({\n  hoy: item.hoy,\n  max: item.max_proyectos_simultaneos,\n  plazo: item.plazo_minimo_dias_laborables,\n  visibles: item.semanas_visibles,\n  proyectos: item.proyectos || [],\n  bloqueos: item.bloqueos || []\n});\nconst cuerpo = {\n  generado: new Date().toISOString(),\n  max_proyectos_simultaneos: item.max_proyectos_simultaneos,\n  semanas: calc.semanas\n};\nconst raw = JSON.stringify(cuerpo);\nif (raw.includes(\"@\")) throw new Error(\"la publicación no puede llevar datos personales\");\nconst SECRET = \"REEMPLAZAR_EN_N8N\";\nconst ts = String(Math.floor(Date.now() / 1000));\nconst firma = SECRET === \"REEMPLAZAR_EN_N8N\" ? \"\" : (\"sha256=\" + require(\"crypto\").createHmac(\"sha256\", SECRET).update(ts + \".\" + raw).digest(\"hex\"));\nconst enviar = SECRET !== \"REEMPLAZAR_EN_N8N\" && item.url_publicacion && !String(item.url_publicacion).includes(\"ejemplo.invalid\");\nif (item.modo === \"produccion\" && !enviar) throw new Error(\"En producción hay que pegar el secreto (SECRET) y poner la URL real de publicación.\");\nreturn [{ json: { ...item, cuerpo, raw, enviar, firma, ts } }];\n"
+        "jsCode": "// Lógica compartida del botón «Contrata» (importes, textos honestos y estado del botón).\n// La usa el front y las pruebas. No inventa plazas: solo acepta textos que ya cuadran\n// con la fórmula publicada por el servidor.\n\n// /condiciones/ es un marcador hasta que Nexus entregue el texto aprobado. Mientras valga true: noindex, fuera del sitemap y sin enlaces públicos.\nconst CONDICIONES_ES_MARCADOR = true;\nconst IVA_PORCIENTO = 21;\nconst RETENCION_MINUTOS = 30;\nconst SEMANAS_VISIBLES = 4;\nconst PLAZO_MINIMO_DIAS_LABORABLES = 3;\nconst MAX_PROYECTOS_SIMULTANEOS = 1;\n\nconst TEXTO_RESERVA =\n  \"Reserva tu diagnóstico; te confirmamos la fecha en 1 día laborable\";\n\nconst MESES = [\n  \"enero\", \"febrero\", \"marzo\", \"abril\", \"mayo\", \"junio\",\n  \"julio\", \"agosto\", \"septiembre\", \"octubre\", \"noviembre\", \"diciembre\"\n];\n\nfunction importes(precioBaseEur, ivaPorciento = IVA_PORCIENTO) {\n  const base = Number(precioBaseEur);\n  if (!Number.isInteger(base) || base < 0) throw new Error(\"precio\");\n  const baseCentimos = base * 100;\n  const ivaCentimos = Math.trunc((baseCentimos * ivaPorciento) / 100);\n  const totalCentimos = baseCentimos + ivaCentimos;\n  return { baseEur: base, ivaPorciento, baseCentimos, ivaCentimos, totalCentimos };\n}\n\nfunction euros(centimos) {\n  const signo = centimos < 0 ? \"-\" : \"\";\n  const abs = Math.abs(centimos);\n  const entero = Math.trunc(abs / 100);\n  const dec = String(abs % 100).padStart(2, \"0\");\n  return `${signo}${entero.toLocaleString(\"es-ES\")},${dec} €`;\n}\n\nfunction diaSemana(iso) {\n  const [y, m, d] = iso.split(\"-\").map(Number);\n  const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();\n  return wd === 0 ? 7 : wd;\n}\n\nfunction sumarDias(iso, n) {\n  const [y, m, d] = iso.split(\"-\").map(Number);\n  const dt = new Date(Date.UTC(y, m - 1, d));\n  dt.setUTCDate(dt.getUTCDate() + n);\n  return dt.toISOString().slice(0, 10);\n}\n\nfunction esLaborable(iso) {\n  return diaSemana(iso) <= 5;\n}\n\nfunction sumarLaborables(iso, n) {\n  let d = iso;\n  let rest = n;\n  while (rest > 0) {\n    d = sumarDias(d, 1);\n    if (esLaborable(d)) rest -= 1;\n  }\n  return d;\n}\n\nfunction siguienteLunes(iso) {\n  const n = diaSemana(iso);\n  if (n === 1) return iso;\n  return sumarDias(iso, 8 - n);\n}\n\nfunction primerLunes(hoy, plazo = PLAZO_MINIMO_DIAS_LABORABLES) {\n  return siguienteLunes(sumarLaborables(hoy, plazo));\n}\n\nfunction solapa(aIni, aFin, bIni, bFin) {\n  return aIni < bFin && aFin > bIni;\n}\n\nfunction fechaLarga(iso, anoReferencia) {\n  const [y, m, d] = iso.split(\"-\").map(Number);\n  let txt = `${d} de ${MESES[m - 1]}`;\n  if (anoReferencia && y !== anoReferencia) txt += ` de ${y}`;\n  return txt;\n}\n\nfunction textoPlazas(n, lunes, max, anoReferencia) {\n  if (!Number.isInteger(n) || n < 1 || n > max) return null;\n  const fecha = fechaLarga(lunes, anoReferencia);\n  if (n === 1) return `Queda 1 plaza para la semana del ${fecha}`;\n  return `Quedan ${n} plazas para la semana del ${fecha}`;\n}\n\nfunction textoProxima(lunes, anoReferencia) {\n  return `Nuestros agentes pueden empezar a partir del lunes ${fechaLarga(lunes, anoReferencia)}`;\n}\n\nfunction calcularSemanas({ hoy, max, plazo, visibles, proyectos, bloqueos }) {\n  const primero = primerLunes(hoy, plazo);\n  const ano = Number(hoy.slice(0, 4));\n  const semanas = [];\n  for (let i = 0; i < visibles; i += 1) {\n    const lunes = sumarDias(primero, i * 7);\n    const fin = sumarDias(lunes, 5);\n    const eventos = (proyectos || []).filter((p) => solapa(p.inicio, p.fin, lunes, fin));\n    const bloqueada = (bloqueos || []).some((b) => solapa(b.inicio, b.fin, lunes, fin));\n    const plazas = bloqueada ? 0 : Math.max(0, max - eventos.length);\n    semanas.push({\n      lunes,\n      plazas,\n      bloqueada,\n      proyectos: eventos.length,\n      sesiones: eventos.map((e) => e.sesion).filter(Boolean)\n    });\n  }\n  return { hoy, ano, primero, semanas, max };\n}\n\nconst RE_PLAZA_1 = /^Queda 1 plaza para la semana del \\d{1,2} de [a-záéíóúñ]+( de \\d{4})?$/;\nconst RE_PLAZAS_N = /^Quedan [2-9]\\d* plazas para la semana del \\d{1,2} de [a-záéíóúñ]+( de \\d{4})?$/;\nconst RE_PROXIMA = /^Nuestros agentes pueden empezar a partir del lunes \\d{1,2} de [a-záéíóúñ]+( de \\d{4})?$/;\nconst TEXTO_SIN_PLAZAS = \"No hay plazas en las próximas 4 semanas.\";\n\nfunction notaPermitida(s) {\n  if (typeof s !== \"string\" || s.length > 180 || /[<>]/.test(s)) return null;\n  if (s === TEXTO_SIN_PLAZAS) return s;\n  if (RE_PLAZA_1.test(s) || RE_PLAZAS_N.test(s) || RE_PROXIMA.test(s)) return s;\n  return null;\n}\n\nfunction estadoBoton(disp) {\n  const reserva = { href: \"/#contacto\", texto: TEXTO_RESERVA, nota: null };\n  if (!disp || disp.ok !== true) return reserva;\n  const notas = [];\n  const proxima = notaPermitida(disp.proxima && disp.proxima.texto);\n  if (proxima) notas.push(proxima);\n  const semana = Array.isArray(disp.semanas)\n    ? disp.semanas.find((s) => s && s.libres >= 1)\n    : null;\n  const plazas = notaPermitida(semana && semana.texto_plazas);\n  if (plazas) notas.push(plazas);\n  const sin = notaPermitida(disp.sin_plazas_texto);\n  if (!semana && sin) notas.push(sin);\n  return { href: \"/contratar/\", texto: \"Contrata\", nota: notas.join(\" \") || null };\n}\n\nconst item = $input.first().json;\nif (item.modo !== \"simulacion\" && item.modo !== \"produccion\") throw new Error(\"modo desconocido\");\nconst idCal = item.calendario;\nif (!idCal || idCal === \"primary\" || /@gmail\\.com$/i.test(idCal)) throw new Error(\"calendario no permitido\");\nconst calc = calcularSemanas({\n  hoy: item.hoy,\n  max: item.max_proyectos_simultaneos,\n  plazo: item.plazo_minimo_dias_laborables,\n  visibles: item.semanas_visibles,\n  proyectos: item.proyectos || [],\n  bloqueos: item.bloqueos || []\n});\nconst cuerpo = {\n  generado: new Date().toISOString(),\n  max_proyectos_simultaneos: item.max_proyectos_simultaneos,\n  semanas: calc.semanas\n};\nconst raw = JSON.stringify(cuerpo);\nif (raw.includes(\"@\")) throw new Error(\"la publicación no puede llevar datos personales\");\nconst SECRET = \"REEMPLAZAR_EN_N8N\";\nconst ts = String(Math.floor(Date.now() / 1000));\nconst firma = SECRET === \"REEMPLAZAR_EN_N8N\" ? \"\" : (\"sha256=\" + require(\"crypto\").createHmac(\"sha256\", SECRET).update(ts + \".\" + raw).digest(\"hex\"));\nconst enviar = SECRET !== \"REEMPLAZAR_EN_N8N\" && item.url_publicacion && !String(item.url_publicacion).includes(\"ejemplo.invalid\");\nif (item.modo === \"produccion\" && !enviar) throw new Error(\"En producción hay que pegar el secreto (SECRET) y poner la URL real de publicación.\");\nreturn [{ json: { ...item, cuerpo, raw, enviar, firma, ts } }];\n"
       }
     },
     {
@@ -334,7 +301,7 @@
         ],
         [
           {
-            "node": "Google · Proyectos",
+            "node": "Google · Calendario",
             "type": "main",
             "index": 0
           }
@@ -352,18 +319,7 @@
         ]
       ]
     },
-    "Google · Proyectos": {
-      "main": [
-        [
-          {
-            "node": "Google · Bloqueos",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Google · Bloqueos": {
+    "Google · Calendario": {
       "main": [
         [
           {

@@ -9,18 +9,19 @@ const root = path.resolve(dir, "../..");
 // Opciones (todas opcionales; sin ellas sale el JSON seguro: simulación, IDs y URL de ejemplo, sin secretos).
 //   CONTRATA_N8N_MODO=produccion      rama real (Google Sheets, Calendar, Gmail)
 //   CONTRATA_N8N_LIVE=1               los avisos tienen que ser de Stripe live (sin esto, solo de test)
-//   CONTRATA_CAL_PROYECTOS_ID / CONTRATA_CAL_BLOQUEOS_ID   IDs de los dos calendarios de info@
+//   CONTRATA_CAL_ID                   ID del calendario de info@ (info@sobtree.com, el principal). Un solo calendario:
+//                                     proyectos = eventos «CONTRATA · …»; bloqueos = eventos «BLOQUEO …»; el resto se ignora.
 //   CONTRATA_URL_PUBLICACION          https://sobtree.com/api/contrata/disponibilidad.php
 // El secreto HMAC no se pone aquí: se pega en n8n (nodos Code, constante SECRET).
 const MODO_N8N = process.env.CONTRATA_N8N_MODO === "produccion" ? "produccion" : "simulacion";
 const LIVE_N8N = process.env.CONTRATA_N8N_LIVE === "1";
-const CAL_PROYECTOS = process.env.CONTRATA_CAL_PROYECTOS_ID || "CONFIGURAR_ID_CALENDARIO_PROYECTOS";
-const CAL_BLOQUEOS = process.env.CONTRATA_CAL_BLOQUEOS_ID || "CONFIGURAR_ID_CALENDARIO_BLOQUEOS";
+const CAL_ID = process.env.CONTRATA_CAL_ID || "CONFIGURAR_ID_CALENDARIO";
 const URL_PUB = process.env.CONTRATA_URL_PUBLICACION || "https://ejemplo.invalid/api/contrata/disponibilidad.php";
-if (!/^[A-Za-z0-9_.@-]+$/.test(CAL_PROYECTOS) || !/^[A-Za-z0-9_.@-]+$/.test(CAL_BLOQUEOS)) throw new Error("ID de calendario con caracteres no permitidos");
+if (!/^[A-Za-z0-9_.@-]+$/.test(CAL_ID)) throw new Error("ID de calendario con caracteres no permitidos");
+if (CAL_ID === "primary" || /@gmail\.com$/i.test(CAL_ID)) throw new Error("Usa el ID explícito del calendario de info@sobtree.com, no «primary» ni una cuenta personal.");
 if (!/^https:\/\/[a-z0-9.-]+\/[A-Za-z0-9._\/-]*$/i.test(URL_PUB)) throw new Error("URL de publicación no válida");
-if (MODO_N8N === "produccion" && (CAL_PROYECTOS.startsWith("CONFIGURAR_") || CAL_BLOQUEOS.startsWith("CONFIGURAR_") || URL_PUB.includes("ejemplo.invalid"))) {
-  throw new Error("En producción hacen falta los dos IDs de calendario y la URL de publicación (CONTRATA_CAL_*, CONTRATA_URL_PUBLICACION).");
+if (MODO_N8N === "produccion" && (CAL_ID.startsWith("CONFIGURAR_") || URL_PUB.includes("ejemplo.invalid"))) {
+  throw new Error("En producción hacen falta el ID del calendario y la URL de publicación (CONTRATA_CAL_ID, CONTRATA_URL_PUBLICACION).");
 }
 const logica = fs.readFileSync(path.join(root, "src/data/contrata-logica.mjs"), "utf8").replace(/^export /gm, "");
 const verificar = fs.readFileSync(path.join(dir, "contrata-verificar.js"), "utf8")
@@ -30,13 +31,8 @@ const verificar = fs.readFileSync(path.join(dir, "contrata-verificar.js"), "utf8
 const calcular = `${logica}
 const item = $input.first().json;
 if (item.modo !== "simulacion" && item.modo !== "produccion") throw new Error("modo desconocido");
-const ids = [item.calendario_proyectos, item.calendario_bloqueos];
-if (ids.length !== 2 || new Set(ids).size !== 2) throw new Error("hacen falta exactamente dos calendarios");
-for (const id of ids) {
-  if (!id || id === "primary" || /@gmail\\.com$/i.test(id) || String(id).toLowerCase() === "info@sobtree.com") {
-    throw new Error("calendario no permitido");
-  }
-}
+const idCal = item.calendario;
+if (!idCal || idCal === "primary" || /@gmail\\.com$/i.test(idCal)) throw new Error("calendario no permitido");
 const calc = calcularSemanas({
   hoy: item.hoy,
   max: item.max_proyectos_simultaneos,
@@ -61,27 +57,24 @@ return [{ json: { ...item, cuerpo, raw, enviar, firma, ts } }];
 `;
 
 const configJs = `const MODO = "${MODO_N8N}";
-const CALENDARIO_PROYECTOS = "${CAL_PROYECTOS}";
-const CALENDARIO_BLOQUEOS = "${CAL_BLOQUEOS}";
+const CALENDARIO = "${CAL_ID}";
 const SECRET = "REEMPLAZAR_EN_N8N";
 const URL_PUBLICACION = "${URL_PUB}";
 const CUENTA = "info@sobtree.com";
 function idOk(id) {
   if (!id || id === "primary") return false;
   if (/@gmail\\.com$/i.test(id)) return false;
-  if (String(id).toLowerCase() === CUENTA) return false;
   return true;
 }
 if (MODO !== "simulacion" && MODO !== "produccion") throw new Error("modo desconocido");
-if (!idOk(CALENDARIO_PROYECTOS) || !idOk(CALENDARIO_BLOQUEOS) || CALENDARIO_PROYECTOS === CALENDARIO_BLOQUEOS) {
-  throw new Error("IDs de calendario no permitidos");
+if (!idOk(CALENDARIO)) {
+  throw new Error("ID de calendario no permitido");
 }
 const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date());
 return [{ json: {
   modo: MODO,
   cuenta: CUENTA,
-  calendario_proyectos: CALENDARIO_PROYECTOS,
-  calendario_bloqueos: CALENDARIO_BLOQUEOS,
+  calendario: CALENDARIO,
   max_proyectos_simultaneos: 1,
   plazo_minimo_dias_laborables: 3,
   semanas_visibles: 4,
@@ -93,12 +86,17 @@ return [{ json: {
 } }];
 `;
 
-const mapearJs = `// Convierte los eventos de los dos calendarios en rangos de fechas [inicio, fin).
+const mapearJs = `// Clasifica los eventos del calendario de info@sobtree.com y los convierte en rangos de fechas [inicio, fin).
+// Un solo calendario: solo cuentan dos tipos de evento y el resto (reuniones, citas, recordatorios) se ignora.
+//   · PROYECTO: lo crea Contrata. Título que empieza por «CONTRATA ·» o propiedad extendida privada sobtree_contrata = 1.
+//   · BLOQUEO: lo pones tú a mano. Título que empieza por «BLOQUEO» (p. ej. «BLOQUEO · vacaciones»).
 // Los bloqueos solo aportan fechas (nunca títulos ni descripciones). Los proyectos aportan además el id de sesión de Stripe
 // (de la descripción del evento) para no contar dos veces una plaza ya reservada en el calendario.
 const cfg = $("Configuración").first().json;
 const sumar = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
-const eventos = (nombre) => $(nombre).all().map((i) => i.json).filter((e) => e && e.start && e.end && e.status !== "cancelled");
+const eventos = $("Google · Calendario").all().map((i) => i.json).filter((e) => e && e.start && e.end && e.status !== "cancelled");
+const esProyecto = (e) => /^\\s*CONTRATA\\s*·/i.test(String(e.summary || "")) || String(((e.extendedProperties || {}).private || {}).sobtree_contrata || "") === "1";
+const esBloqueo = (e) => !esProyecto(e) && /^\\s*BLOQUEO(?![A-Za-zÁÉÍÓÚáéíóúÑñ])/i.test(String(e.summary || ""));
 const rango = (e) => {
   const ini = e.start.date || String(e.start.dateTime).slice(0, 10);
   let fin;
@@ -111,12 +109,12 @@ const rango = (e) => {
   if (fin <= ini) fin = sumar(ini, 1);
   return { inicio: ini, fin };
 };
-const proyectos = eventos("Google · Proyectos").map((e) => {
+const proyectos = eventos.filter(esProyecto).map((e) => {
   const m = String(e.description || "").match(/cs_(?:test|live)_[A-Za-z0-9]+/);
   return { ...rango(e), ...(m ? { sesion: m[0] } : {}) };
 });
-const bloqueos = eventos("Google · Bloqueos").map((e) => rango(e));
-return [{ json: { ...cfg, proyectos, bloqueos } }];
+const bloqueos = eventos.filter(esBloqueo).map((e) => rango(e));
+return [{ json: { ...cfg, proyectos, bloqueos, eventos_ignorados: eventos.length - proyectos.length - bloqueos.length } }];
 `;
 
 const code = (id, name, js, x, y) => ({
@@ -141,7 +139,7 @@ const disponibilidad = {
       typeVersion: 1,
       position: [-40, -220],
       parameters: {
-        content: "## Modo\n\nLa constante MODO del nodo «Configuración» manda: «simulacion» (por defecto) no llama a Google ni publica; «produccion» lee los dos calendarios de info@sobtree.com («Sobtree · Proyectos» y «Sobtree · Bloqueos») y publica en la web.\nIDs, URL y SECRET: se ponen al pasar a producción (el secreto se pega en n8n, no en el repositorio).",
+        content: "## Modo\n\nLa constante MODO del nodo «Configuración» manda: «simulacion» (por defecto) no llama a Google ni publica; «produccion» lee UN calendario (info@sobtree.com) y publica en la web. Solo cuentan los eventos «CONTRATA · …» (proyectos) y «BLOQUEO …» (bloqueos a mano); el resto del calendario se ignora.\nIDs, URL y SECRET: se ponen al pasar a producción (el secreto se pega en n8n, no en el repositorio).",
         width: 520,
         height: 180,
         color: 4
@@ -192,14 +190,14 @@ return [{ json: item }];
 `, 780, 40),
     {
       id: "c0a1b001-0000-4000-8000-000000000007",
-      name: "Google · Proyectos",
+      name: "Google · Calendario",
       type: "n8n-nodes-base.googleCalendar",
       typeVersion: 1.3,
       position: [780, 280],
       alwaysOutputData: true,
       parameters: {
         operation: "getAll",
-        calendar: { __rl: true, mode: "id", value: "={{ $json.calendario_proyectos }}" },
+        calendar: { __rl: true, mode: "id", value: "={{ $json.calendario }}" },
         returnAll: true,
         options: {
           timeMin: "={{ $now.minus({ days: 1 }).toISO() }}",
@@ -208,28 +206,7 @@ return [{ json: item }];
         }
       },
       credentials: cred("googleCalendarOAuth2Api", "Google Calendar Sobtree (info@)"),
-      notes: "Solo se alcanza con MODO = produccion. events.list solo del ID «Sobtree · Proyectos». No lista calendarios. No usar una cuenta personal."
-    },
-    {
-      id: "c0a1b001-0000-4000-8000-000000000008",
-      name: "Google · Bloqueos",
-      type: "n8n-nodes-base.googleCalendar",
-      typeVersion: 1.3,
-      position: [1020, 280],
-      alwaysOutputData: true,
-      executeOnce: true,
-      parameters: {
-        operation: "getAll",
-        calendar: { __rl: true, mode: "id", value: "={{ $('Configuración').first().json.calendario_bloqueos }}" },
-        returnAll: true,
-        options: {
-          timeMin: "={{ $now.minus({ days: 1 }).toISO() }}",
-          timeMax: "={{ $now.plus({ weeks: 9 }).toISO() }}",
-          singleEvents: true
-        }
-      },
-      credentials: cred("googleCalendarOAuth2Api", "Google Calendar Sobtree (info@)"),
-      notes: "Solo se alcanza con MODO = produccion. events.list solo del ID «Sobtree · Bloqueos»; de aquí solo se usan las fechas. Se ejecuta una vez aunque el calendario de proyectos devuelva varios eventos."
+      notes: "Solo se alcanza con MODO = produccion. events.list de UN calendario (info@sobtree.com). No lista calendarios. El nodo «Mapear calendarios» se queda solo con los eventos «CONTRATA · …» y «BLOQUEO …»; el resto del calendario no afecta a las plazas."
     },
     code("c0a1b001-0000-4000-8000-000000000017", "Mapear calendarios", mapearJs, 1020, 460),
     code("c0a1b001-0000-4000-8000-000000000009", "Calcular plazas", calcular, 1040, 40),
@@ -292,11 +269,10 @@ return [{ json: item }];
     "Configuración": { main: [[{ node: "¿Simulación?", type: "main", index: 0 }]] },
     "¿Simulación?": { main: [
       [{ node: "Calendario simulado (sin Google)", type: "main", index: 0 }],
-      [{ node: "Google · Proyectos", type: "main", index: 0 }]
+      [{ node: "Google · Calendario", type: "main", index: 0 }]
     ] },
     "Calendario simulado (sin Google)": { main: [[{ node: "Calcular plazas", type: "main", index: 0 }]] },
-    "Google · Proyectos": { main: [[{ node: "Google · Bloqueos", type: "main", index: 0 }]] },
-    "Google · Bloqueos": { main: [[{ node: "Mapear calendarios", type: "main", index: 0 }]] },
+    "Google · Calendario": { main: [[{ node: "Mapear calendarios", type: "main", index: 0 }]] },
     "Mapear calendarios": { main: [[{ node: "Calcular plazas", type: "main", index: 0 }]] },
     "Calcular plazas": { main: [[{ node: "¿Publicar de verdad?", type: "main", index: 0 }]] },
     "¿Publicar de verdad?": { main: [
@@ -364,7 +340,7 @@ const contrata = {
       typeVersion: 1,
       position: [-40, -300],
       parameters: {
-        content: "## Modo\n\nLa constante MODO del nodo «Verificar firma y preparar» manda. «simulacion» (por defecto): responde un acuse simulado y no escribe en la hoja, el calendario ni el correo. «produccion»: pago confirmado → fila en «Ventas» + línea en «Historial» + evento en «Sobtree · Proyectos» + aviso a info@; reembolso → «Ventas» y «Historial».\nLIVE = true solo cuando se cobre de verdad con Stripe live.\nSecreto: REEMPLAZAR_EN_N8N, el mismo que CONTRATA_HMAC_SECRET. Credenciales por nombre. No se guardan los datos de las ejecuciones correctas (llevan el NIF).",
+        content: "## Modo\n\nLa constante MODO del nodo «Verificar firma y preparar» manda. «simulacion» (por defecto): responde un acuse simulado y no escribe en la hoja, el calendario ni el correo. «produccion»: pago confirmado → fila en «Ventas» + línea en «Historial» + evento «CONTRATA · …» en el calendario de info@ + aviso a info@; reembolso → «Ventas» y «Historial».\nLIVE = true solo cuando se cobre de verdad con Stripe live.\nSecreto: REEMPLAZAR_EN_N8N, el mismo que CONTRATA_HMAC_SECRET. Credenciales por nombre. No se guardan los datos de las ejecuciones correctas (llevan el NIF).",
         width: 620,
         height: 240,
         color: 5
@@ -421,20 +397,20 @@ const contrata = {
       "Una línea por venta en «Historial». Coincide por detalle (lleva la sesión), así un reintento no la duplica."),
     {
       id: "c0a1b002-0000-4000-8000-000000000009",
-      name: "Evento en Proyectos",
+      name: "Evento en el calendario",
       type: "n8n-nodes-base.googleCalendar",
       typeVersion: 1.3,
       position: [1920, -200],
       onError: "continueRegularOutput",
       parameters: {
         operation: "create",
-        calendar: { __rl: true, mode: "id", value: CAL_PROYECTOS },
+        calendar: { __rl: true, mode: "id", value: CAL_ID },
         start: ref("evento.inicio"),
         end: ref("evento.fin"),
         additionalFields: { summary: ref("evento.resumen"), description: ref("evento.descripcion"), allday: "yes" }
       },
       credentials: cred("googleCalendarOAuth2Api", "Google Calendar Sobtree (info@)"),
-      notes: "Evento de día completo, de lunes a viernes (el día de fin es exclusivo), solo en «Sobtree · Proyectos». La descripción lleva la sesión de Stripe: así la web no cuenta dos veces la plaza. Si falla, el flujo sigue y el aviso a info@ lo cubre. Comprobar en la primera venta de prueba que el evento ocupa lunes–viernes."
+      notes: "Evento de día completo que empieza el lunes de inicio y dura los días de bloqueo del servicio (5 para el diagnóstico: lunes a viernes; el día de fin es exclusivo). Su título empieza por «CONTRATA · »: así la web lo lee como proyecto y nunca como bloqueo. La descripción lleva la sesión de Stripe: así la web no cuenta dos veces la plaza. Si falla, el flujo sigue y el aviso a info@ lo cubre. Comprobar en la primera venta de prueba que el evento ocupa lunes–viernes."
     },
     {
       id: "c0a1b002-0000-4000-8000-000000000010",
@@ -495,8 +471,8 @@ const contrata = {
       [{ node: "¿Es un reembolso?", type: "main", index: 0 }]
     ] },
     "Añadir fila en Ventas": { main: [[{ node: "Historial: venta", type: "main", index: 0 }]] },
-    "Historial: venta": { main: [[{ node: "Evento en Proyectos", type: "main", index: 0 }]] },
-    "Evento en Proyectos": { main: [[{ node: "Aviso a info@ (venta)", type: "main", index: 0 }]] },
+    "Historial: venta": { main: [[{ node: "Evento en el calendario", type: "main", index: 0 }]] },
+    "Evento en el calendario": { main: [[{ node: "Aviso a info@ (venta)", type: "main", index: 0 }]] },
     "Aviso a info@ (venta)": { main: [[{ node: "Responder 200 venta", type: "main", index: 0 }]] },
     "¿Es un reembolso?": { main: [
       [{ node: "Marcar reembolso en Ventas", type: "main", index: 0 }],

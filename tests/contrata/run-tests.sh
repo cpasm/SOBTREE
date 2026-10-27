@@ -368,6 +368,33 @@ webhook >/dev/null
 check "un checkout.session.completed sin pago (unpaid) no crea venta ni aviso" '[ "$(lineas_evento evt_test_no_pagado)" = 0 ]'
 cerrar 12b "NIF a Ventas" simulada "El NIF viaja en el aviso firmado y se cruza con el tax_id de Stripe. No se escribe en logs ni se guarda tras entregarlo." "$A"
 
+echo "19. Selector de servicio: solo valen los ids de la lista"
+A=$FAIL
+reset_estado
+check "disponibilidad publica la lista de servicios con importes (diagnóstico 490 + IVA = 592,90)" 'disp | php -r '"'"'$j=json_decode(stream_get_contents(STDIN), true); $s=$j["servicios"][0] ?? []; exit((count($j["servicios"])===1 && $s["id"]==="diagnostico" && $s["base_centimos"]===49000 && $s["total_centimos"]===59290 && $s["dias_bloqueo"]===5) ? 0 : 1);'"'"''
+for malo in proyecto Diagnostico "diagnostico " "../diagnostico" ""; do
+  CODE=$(crear "$SEMANA_A" B12345674 "$(php -r 'echo json_encode(["producto"=>$argv[1]]);' "$malo")")
+  check "producto «$malo» → 422 y sin plaza retenida" '[ "$CODE" = 422 ] && { [ ! -f "$DIR/retenciones.json" ] || [ "$(grep -c "\"estado\":\"retenida\"" "$DIR/retenciones.json" || true)" = 0 ]; }'
+done
+CODE=$(crear "$SEMANA_A" B12345674 '{"producto":["diagnostico"]}')
+check "un producto que no es texto → 422" '[ "$CODE" = 422 ]'
+CODE=$(crear "$SEMANA_A" B12345674)
+SSV=$(campo sesion)
+check "diagnóstico: sesión abierta, servicio en la respuesta, en la retención y en los metadatos de Stripe" '[ "$CODE" = 200 ] && [ "$(campo servicio)" = diagnostico ] && grep -qE "\"servicio\": ?\"diagnostico\"" "$DIR/retenciones.json" && php -r '"'"'$j=json_decode(file_get_contents($argv[1]), true); $p=$j["sesiones"][$argv[2]]["params"]; exit((($p["metadata"]["producto"] ?? "")==="diagnostico" && ($p["metadata"]["importe_total_centimos"] ?? "")==="59290") ? 0 : 1);'"'"' "$DIR/sesiones.json" "$SSV"'
+: > "$MOCK/received.jsonl"
+pagar "$SSV" 4242424242424242 pagar >/dev/null
+ULT=$(tail -1 "$MOCK/received.jsonl")
+check "el aviso a n8n (Ventas y calendario) lleva el servicio, su nombre y los días de bloqueo" 'echo "$ULT" | php -r '"'"'$j=json_decode(stream_get_contents(STDIN), true); exit(($j["producto"]==="diagnostico" && $j["servicio_nombre"]==="Diagnóstico de implantación de IA" && $j["dias_bloqueo"]===5 && $j["alerta"]==="") ? 0 : 1);'"'"''
+CODE=$(crear "$SEMANA_B" B12345674)
+SSD=$(campo sesion)
+RETD=$(php -r '$j=json_decode(file_get_contents($argv[1]), true); foreach ($j["retenciones"] as $r) if (($r["sesion"]??"")===$argv[2]) echo $r["id"];' "$DIR/retenciones.json" "$SSD")
+: > "$MOCK/received.jsonl"
+firmar "$SSD" checkout.session.completed evt_test_servicio_raro "$(php -r 'echo json_encode(["metadata"=>["producto"=>"proyecto","retencion_id"=>$argv[1],"semana_lunes"=>$argv[2]]]);' "$RETD" "$SEMANA_B")"
+webhook >/dev/null
+ULT=$(tail -1 "$MOCK/received.jsonl")
+check "un pago de Stripe con un servicio que no está en la lista no se da por bueno: alerta servicio_desconocido y fila a revisar" 'echo "$ULT" | php -r '"'"'$j=json_decode(stream_get_contents(STDIN), true); exit(($j["alerta"]==="servicio_desconocido" && $j["producto"]==="") ? 0 : 1);'"'"''
+cerrar 19 "Selector de servicio" simulada "Lista de servicios cerrada en el PHP; el id viaja en la retención, los metadatos de Stripe, el aviso y la fila de Ventas. Hoy solo hay diagnóstico." "$A"
+
 echo "16. Stripe de pruebas (simulado): factura, IVA, NIF y modo test"
 A=$FAIL
 MS_PORT="${CONTRATA_TEST_STRIPE_PORT:-18085}"
