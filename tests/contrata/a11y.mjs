@@ -78,6 +78,15 @@ for (let i = 0; i < 40 && !radio; i += 1) {
 }
 t("el tabulador llega a la semana", radio);
 await page.keyboard.press("Space");
+await page.click("#contrata-continuar");
+await page.waitForFunction(() => {
+  const semana = document.getElementById("contrata-paso-semana");
+  const contacto = document.getElementById("contrata-paso-contacto");
+  return !!(semana && semana.hidden && contacto && !contacto.hidden);
+}, { timeout: 3000 });
+t("la selección de semana da paso a contacto", true);
+const gridSemanas = await page.$eval("#contrata-semanas", (e) => getComputedStyle(e).gridTemplateColumns);
+t("las semanas se presentan en una cuadrícula compacta", gridSemanas.split(" ").length >= 1, gridSemanas);
 
 const escribir = async (id, texto) => {
   let ok = false;
