@@ -89,7 +89,7 @@ const gridSemanas = await page.$eval("#contrata-semanas", (e) => getComputedStyl
 t("las semanas se presentan en una cuadrícula compacta", gridSemanas.split(" ").length >= 1, gridSemanas);
 
 const escribir = async (id, texto) => {
-  let ok = false;
+  let ok = (await enfocado()).id === id;
   for (let i = 0; i < 15 && !ok; i += 1) {
     await page.keyboard.press("Tab");
     const f = await enfocado();
