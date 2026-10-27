@@ -1,7 +1,7 @@
 ---
 import Base from "../../layouts/Base.astro";
 import { CONTRATA } from "../../data/contrata";
-import { DIAGNOSTICO, POLITICA_VERSION, TEXTOS } from "../../data/site";
+import { DIAGNOSTICO, POLITICA_VERSION, TEXTOS, PLAZO_DIAGNOSTICO } from "../../data/site";
 import { euros, TEXTO_RESERVA } from "../../data/contrata-logica.mjs";
 
 const activo = CONTRATA.activo;
@@ -21,7 +21,7 @@ const precio = CONTRATA.importes;
       <p class="contrata-total">Total {euros(precio.totalCentimos)}</p>
     </div>
     <p>{TEXTOS.lineaCorta} {TEXTOS.condiciones}</p>
-    <p class="fine" style="text-align:left">La fecha se confirma por email en 1 día laborable; si no fuera posible, te ofrecemos otra semana o el reembolso íntegro. La plaza se reserva 30 minutos mientras pagas.</p>
+    <p class="fine" style="text-align:left">La fecha de inicio se confirma por email en 1 día laborable; si no fuera posible, te ofrecemos otra semana o el reembolso íntegro. El informe del diagnóstico se entrega en un {PLAZO_DIAGNOSTICO}. La plaza se reserva 30 minutos mientras pagas.</p>
 
     <div id="contrata-estado" role="status" class="form-status"></div>
     <noscript>
@@ -41,7 +41,7 @@ const precio = CONTRATA.importes;
       </label>
       <p id="ayuda-nif" class="fine" style="text-align:left">Solo empresas y autónomos con NIF o CIF español. Comprobamos el formato y lo usamos para tu factura, que recibirás por email tras el pago. Stripe te pedirá la dirección de facturación.</p>
       <label class="hp" aria-hidden="true">No rellenar<input name="web" tabindex="-1" autocomplete="off"></label>
-      <label class="consent"><input type="checkbox" name="condiciones" id="contrata-condiciones" value="si" required><span>Acepto las condiciones de esta página y la <a href="/privacidad/">política de privacidad</a> (versión {POLITICA_VERSION}). El pago lo procesa Stripe en su página.</span></label>
+      <label class="consent"><input type="checkbox" name="condiciones" id="contrata-condiciones" value="si" required><span>Acepto las <a href="/condiciones/">condiciones de contratación</a> y la <a href="/privacidad/">política de privacidad</a> (versión {POLITICA_VERSION}). El pago lo procesa Stripe en su página.</span></label>
       <button class="btn btn-primary" type="submit" id="contrata-pagar">Pagar {euros(precio.totalCentimos)}</button>
       <p class="fine" style="text-align:left"><a href="/#contacto">Prefiero que me confirméis la fecha</a></p>
     </form>

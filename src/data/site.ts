@@ -149,6 +149,9 @@ function textosDiagnostico(d = DIAGNOSTICO) {
 
 export const TEXTOS = textosDiagnostico();
 
+// Plazo de entrega del informe del diagnóstico (contractual). Se reserva una semana de calendario, pero al cliente se le dice esto.
+export const PLAZO_DIAGNOSTICO = "máximo 10 días laborables";
+
 // Precios cerrados, IVA no incluido. La calculadora lee cfgPrecio() desde esta misma fuente.
 export const SERVICES = [
   { name: "Diagnóstico IA exprés", duration: TEXTOS.duracionServicio, description: "Revisamos cómo trabajáis, detectamos las tareas que más tiempo os comen y salís con 3 casos de uso priorizados, con su ahorro estimado y su coste." },

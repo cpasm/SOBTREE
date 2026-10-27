@@ -100,7 +100,9 @@ params_ok() {
       && !empty($p["customer"]) && !isset($p["customer_email"])
       && !isset($p["tax_id_collection"])
       && preg_match("/^txr_/", $p["line_items"][0]["tax_rates"][0] ?? "")===1
-      && ($p["consent_collection"]["terms_of_service"] ?? "")==="required";
+      && ($p["consent_collection"]["terms_of_service"] ?? "")==="required"
+      && str_contains($p["custom_text"]["terms_of_service_acceptance"]["message"] ?? "", "/condiciones/")
+      && str_contains($p["custom_text"]["submit"]["message"] ?? "", "máximo 10 días laborables.");
     exit($ok ? 0 : 1);' "$1" "$2"
 }
 semana_bloqueada() {
@@ -488,7 +490,13 @@ check "dist sin /contratar/" '! grep -RIn --binary-files=without-match "/contrat
 check "dist sin el botón" '! grep -RIn --binary-files=without-match "id=\"contrata-boton\"" "$ROOT/dist"'
 check "dist sin claves" '! grep -RInE --binary-files=without-match "sk_|rk_|whsec_" "$ROOT/dist"'
 check "sitemap sin contratar" '! grep -RIn contratar "$ROOT/dist" --include="sitemap*.xml"'
+check "dist sin /condiciones/ ni enlaces a las condiciones (el marcador solo existe con el flag)" '[ ! -e "$ROOT/dist/condiciones" ] && ! grep -RIn --binary-files=without-match "/condiciones/" "$ROOT/dist"'
+check "dist sin «1 semana», «una semana» ni «7 días» de entrega del diagnóstico" '! grep -RInE --binary-files=without-match "(1|una) semana|7 días" "$ROOT/dist" --include="*.html" --include="*.txt" --include="*.json"'
 check "clave live rechazada en otro proceso" 'php_s tests/contrata/clave-live.php >/dev/null'
+PUBLIC_CONTRATA_ACTIVO=1 npx astro build --outDir "$WORK/dist-on" >"$WORK/build-on.log" 2>&1
+check "build con el flag encendido genera /condiciones/ como marcador noindex" '[ -f "$WORK/dist-on/condiciones/index.html" ] && grep -q "name=\"robots\" content=\"noindex\"" "$WORK/dist-on/condiciones/index.html" && grep -q "PENDIENTE DE TEXTO LEGAL" "$WORK/dist-on/condiciones/index.html"'
+check "el marcador no entra en el sitemap y el formulario de Contrata lo enlaza" '! grep -RIn "condiciones" "$WORK/dist-on" --include="sitemap*.xml" && grep -q "href=\"/condiciones/\"" "$WORK/dist-on/contratar/index.html"'
+check "el flag encendido dice «máximo 10 días laborables» en Contrata y en gracias" 'grep -q "máximo 10 días laborables" "$WORK/dist-on/contratar/index.html" && grep -q "máximo 10 días laborables" "$WORK/dist-on/contratar/gracias/index.html"'
 cerrar 15 "Contenido de dist" pasa "Build con el flag apagado. Precio contrastado en unit.php (490 € + 21 % = 592,90 €). La regla CSS #contrata-boton puede quedar en la hoja y no pinta el botón." "$A"
 
 echo

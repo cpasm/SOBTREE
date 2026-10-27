@@ -23,7 +23,8 @@ const CONTRATA_WEBHOOK_TIMEOUT = 10;
 const CONTRATA_MSG_PAGO = 'No hemos podido abrir el pago; inténtalo en un minuto o escríbenos.';
 const CONTRATA_MSG_RESERVA = 'Reserva tu diagnóstico; te confirmamos la fecha en 1 día laborable';
 const CONTRATA_MSG_SEMANA = 'Esa semana ya está completa. Elige otra.';
-const CONTRATA_MSG_FECHA = 'La fecha se confirma por email en 1 día laborable; si no fuera posible, te ofrecemos otra semana o el reembolso íntegro.';
+const CONTRATA_PLAZO_TEXTO = 'máximo 10 días laborables';   // PLAZO_DIAGNOSTICO en src/data/site.ts
+const CONTRATA_MSG_FECHA = 'La fecha de inicio se confirma por email en 1 día laborable; si no fuera posible, te ofrecemos otra semana o el reembolso íntegro. El informe del diagnóstico se entrega en un ' . CONTRATA_PLAZO_TEXTO . '.';
 const CONTRATA_MSG_SIN_PLAZAS = 'No hay plazas en las próximas 4 semanas.';
 const CONTRATA_PRICE_TEST = 'price_test_diagnostico';
 const CONTRATA_TAX_RATE_TEST = 'txr_test_iva21';
@@ -283,6 +284,11 @@ function contrata_importes(): array {
 /** Ruta de la página, partida para que el build con el flag apagado no publique el literal. */
 function contrata_ruta(string $cola = ''): string {
     return '/' . 'contratar' . '/' . $cola;
+}
+
+/** Ruta de las condiciones (marcador hasta que Nexus entregue el texto aprobado). Partida, como contrata_ruta. */
+function contrata_ruta_condiciones(): string {
+    return '/' . 'condiciones' . '/';
 }
 
 function contrata_euros(int $centimos): string {
@@ -895,7 +901,11 @@ function contrata_parametros_sesion(array $ret, array $cliente, string $customer
         'invoice_creation' => ['enabled' => 'true', 'invoice_data' => $datosFactura],
         'locale' => 'es',
         'consent_collection' => ['terms_of_service' => 'required'],
-        'custom_text' => ['submit' => ['message' => $mensaje]],
+        'custom_text' => [
+            'submit' => ['message' => $mensaje],
+            // La casilla de Stripe enlaza nuestras condiciones. La URL de condiciones también va en Dashboard → Ajustes → Datos públicos.
+            'terms_of_service_acceptance' => ['message' => 'Acepto las [condiciones de contratación](' . $base . contrata_ruta_condiciones() . ') y la [política de privacidad](' . $base . '/privacidad/) (versión ' . CONTRATA_POLITICA_VERSION . ').'],
+        ],
         'metadata' => $meta,
         'payment_method_types' => ['card', 'link'],
     ];
@@ -1189,6 +1199,8 @@ function contrata_aplicar_pago(array $obj, string $eventId): void {
         $alerta = 'importe_inesperado';
     } elseif ($coincide === false) {
         $alerta = 'nif_distinto';
+    } elseif (($obj['consent']['terms_of_service'] ?? '') !== 'accepted') {
+        $alerta = 'condiciones_sin_aceptar';
     } elseif ($nif === '') {
         $alerta = 'nif_ausente';
     } else {
@@ -1214,6 +1226,7 @@ function contrata_aplicar_pago(array $obj, string $eventId): void {
             'nif_pais' => (string)($meta['nif_pais'] ?? ''),
             'nif_tipo' => (string)($meta['nif_tipo'] ?? ''),
             'nif_verificado' => false,
+            'condiciones_aceptadas' => ($obj['consent']['terms_of_service'] ?? '') === 'accepted',
             'alerta_facturacion' => $alerta,
             'factura' => (string)($obj['invoice'] ?? ''),
             'politica_version' => (string)($meta['politica_version'] ?? ''),
@@ -1514,6 +1527,7 @@ function contrata_evento_firmado_sim(string $sesionId, string $tipo, array $extr
                 'tax_ids' => [['type' => 'es_cif', 'value' => contrata_nif_normal((string)$ses['cliente']['nif']['normalizado'])]],
             ],
             'payment_intent' => $ses['payment_intent'] ?? null,
+            'consent' => ['terms_of_service' => 'accepted'],
             'invoice' => 'in_test_' . substr(md5($sesionId), 0, 12),
             'metadata' => $meta,
         ];

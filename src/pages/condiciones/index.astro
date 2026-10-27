@@ -1,0 +1,28 @@
+---
+// MARCADOR de las condiciones de contratación del diagnóstico. No contiene texto legal.
+// El texto saldrá del borrador de Nexus cuando se apruebe; hasta entonces esta página es noindex,
+// no entra en el sitemap y solo existe con PUBLIC_CONTRATA_ACTIVO=1 (con el flag apagado el build la elimina
+// y nada la enlaza). Al sustituirla, poner CONDICIONES_ES_MARCADOR = false en src/data/contrata-logica.mjs.
+import Base from "../../layouts/Base.astro";
+import { CONTRATA } from "../../data/contrata";
+import { POLITICA_VERSION, PLAZO_DIAGNOSTICO } from "../../data/site";
+import { CONDICIONES_ES_MARCADOR } from "../../data/contrata-logica.mjs";
+
+const activo = CONTRATA.activo;
+---
+{activo ? (
+<Base title="Condiciones de contratación | Sobtree" description="Condiciones de contratación del diagnóstico de Sobtree." noindex={true} bare>
+<main id="main" class="wrap" style="max-width: 780px; padding-top: 64px; padding-bottom: 96px;">
+  <a href="/contratar/">Volver a Contrata</a>
+  <h1>Condiciones de contratación del diagnóstico</h1>
+  <p data-marcador={CONDICIONES_ES_MARCADOR ? "si" : "no"}><strong>[PENDIENTE DE TEXTO LEGAL]</strong> Esta página es un marcador. El texto de las condiciones (alcance del diagnóstico, precio, desistimiento y reembolso, plazo de entrega del informe, descuento sobre el proyecto, protección de datos y ley aplicable) se publicará aquí cuando esté aprobado.</p>
+  <ul>
+    <li>Precio: el que se muestra en el pago (base más IVA).</li>
+    <li>Plazo de entrega del informe: {PLAZO_DIAGNOSTICO}.</li>
+    <li>Descuento sobre el proyecto: el texto aprobado está en la web y se reproducirá aquí.</li>
+    <li>Desistimiento, reembolso, cancelación y reprogramación: <strong>[PENDIENTE: texto aprobado]</strong>.</li>
+  </ul>
+  <p>Política de privacidad aplicable: <a href="/privacidad/">versión {POLITICA_VERSION}</a>. Contacto: <a href="mailto:info@sobtree.com">info@sobtree.com</a>.</p>
+</main>
+</Base>
+) : null}

@@ -58,6 +58,9 @@ $t('dirección de facturación obligatoria y guardada en el cliente', ($f['billi
 $t('IVA 21 % incluido por tax rate manual en la línea', preg_match('/^txr_/', (string)($f['line_items'][0]['tax_rates'][0] ?? '')) === 1 && ($f['line_items'][0]['quantity'] ?? '') === '1');
 $t('sin tax_id_collection ni customer_email (el NIF ya está en el cliente)', !isset($f['tax_id_collection']) && !isset($f['customer_email']));
 $t('la sesión usa el cliente creado', preg_match('/^cus_/', (string)($f['customer'] ?? '')) === 1);
+$t('la casilla de Stripe enlaza las condiciones y la privacidad', str_contains((string)($f['custom_text']['terms_of_service_acceptance']['message'] ?? ''), '](https://sobtree.com/condiciones/)') && str_contains((string)($f['custom_text']['terms_of_service_acceptance']['message'] ?? ''), '/privacidad/)') && ($f['consent_collection']['terms_of_service'] ?? '') === 'required');
+$t('el texto de pago dice «máximo 10 días laborables» entero (sin cortar) y no una semana de entrega', str_contains((string)($f['custom_text']['submit']['message'] ?? ''), 'máximo 10 días laborables.') && !preg_match('/1 semana|una semana de entrega|7 días/i', (string)($f['custom_text']['submit']['message'] ?? '')));
+$t('la factura lleva la descripción del diagnóstico sin plazo de una semana', !preg_match('/1 semana|7 días/i', json_encode($f['invoice_creation'] ?? [])));
 $t('el NIF no va en metadata', !str_contains(json_encode($f['metadata'] ?? []), 'B12345674'));
 $t('se validó el tax rate y el price antes', count(array_filter($reqs, fn($q) => str_starts_with($q['ruta'], '/v1/tax_rates/'))) === 1 && count(array_filter($reqs, fn($q) => str_starts_with($q['ruta'], '/v1/prices/'))) === 1);
 
@@ -74,7 +77,7 @@ $cola = function (): array {
 };
 $ultima = function () use ($cola): array { $c = $cola(); return $c ? $c[count($c) - 1] : []; };
 $pago = ['id' => $sid, 'object' => 'checkout.session', 'payment_status' => 'paid', 'mode' => 'payment', 'currency' => 'eur', 'amount_total' => 59290,
-    'payment_intent' => 'pi_x_1', 'invoice' => 'in_x_1', 'metadata' => $meta,
+    'payment_intent' => 'pi_x_1', 'invoice' => 'in_x_1', 'metadata' => $meta, 'consent' => ['terms_of_service' => 'accepted'],
     'customer_details' => ['email' => 'facturas@example.com', 'address' => ['country' => 'ES', 'postal_code' => '28001'], 'tax_ids' => [['type' => 'es_cif', 'value' => 'B12345674']]]];
 [$p, $h] = $evento('checkout.session.completed', $pago);
 $w = contrata_recibir_webhook($p, $h);

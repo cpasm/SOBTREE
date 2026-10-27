@@ -5,6 +5,7 @@ import { readdirSync, readFileSync, rmSync } from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { CONDICIONES_ES_MARCADOR } from "./src/data/contrata-logica.mjs";
 
 // /analisis/ y /radar/ solo entran en el sitemap cuando tienen algo publicado (sin draft: true).
 const hasPublished = (name) => {
@@ -31,11 +32,12 @@ const indexable = (page) => {
   if (path.startsWith("/calculadora/") && path !== "/calculadora/") return false;
   if (path.startsWith("/lib/") || path.startsWith("/api/")) return false;
   if (path.startsWith("/contratar/")) return false;
+  if (CONDICIONES_ES_MARCADOR && path.startsWith("/condiciones/")) return false;
   if (/\/(gracias|thanks|thank-you|error)(\/|$)/i.test(path)) return false;
   return true;
 };
 
-// Con el flag apagado el build no publica /contratar/. El botón tampoco se pinta.
+// Con el flag apagado el build no publica /contratar/ ni /condiciones/. El botón tampoco se pinta.
 function quitarContrataSiApagado() {
   return {
     name: "contrata-no-publicar",
@@ -43,6 +45,7 @@ function quitarContrataSiApagado() {
       "astro:build:done": ({ dir }) => {
         if (process.env.PUBLIC_CONTRATA_ACTIVO === "1") return;
         rmSync(path.join(fileURLToPath(dir), "contratar"), { recursive: true, force: true });
+        rmSync(path.join(fileURLToPath(dir), "condiciones"), { recursive: true, force: true });
       }
     }
   };

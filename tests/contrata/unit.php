@@ -42,6 +42,9 @@ $es = contrata_validar_identificacion('ESB12345674');
 $t('IVA UE formato sin VIES', is_array($de) && $de['pais'] === 'DE' && $de['verificado'] === false);
 $t('CIF con prefijo ES', is_array($es) && $es['tipo'] === 'cif' && $es['verificado'] === false);
 $t('identificación vacía', contrata_validar_identificacion('') === null);
+preg_match('/PLAZO_DIAGNOSTICO = "([^"]+)"/', $site, $plazo);
+$t('plazo de entrega = PLAZO_DIAGNOSTICO', ($plazo[1] ?? '') === CONTRATA_PLAZO_TEXTO && CONTRATA_PLAZO_TEXTO === 'máximo 10 días laborables');
+$t('el texto de fecha dice el plazo y no una semana de entrega', str_contains(CONTRATA_MSG_FECHA, 'máximo 10 días laborables') && !preg_match('/1 semana|una semana|7 días/i', CONTRATA_MSG_FECHA));
 $t('NIF sin prefijo ES para el tax_id', contrata_nif_normal('ES B-1234567-4') === 'B12345674' && contrata_nif_normal('b12345674') === 'B12345674');
 $t('territorio con otro IVA', contrata_alerta_territorio(['address' => ['country' => 'ES', 'postal_code' => '38001']]) === 'territorio_sin_iva'
     && contrata_alerta_territorio(['address' => ['country' => 'ES', 'postal_code' => '28001']]) === ''

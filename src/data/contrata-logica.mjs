@@ -2,6 +2,8 @@
 // La usa el front y las pruebas. No inventa plazas: solo acepta textos que ya cuadran
 // con la fórmula publicada por el servidor.
 
+// /condiciones/ es un marcador hasta que Nexus entregue el texto aprobado. Mientras valga true: noindex, fuera del sitemap y sin enlaces públicos.
+export const CONDICIONES_ES_MARCADOR = true;
 export const IVA_PORCIENTO = 21;
 export const RETENCION_MINUTOS = 30;
 export const SEMANAS_VISIBLES = 4;
