@@ -50,11 +50,9 @@ Mientras no haya Radar ni análisis publicados, la home muestra en su lugar el a
 
 ## Newsletter
 
-Al final de cada análisis y Radar hay un formulario de suscripción (email + consentimiento). Envía a `/api/newsletter.php`, que reenvía el alta a un webhook de Zapier. Para activarlo, añade esta línea al array de `domains/sobtree.com/sobtree-secrets.php` (el mismo fichero de la clave del asistente):
+Al final de cada análisis y Radar hay un formulario de suscripción (email + consentimiento). Envía las altas a `/api/newsletter.php`, que actualmente depende de un webhook externo configurado en el fichero de secretos de Hostinger. El formulario solo se muestra cuando el endpoint confirma que la integración está configurada. Límites: 5 altas por IP y hora, 300 al día.
 
-`'ZAPIER_NEWSLETTER_WEBHOOK' => 'https://hooks.zapier.com/hooks/catch/...',`
-
-Zapier recibe `email`, `consentimiento`, `texto_consentimiento`, `origen` (página) y `fecha`. Mientras no haya webhook, el formulario no aparece. Límite: 5 altas por IP y hora, 300 al día.
+La arquitectura objetivo utiliza n8n, Google Sheets y Gmail. La migración del endpoint actual al flujo objetivo está pendiente y debe hacerse con pruebas de consentimiento, bajas, duplicados y envío antes de retirar la integración vigente.
 
 ## Radar y artículo semanal
 
