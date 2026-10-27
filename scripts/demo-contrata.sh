@@ -3,6 +3,8 @@
 # Levanta PHP (simulación de Stripe, calendario y n8n) y Astro con el flag encendido.
 # Uso: npm run demo:contrata
 set -euo pipefail
+# Las pruebas y la demo nunca usan claves reales: se descartan las del entorno antes de empezar.
+unset STRIPE_RESTRICTED_KEY STRIPE_PREP_KEY STRIPE_WEBHOOK_SECRET STRIPE_KEY STRIPE_PRICE_DIAGNOSTICO STRIPE_TAX_RATE_IVA21 CONTRATA_HMAC_SECRET CONTRATA_N8N_WEBHOOK_URL
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="$(mktemp -d)"
 BASE="$WORK/base"

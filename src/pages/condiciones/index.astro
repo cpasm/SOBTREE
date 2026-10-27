@@ -1,28 +1,94 @@
 ---
-// MARCADOR de las condiciones de contratación del diagnóstico. No contiene texto legal.
-// El texto saldrá del borrador de Nexus cuando se apruebe; hasta entonces esta página es noindex,
-// no entra en el sitemap y solo existe con PUBLIC_CONTRATA_ACTIVO=1 (con el flag apagado el build la elimina
-// y nada la enlaza). Al sustituirla, poner CONDICIONES_ES_MARCADOR = false en src/data/contrata-logica.mjs.
+// Condiciones de contratación del diagnóstico (Contrata). Texto de Sobtree Holding, S.L.
+// Solo existe con PUBLIC_CONTRATA_ACTIVO=1: con el flag apagado el build la elimina y nada la enlaza.
+// Al cambiar el texto, subir CONDICIONES_VERSION en src/data/site.ts (la copia del PHP la comprueba una prueba).
 import Base from "../../layouts/Base.astro";
 import { CONTRATA } from "../../data/contrata";
-import { POLITICA_VERSION, PLAZO_DIAGNOSTICO } from "../../data/site";
-import { CONDICIONES_ES_MARCADOR } from "../../data/contrata-logica.mjs";
+import { CONDICIONES_FECHA, CONDICIONES_VERSION, DIAGNOSTICO, PLAZO_DIAGNOSTICO, SITE } from "../../data/site";
+import { euros, importes } from "../../data/contrata-logica.mjs";
 
 const activo = CONTRATA.activo;
+const imp = importes(DIAGNOSTICO.precio, CONTRATA.ivaPorciento);
 ---
 {activo ? (
-<Base title="Condiciones de contratación | Sobtree" description="Condiciones de contratación del diagnóstico de Sobtree." noindex={true} bare>
-<main id="main" class="wrap" style="max-width: 780px; padding-top: 64px; padding-bottom: 96px;">
-  <a href="/contratar/">Volver a Contrata</a>
+<Base title="Condiciones de contratación del diagnóstico | Sobtree" description="Condiciones de contratación del Diagnóstico IA exprés de Sobtree: alcance, precio, plazos, cancelación y reembolso, confidencialidad y protección de datos." bare>
+<style is:global>
+  .legal { max-width: 780px; padding-top: 64px; padding-bottom: 96px; }
+  .legal h1 { font-size: clamp(32px, 4vw, 44px); font-weight: 800; }
+  .legal h2 { font-size: 22px; font-weight: 700; margin-top: 40px; }
+  .legal p, .legal li { color: var(--text-2); margin-top: 12px; }
+  .legal a { color: #fff; }
+  .legal .back { display: inline-block; margin-bottom: 32px; color: var(--text-3); text-decoration: none; }
+  .legal .back:hover { color: #fff; }
+  .legal .legal-meta { color: var(--text-3); font-size: 14px; }
+</style>
+<main id="main" class="wrap legal">
+  <a class="back" href="/contratar/">Volver a Contrata</a>
   <h1>Condiciones de contratación del diagnóstico</h1>
-  <p data-marcador={CONDICIONES_ES_MARCADOR ? "si" : "no"}><strong>[PENDIENTE DE TEXTO LEGAL]</strong> Esta página es un marcador. El texto de las condiciones (alcance del diagnóstico, precio, desistimiento y reembolso, plazo de entrega del informe, descuento sobre el proyecto, protección de datos y ley aplicable) se publicará aquí cuando esté aprobado.</p>
+  <p class="legal-meta">Versión {CONDICIONES_VERSION} · Última actualización: {CONDICIONES_FECHA}.</p>
+
+  <h2>1. Partes y objeto</h2>
+  <p>Estas condiciones regulan la contratación del Diagnóstico IA exprés entre {SITE.legalName} (CIF B22574222, domicilio en Madrid (España)), en adelante «Sobtree» (<a href="mailto:info@sobtree.com">info@sobtree.com</a>), y la empresa o profesional que lo contrata y paga, en adelante «el Cliente».</p>
+  <p>Solo contratan empresas y profesionales (B2B). Al pagar, el Cliente declara que actúa con fines profesionales e indica su NIF. No es un contrato con consumidores, por lo que no se aplica el desistimiento de consumidor. Al marcar la casilla y pagar, el Cliente acepta estas condiciones.</p>
+
+  <h2>2. Servicio incluido y excluido</h2>
+  <p><strong>Incluido</strong> (servicio cerrado; informe entregado como máximo en 10 días laborables desde la fecha de inicio):</p>
   <ul>
-    <li>Precio: el que se muestra en el pago (base más IVA).</li>
-    <li>Plazo de entrega del informe: {PLAZO_DIAGNOSTICO}.</li>
-    <li>Descuento sobre el proyecto: el texto aprobado está en la web y se reproducirá aquí.</li>
-    <li>Desistimiento, reembolso, cancelación y reprogramación: <strong>[PENDIENTE: texto aprobado]</strong>.</li>
+    <li>Entrevista con quien hace el trabajo de verdad.</li>
+    <li>3 casos de uso priorizados por ahorro y facilidad.</li>
+    <li>Ahorro estimado y coste de cada uno, en euros.</li>
+    <li>Herramienta recomendada y coste mensual de licencias.</li>
+    <li>Plan para tener el primer caso de uso funcionando en 2–3 semanas.</li>
+    <li>Entregable: informe con el plan, el ahorro y el coste.</li>
   </ul>
-  <p>Política de privacidad aplicable: <a href="/privacidad/">versión {POLITICA_VERSION}</a>. Contacto: <a href="mailto:info@sobtree.com">info@sobtree.com</a>.</p>
+  <p><strong>Excluido:</strong> la implantación o el desarrollo de los casos de uso, la formación, el acompañamiento y las licencias de herramientas de IA (las contrata el Cliente directamente con el proveedor; Sobtree no cobra comisión). Cualquier trabajo adicional se presupuesta aparte y solo empieza con la aceptación escrita del Cliente.</p>
+  <p>Las cifras de ahorro son estimaciones basadas en la información que facilita el Cliente. No son una garantía de resultado.</p>
+
+  <h2>3. Precio y pago</h2>
+  <p>El precio es de {euros(imp.baseCentimos)} + IVA (con el {CONTRATA.ivaPorciento} %, {euros(imp.totalCentimos)} IVA incluido). Precio cerrado: no hay extras. El cobro online está disponible para empresas y autónomos con NIF o CIF español; si tu empresa está en otro país, escribe a <a href="mailto:info@sobtree.com">info@sobtree.com</a>.</p>
+  <p>Se paga por adelantado y por completo al contratar, con tarjeta a través de Stripe. Sobtree no guarda los datos de la tarjeta. Sobtree emite factura a nombre de la razón social y el NIF que el Cliente indique en el pago, y se la envía por email.</p>
+  <p><strong>Descuento:</strong> si el Cliente contrata un proyecto con Sobtree en los {DIAGNOSTICO.dias} días siguientes a la entrega del informe, se le descuentan los {DIAGNOSTICO.precio} €. Se aplica solo a proyectos (no a formación, acompañamiento ni licencias), uno por empresa, no es acumulable y no se devuelve en dinero. Este descuento es independiente del reembolso por cancelación del apartado 7.</p>
+
+  <h2>4. Reserva de la fecha de inicio y reprogramación</h2>
+  <p>Al contratar, el Cliente elige una semana de inicio entre las disponibles que muestra la web. La plaza se retiene 30 minutos mientras se completa el pago; si no se paga en ese tiempo, se libera. Con el pago queda confirmada la fecha, y el Cliente recibe la confirmación por email.</p>
+  <p>El Cliente puede cambiar la fecha de inicio una vez, sin coste, avisando por escrito a <a href="mailto:info@sobtree.com">info@sobtree.com</a> antes de que empiece, a una semana con plaza libre. Si Sobtree no puede empezar en la semana reservada, ofrece otra semana o el reembolso íntegro.</p>
+
+  <h2>5. Plazos y entregables</h2>
+  <p>El informe se entrega por email como máximo en 10 días laborables desde la fecha de inicio. Los plazos se desplazan el mismo tiempo que se retrase el Cliente en dar accesos, información o respuestas (apartado 6).</p>
+  <p>Si el informe no recoge alguno de los puntos del apartado 2, el Cliente puede pedir una revisión por escrito en los 10 días laborables siguientes a la entrega, y Sobtree la hace sin coste. Si en el diagnóstico no vemos un ahorro claro, se lo decimos en el informe y no recomendamos gastos adicionales.</p>
+
+  <h2>6. Colaboración del Cliente y accesos</h2>
+  <p>El Cliente designa un interlocutor con capacidad de decidir y de dar accesos, y un suplente. Facilita información veraz, rellena el cuestionario inicial, atiende la entrevista y da los accesos necesarios en el plazo razonable que Sobtree le indique al pedirlos.</p>
+  <p><strong>Sobtree no recibe contraseñas.</strong> El Cliente invita a una cuenta nominativa de Sobtree en cada herramienta, con el permiso mínimo necesario (en el diagnóstico, normalmente solo lectura). La petición de accesos indica la herramienta, el rol, el motivo y la fecha de retirada. El Cliente no debe enviar contraseñas por email ni por chat; si llegara una, Sobtree no la usará y pedirá que se cambie. Al terminar, el Cliente retira las invitaciones y Sobtree lo comprueba y lo deja por escrito.</p>
+
+  <h2>7. Cancelación y reembolso</h2>
+  <ul>
+    <li>Cancelación con al menos 3 días laborables de antelación al inicio: reembolso del 100 % de lo pagado, al mismo medio de pago por Stripe.</li>
+    <li>Cancelación con menos de 3 días laborables, o una vez iniciado el diagnóstico: sin reembolso.</li>
+    <li>Si Sobtree no puede prestar el servicio: reembolso íntegro.</li>
+  </ul>
+  <p>Para cancelar, basta un email a <a href="mailto:info@sobtree.com">info@sobtree.com</a>.</p>
+
+  <h2>8. Responsabilidad</h2>
+  <p>La responsabilidad total de Sobtree frente al Cliente se limita al importe pagado por el diagnóstico ({euros(imp.baseCentimos)} sin IVA), salvo en caso de dolo o cuando la ley no permita limitarla. Sobtree no responde de las decisiones que el Cliente tome con las estimaciones del informe, de daños indirectos ni del funcionamiento de herramientas de terceros.</p>
+
+  <h2>9. Confidencialidad</h2>
+  <p>Cada parte mantiene confidencial la información no pública de la otra a la que acceda por este servicio y la usa solo para prestarlo o recibirlo, durante la relación y después de ella mientras esa información no sea pública. No se aplica a información pública, ya conocida o que deba revelarse por ley. Sobtree no usa el nombre ni los datos del Cliente en casos de éxito ni en marketing sin su permiso escrito.</p>
+
+  <h2>10. Protección de datos (RGPD)</h2>
+  <p>Sobtree trata los datos de contacto y facturación del Cliente como responsable del tratamiento, según su <a href="/privacidad/">Política de privacidad</a>.</p>
+  <p>Si para el diagnóstico Sobtree accede a datos personales de los que el Cliente es responsable (por ejemplo, de sus clientes o empleados), actúa como encargado del tratamiento y ambas partes firman antes un contrato de encargo conforme al artículo 28 del RGPD. Sobtree pide solo los datos imprescindibles, usa planes de empresa de proveedores de IA que no usan los datos para entrenar sus modelos y, si un caso de uso no es seguro para los datos, no lo hace.</p>
+
+  <h2>11. Propiedad intelectual de los entregables</h2>
+  <p>El Cliente puede usar libremente el informe en su empresa una vez pagado el diagnóstico. Sobtree conserva sus metodologías, plantillas, herramientas y conocimientos previos, y puede reutilizar lo aprendido de forma general sin revelar información del Cliente.</p>
+
+  <h2>12. Uso de IA y revisión humana</h2>
+  <p>Sobtree trabaja con agentes de IA supervisados por personas del equipo para preparar parte del servicio. Todo informe es revisado por una persona de Sobtree antes de entregarse. La IA puede equivocarse: por eso el Cliente puede pedir la revisión del apartado 5.</p>
+
+  <h2>13. Ley aplicable y fuero</h2>
+  <p>Estas condiciones se rigen por la ley española. Para cualquier controversia, las partes se someten a los juzgados y tribunales competentes conforme a la ley. Se aplican las condiciones vigentes en el momento de contratar.</p>
+
+  <p style="margin-top: 40px;">{SITE.legalName} · El equipo de Sobtree</p>
 </main>
 </Base>
 ) : null}

@@ -24,6 +24,9 @@ $dry = in_array('--dry-run', $argv, true);
 $liveArg = in_array('--live', $argv, true);
 $secretFile = '';
 foreach ($argv as $a) if (str_starts_with($a, '--secret-file=')) $secretFile = substr($a, strlen('--secret-file='));
+$priceIdArg = '';
+foreach ($argv as $a) if (str_starts_with($a, '--price-id=')) $priceIdArg = substr($a, strlen('--price-id='));
+if ($priceIdArg !== '' && !preg_match('/^price_[A-Za-z0-9_]+$/', $priceIdArg)) { fwrite(STDERR, "--price-id no tiene un formato válido.\n"); exit(2); }
 $key = trim((string)getenv('STRIPE_PREP_KEY'));
 $url = trim((string)getenv('STRIPE_WEBHOOK_URL'));
 
@@ -87,7 +90,15 @@ try {
     // 2) Price (lookup_key fija; el importe tiene que ser base + IVA, y un Price no se edita)
     $lista = prep_api('GET', '/v1/prices?' . http_build_query(['lookup_keys' => [PREP_LOOKUP_KEY], 'active' => 'true', 'limit' => 5]));
     $price = $lista['data'][0] ?? null;
+    // Un Price que ya existe sin esa lookup_key se reconoce por su ID (--price-id=price_...).
+    if (!$price && $priceIdArg !== '') {
+        try { $price = prep_api('GET', '/v1/prices/' . rawurlencode($priceIdArg)); }
+        catch (RuntimeException $e) { if (!str_contains($e->getMessage(), ' 404 ')) throw $e; }
+    }
     if ($price) {
+        if (($price['product'] ?? PREP_PRODUCT_ID) !== PREP_PRODUCT_ID) {
+            throw new RuntimeException('El Price ' . $price['id'] . ' no es del Product ' . PREP_PRODUCT_ID . '. No se toca nada más.');
+        }
         if ((int)$price['unit_amount'] !== $imp['total_centimos'] || strtolower((string)$price['currency']) !== 'eur') {
             throw new RuntimeException('El Price ' . $price['id'] . ' existe con otro importe. Los Price no se editan: crea uno nuevo con otra lookup_key y archiva este.');
         }

@@ -3,6 +3,8 @@
 # No llama a Stripe, Google ni n8n reales. No cobra y no envía correo.
 # Uso: npm run test:contrata
 set -u
+# Las pruebas y la demo nunca usan claves reales: se descartan las del entorno antes de empezar.
+unset STRIPE_RESTRICTED_KEY STRIPE_PREP_KEY STRIPE_WEBHOOK_SECRET STRIPE_KEY STRIPE_PRICE_DIAGNOSTICO STRIPE_TAX_RATE_IVA21 CONTRATA_HMAC_SECRET CONTRATA_N8N_WEBHOOK_URL
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 WORK="$(mktemp -d)"
 BASE="$WORK/base"
@@ -473,6 +475,16 @@ POSTS1=$(grep -c "\"metodo\":\"POST\"" "$MSD/requests.jsonl")
 check "segunda ejecución no crea nada (idempotente)" 'prep "$TEST_K" --secret-file="$WORK/otro.txt" > "$WORK/prep2.txt" && grep -q "Product ya existe" "$WORK/prep2.txt" && grep -q "Price ya existe" "$WORK/prep2.txt" && grep -q "Tax rate ya existe" "$WORK/prep2.txt" && grep -q "Webhook ya existe" "$WORK/prep2.txt" && [ "$(grep -c "\"metodo\":\"POST\"" "$MSD/requests.jsonl")" = "$POSTS1" ] && [ ! -e "$WORK/otro.txt" ]'
 check "imprime los ids para sobtree-secrets.php" 'grep -q "STRIPE_PRICE_DIAGNOSTICO.*price_test_" "$WORK/prep2.txt" && grep -q "STRIPE_TAX_RATE_IVA21.*txr_test_" "$WORK/prep2.txt"'
 check "con clave live y --live funciona igual, en el modo live" 'prep "$LIVE_K" --live --secret-file="$WORK/whsec-live.txt" > "$WORK/prep3.txt" && grep -q "LIVE" "$WORK/prep3.txt" && grep -q "price_live_" "$WORK/prep3.txt"'
+# Cuenta live con Product, Price y webhook ya creados a mano (IDs reales, sin tax rate): solo se crea el tax rate.
+rm -f "$MSD/estado.json" "$MSD/requests.jsonl"
+php -r '$u="https://sobtree.example/api/contrata/stripe-webhook.php"; echo json_encode(["products"=>["prod_sobtree_diagnostico"=>["id"=>"prod_sobtree_diagnostico","livemode"=>true,"active"=>true]],
+  "prices"=>["price_1UV8OoB7dFxWyrJoJrOXjEy2"=>["id"=>"price_1UV8OoB7dFxWyrJoJrOXjEy2","unit_amount"=>59290,"currency"=>"eur","product"=>"prod_sobtree_diagnostico","lookup_key"=>"sobtree_diagnostico_ia_v1","livemode"=>true,"active"=>true]],
+  "webhook_endpoints"=>["we_1UV8P3B7dFxWyrJoZH2bcxkg"=>["id"=>"we_1UV8P3B7dFxWyrJoZH2bcxkg","url"=>$u,"enabled_events"=>["checkout.session.completed","checkout.session.expired","charge.refunded"],"livemode"=>true]]]);' > "$MSD/estado.json"
+check "cuenta live ya preparada a mano: reconoce Product, Price (lookup_key) y webhook (URL) y crea solo el tax rate" 'prep "$LIVE_K" --live --dry-run > "$WORK/prep4d.txt" && grep -q "Product ya existe: prod_sobtree_diagnostico" "$WORK/prep4d.txt" && grep -q "Price ya existe: price_1UV8OoB7dFxWyrJoJrOXjEy2" "$WORK/prep4d.txt" && grep -q "Webhook ya existe: we_1UV8P3B7dFxWyrJoZH2bcxkg" "$WORK/prep4d.txt" && grep -q "crearía el tax rate" "$WORK/prep4d.txt" && ! grep -q "\"metodo\":\"POST\"" "$MSD/requests.jsonl"'
+check "y al ejecutarlo hace un único POST (el tax rate IVA 21 % incluido, ES) y no escribe el secreto del webhook" 'prep "$LIVE_K" --live > "$WORK/prep4.txt" && [ "$(grep -c "\"metodo\":\"POST\"" "$MSD/requests.jsonl")" = 1 ] && grep "\"metodo\":\"POST\"" "$MSD/requests.jsonl" | grep -q "tax_rates" && grep -q "Tax rate creado: txr_live_" "$WORK/prep4.txt" && grep -q "STRIPE_PRICE_DIAGNOSTICO.*price_1UV8OoB7dFxWyrJoJrOXjEy2" "$WORK/prep4.txt" && ! grep -q "$LIVE_K" "$WORK/prep4.txt"'
+rm -f "$MSD/estado.json" "$MSD/requests.jsonl"
+php -r 'echo json_encode(["prices"=>["price_1UV8OoB7dFxWyrJoJrOXjEy2"=>["id"=>"price_1UV8OoB7dFxWyrJoJrOXjEy2","unit_amount"=>59290,"currency"=>"eur","product"=>"prod_sobtree_diagnostico","lookup_key"=>null,"livemode"=>true,"active"=>true]],"products"=>["prod_sobtree_diagnostico"=>["id"=>"prod_sobtree_diagnostico","livemode"=>true]]]);' > "$MSD/estado.json"
+check "un Price sin lookup_key se reconoce con --price-id y no se duplica" 'prep "$LIVE_K" --live --dry-run --price-id=price_1UV8OoB7dFxWyrJoJrOXjEy2 > "$WORK/prep5.txt" && grep -q "Price ya existe: price_1UV8OoB7dFxWyrJoJrOXjEy2" "$WORK/prep5.txt" && ! grep -q "crearía un Price" "$WORK/prep5.txt"'
 cerrar 18 "Script de preparación" simulada "Probado contra Stripe simulado en test y live. Con la cuenta real lo ejecuta el fundador." "$A3"
 kill $P_MS 2>/dev/null || true
 unset CONTRATA_STRIPE_API_BASE STRIPE_PREP_ALLOW_LOCAL STRIPE_PREP_BASE STRIPE_WEBHOOK_URL
@@ -521,8 +533,13 @@ check "dist sin /condiciones/ ni enlaces a las condiciones (el marcador solo exi
 check "dist sin «1 semana», «una semana» ni «7 días» de entrega del diagnóstico" '! grep -RInE --binary-files=without-match "(1|una) semana|7 días" "$ROOT/dist" --include="*.html" --include="*.txt" --include="*.json"'
 check "clave live rechazada en otro proceso" 'php_s tests/contrata/clave-live.php >/dev/null'
 PUBLIC_CONTRATA_ACTIVO=1 npx astro build --outDir "$WORK/dist-on" >"$WORK/build-on.log" 2>&1
-check "build con el flag encendido genera /condiciones/ como marcador noindex" '[ -f "$WORK/dist-on/condiciones/index.html" ] && grep -q "name=\"robots\" content=\"noindex\"" "$WORK/dist-on/condiciones/index.html" && grep -q "PENDIENTE DE TEXTO LEGAL" "$WORK/dist-on/condiciones/index.html"'
-check "el marcador no entra en el sitemap y el formulario de Contrata lo enlaza" '! grep -RIn "condiciones" "$WORK/dist-on" --include="sitemap*.xml" && grep -q "href=\"/condiciones/\"" "$WORK/dist-on/contratar/index.html"'
+check "build con el flag encendido: /condiciones/ pública, indexable (canónica, sin noindex), firmada por Sobtree Holding y sin marcadores pendientes" '[ -f "$WORK/dist-on/condiciones/index.html" ] && ! grep -q "name=\"robots\" content=\"noindex\"" "$WORK/dist-on/condiciones/index.html" && grep -q "rel=\"canonical\" href=\"https://sobtree.com/condiciones/\"" "$WORK/dist-on/condiciones/index.html" && grep -q "Sobtree Holding, S.L." "$WORK/dist-on/condiciones/index.html" && ! grep -qE "PENDIENTE|PROPUESTA|BORRADOR" "$WORK/dist-on/condiciones/index.html" && grep -q "Madrid (España)" "$WORK/dist-on/condiciones/index.html"'
+check "con el flag, /contratar/ y /condiciones/ están en el sitemap; la confirmación de pago, no" 'grep -q "<loc>https://sobtree.com/contratar/</loc>" "$WORK"/dist-on/sitemap-0.xml && grep -q "<loc>https://sobtree.com/condiciones/</loc>" "$WORK"/dist-on/sitemap-0.xml && ! grep -q "contratar/gracias" "$WORK"/dist-on/sitemap-0.xml'
+check "con el flag, la portada tiene el botón y /contratar/ el selector de servicio (texto fijo con un solo servicio) y el enlace a /condiciones/" 'grep -q "id=\"contrata-boton\"" "$WORK/dist-on/index.html" && grep -q "id=\"contrata-servicio\"" "$WORK/dist-on/contratar/index.html" && grep -q "href=\"/condiciones/\"" "$WORK/dist-on/contratar/index.html" && ! grep -q "name=\"robots\" content=\"noindex\"" "$WORK/dist-on/contratar/index.html"'
+check "con el flag, el build no lleva claves (sk_, rk_, whsec_) ni el simulador de pago" '! grep -RInE --binary-files=without-match "sk_|rk_|whsec_" "$WORK/dist-on" && [ ! -e "$WORK/dist-on/api/contrata/sim" ] && ! grep -RIn --binary-files=without-match "Pago simulado" "$WORK/dist-on"'
+check "con el flag, los endpoints de Contrata están y .htaccess deniega sim/ y todo lo demás de api/" '[ -f "$WORK/dist-on/api/contrata/stripe-webhook.php" ] && grep -q "contrata/(disponibilidad|crear-sesion|stripe-webhook)" "$WORK/dist-on/api/.htaccess" && grep -q "RewriteRule ^ - \[F,L\]" "$WORK/dist-on/api/.htaccess" && grep -q "Require all denied" "$WORK/dist-on/lib/.htaccess"'
+check "con el flag siguen los 301 y 410 del .htaccess raíz" 'grep -q "RewriteRule ^diagnostico/?\$ https://sobtree.com/#servicios \[R=301" "$WORK/dist-on/.htaccess" && grep -q "invest/?\$ - \[G,L,NC\]" "$WORK/dist-on/.htaccess" && cmp -s "$ROOT/public/.htaccess" "$WORK/dist-on/.htaccess"'
+check "las páginas del resto del sitio son las mismas con y sin el flag (solo cambian la portada, los sitemaps y las dos páginas nuevas)" 'python3 "$ROOT/tests/contrata/comparar-dist.py" "$ROOT/dist" "$WORK/dist-on" > "$WORK/cmp.txt"; [ ! -s "$WORK/cmp.txt" ] || { head -5 "$WORK/cmp.txt"; false; }'
 check "el flag encendido dice «máximo 10 días laborables» en Contrata y en gracias" 'grep -q "máximo 10 días laborables" "$WORK/dist-on/contratar/index.html" && grep -q "máximo 10 días laborables" "$WORK/dist-on/contratar/gracias/index.html"'
 cerrar 15 "Contenido de dist" pasa "Build con el flag apagado. Precio contrastado en unit.php (490 € + 21 % = 592,90 €). La regla CSS #contrata-boton puede quedar en la hoja y no pinta el botón." "$A"
 

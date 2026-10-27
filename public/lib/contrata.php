@@ -11,6 +11,7 @@ const CONTRATA_PRECIO_BASE_EUR = 490;          // tiene que coincidir con DIAGNO
 const CONTRATA_IVA_PORCIENTO = 21;
 const CONTRATA_DIAS_DESCUENTO = 30;            // DIAGNOSTICO.dias
 const CONTRATA_POLITICA_VERSION = '2026-10-26'; // POLITICA_VERSION en src/data/site.ts
+const CONTRATA_CONDICIONES_VERSION = '2026-10-27'; // CONDICIONES_VERSION en src/data/site.ts
 const CONTRATA_MAX_PROYECTOS = 1;
 const CONTRATA_PLAZO_LABORABLES = 3;
 const CONTRATA_SEMANAS_VISIBLES = 4;
@@ -931,6 +932,7 @@ function contrata_parametros_sesion(array $ret, array $cliente, string $customer
         'semana_lunes' => $ret['semana'],
         'retencion_id' => $ret['id'],
         'politica_version' => CONTRATA_POLITICA_VERSION,
+        'condiciones_version' => CONTRATA_CONDICIONES_VERSION,
         'importe_base_centimos' => (string)$imp['base_centimos'],
         'iva_porcentaje' => (string)CONTRATA_IVA_PORCIENTO,
         'importe_total_centimos' => (string)$imp['total_centimos'],

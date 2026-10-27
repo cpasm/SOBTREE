@@ -150,6 +150,9 @@ function textosDiagnostico(d = DIAGNOSTICO) {
 export const TEXTOS = textosDiagnostico();
 
 // Plazo de entrega del informe del diagnóstico (contractual). Se reserva una semana de calendario, pero al cliente se le dice esto.
+// Condiciones de contratación (/condiciones/). Tiene que coincidir con CONTRATA_CONDICIONES_VERSION en public/lib/contrata.php.
+export const CONDICIONES_VERSION = "2026-10-27";
+export const CONDICIONES_FECHA = "27 de octubre de 2026";
 export const PLAZO_DIAGNOSTICO = "máximo 10 días laborables";
 
 // Precios cerrados, IVA no incluido. La calculadora lee cfgPrecio() desde esta misma fuente.

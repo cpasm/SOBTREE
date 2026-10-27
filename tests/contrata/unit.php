@@ -14,6 +14,8 @@ preg_match('/dias:\s*(\d+)/', $site, $dias);
 preg_match('/POLITICA_VERSION = "([^"]+)"/', $site, $pol);
 $t('precio = DIAGNOSTICO', ($precio[1] ?? '') === (string)CONTRATA_PRECIO_BASE_EUR);
 $t('días de descuento', ($dias[1] ?? '') === (string)CONTRATA_DIAS_DESCUENTO);
+preg_match('/CONDICIONES_VERSION = "([^"]+)"/', $site, $cv);
+$t('versión de las condiciones', ($cv[1] ?? '') === CONTRATA_CONDICIONES_VERSION);
 $t('versión de la política', ($pol[1] ?? '') === CONTRATA_POLITICA_VERSION);
 $imp = contrata_importes();
 $t('total con IVA', $imp['total_centimos'] === 59290 && $imp['iva_centimos'] === 10290 && $imp['base_centimos'] === 49000);

@@ -21,6 +21,7 @@ const browser = await puppeteer.launch({
 const page = await browser.newPage();
 await page.setViewport({ width: 360, height: 800, isMobile: true, hasTouch: true });
 page.on("pageerror", (e) => console.log("  PAGEERROR", e.message));
+page.on("console", (m) => { if (m.type() === "error") console.log("  CONSOLA", m.text().slice(0, 200)); });
 
 const sinScroll = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const enfocado = () => page.evaluate(() => {
@@ -46,10 +47,18 @@ await boton.evaluate((e) => e.scrollIntoView({ block: "center" }));
 await boton.focus();
 await page.keyboard.press("Enter");
 await page.waitForFunction(() => location.pathname.includes("/contratar"), { timeout: 10000 });
-await page.waitForFunction(() => {
-  const f = document.querySelector("#contrata-form");
-  return f && f.hidden === false && f.querySelector("input[name=semana]");
-}, { timeout: 15000 });
+try {
+  await page.waitForFunction(() => {
+    const f = document.querySelector("#contrata-form");
+    return f && f.hidden === false && f.querySelector("input[name=semana]");
+  }, { timeout: 15000 });
+} catch (e) {
+  const info = await page.evaluate(() => ({ url: location.href, estado: (document.getElementById("contrata-estado") || {}).textContent, form: !!document.getElementById("contrata-form") }));
+  console.log("  DIAGNÓSTICO", JSON.stringify(info));
+  const disp = await page.evaluate(async () => { try { const r = await fetch("/api/contrata/disponibilidad.php"); return r.status + " " + (await r.text()).slice(0, 300); } catch (x) { return String(x); } });
+  console.log("  DISPONIBILIDAD", disp);
+  throw e;
+}
 t("el formulario cabe en 360 px", await sinScroll());
 const total = await page.$eval(".contrata-total", (e) => e.textContent || "");
 t("el total con IVA está visible", /592,90\s*€/.test(total), total.trim());
