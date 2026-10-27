@@ -138,8 +138,8 @@ const varios = SERVICIOS.length > 1;
         else if (!hay) { input.checked = true; hay = true; }
         var span = document.createElement("span");
         var linea = textoSemana(s.lunes);
-        if (s.libres < 1) linea += " · Sin plazas esta semana";
-        else if (s.texto_plazas) linea += " · " + s.texto_plazas;
+        if (s.libres < 1) linea += " · Completa";
+        else linea += " · Disponible";
         span.textContent = linea;
         label.appendChild(input);
         label.appendChild(span);
