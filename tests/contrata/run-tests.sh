@@ -108,6 +108,9 @@ webhook() {
 }
 recibidos() { [ -f "$MOCK/received.jsonl" ] && wc -l < "$MOCK/received.jsonl" | tr -d ' ' || echo 0; }
 lineas_evento() { grep -c "\"event_id\":\"$1\"" "$MOCK/received.jsonl" 2>/dev/null || true; }
+cola_enviada() {
+  php -r '$evento=$argv[1]; $id=""; foreach (file($argv[2], FILE_IGNORE_NEW_LINES) as $l) { $j=json_decode($l, true); if (($j["event_id"] ?? "")===$evento) $id=$j["id"] ?? ""; } $u=""; foreach (file($argv[3], FILE_IGNORE_NEW_LINES) as $l) { $j=json_decode($l, true); if (($j["id"] ?? "")===$id) $u=$j["estado"] ?? ""; } exit($id!=="" && $u==="enviado" ? 0 : 1);' "$1" "$2" "$3"
+}
 
 php -S "127.0.0.1:$MOCKP" "$ROOT/tests/contrata/mock-n8n.php" >"$WORK/n8n.log" 2>&1 &
 P_N8N=$!
@@ -135,7 +138,7 @@ check "botón en cerrado" 'node --input-type=module -e "import { estadoBoton } f
 if ! sembrar >/dev/null; then echo "No se ha podido sembrar la disponibilidad" >&2; exit 1; fi
 
 echo "1. Camino feliz (simulado)"
-A=$(FAIL)
+A=$FAIL
 reset_estado
 CODE=$(crear "$SEMANA_A")
 SESION=$(campo sesion || true)
@@ -153,7 +156,7 @@ check "el aviso lleva firma válida" 'echo "$ULT" | grep -q "\"ok\":true"'
 cerrar 1 "Camino feliz" simulada "Sesión, webhook firmado, plaza −1 y cola. No hay recibo, deal, evento ni correo reales." "$A"
 
 echo "2. 3D Secure simulado"
-A=$(FAIL)
+A=$FAIL
 reset_estado
 : > "$MOCK/received.jsonl"
 CODE=$(crear "$SEMANA_B")
@@ -171,7 +174,7 @@ check "el éxito simulado marca pagada" '[ "$O3" = 303 ] && [ "$(estado_ret "$S4
 cerrar 2 "3D Secure" simulada "Éxito y fallo con eventos firmados. No es un reto 3DS de un banco." "$A"
 
 echo "3. Tarjeta rechazada"
-A=$(FAIL)
+A=$FAIL
 reset_estado
 : > "$MOCK/received.jsonl"
 CODE=$(crear "$SEMANA_A")
@@ -190,7 +193,7 @@ check "no hubo aviso de pago" '[ "$(grep -c checkout.session.completed "$MOCK/re
 cerrar 3 "Tarjeta rechazada" pasa "Rechazo simulado y barrido por reloj del cron. No es una tarjeta real." "$A"
 
 echo "4. Expiración"
-A=$(FAIL)
+A=$FAIL
 reset_estado
 CODE=$(crear "$SEMANA_A")
 SE=$(campo sesion)
@@ -200,13 +203,15 @@ check "la plaza vuelve" '[ "$(libres "$SEMANA_A")" = 1 ]'
 cerrar 4 "Expiración" pasa "checkout.session.expired firmado en local. No se ha expirado desde el Dashboard." "$A"
 
 echo "5. Última plaza en concurrencia"
-A=$(FAIL)
+A=$FAIL
 reset_estado
 TOKEN=$(csrf)
 php -r 'echo json_encode(["csrf"=>$argv[1],"producto"=>"diagnostico","empresa"=>"Acme SL","email"=>"facturas@example.com","nif"=>"B12345674","condiciones"=>"si","semana"=>$argv[2]], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);' "$TOKEN" "$SEMANA_A" > "$WORK/paralelo.json"
 php_s "$ROOT/tests/contrata/abrir.php" < "$WORK/paralelo.json" > "$WORK/p1.json" &
+P1=$!
 php_s "$ROOT/tests/contrata/abrir.php" < "$WORK/paralelo.json" > "$WORK/p2.json" &
-wait
+P2=$!
+wait "$P1" "$P2"
 OKN=$(grep -h '"ok":true' "$WORK/p1.json" "$WORK/p2.json" | wc -l | tr -d ' ')
 COMP=$(grep -h 'semana_completa' "$WORK/p1.json" "$WORK/p2.json" | wc -l | tr -d ' ')
 check "uno entra y el otro ve la semana completa" '[ "$OKN" = 1 ] && [ "$COMP" = 1 ]'
@@ -215,7 +220,7 @@ check "solo una retención activa" '[ "$RETS" = 1 ]'
 cerrar 5 "Última plaza en concurrencia" pasa "Dos procesos CLI y flock. php -S es de un solo hilo; no es concurrencia HTTP." "$A"
 
 echo "6. Webhook duplicado"
-A=$(FAIL)
+A=$FAIL
 reset_estado
 : > "$MOCK/received.jsonl"
 CODE=$(crear "$SEMANA_B")
@@ -230,7 +235,7 @@ check "una sola fila en la cola" '[ "$NCOLA" = 1 ]'
 cerrar 6 "Webhook duplicado" simulada "El PHP deduplica por event.id. No se ha creado un deal en HubSpot." "$A"
 
 echo "7. Firma no válida"
-A=$(FAIL)
+A=$FAIL
 EV_ANTES=$(wc -l < "$DIR/eventos.jsonl" | tr -d ' ')
 COLA_ANTES=$(wc -l < "$DIR/cola.jsonl" | tr -d ' ')
 echo '{"id":"evt_test_mala","object":"event","type":"checkout.session.completed","data":{"object":{}}}' > "$WORK/payload.json"
@@ -241,7 +246,7 @@ check "no procesa nada" '[ "$(wc -l < "$DIR/eventos.jsonl" | tr -d " ")" = "$EV_
 cerrar 7 "Firma no válida" pasa "400 y sin cambios en eventos ni en la cola." "$A"
 
 echo "8. n8n caído"
-A=$(FAIL)
+A=$FAIL
 reset_estado
 : > "$MOCK/received.jsonl"
 echo 500 > "$MOCK/mode"
@@ -253,12 +258,12 @@ check "el pago se guarda aunque n8n falle" '[ "$WN" = 200 ] && [ "$(estado_ret "
 check "la cola marca error" 'grep -q "\"estado\":\"error\"" "$DIR/cola-estado.jsonl"'
 echo 200 > "$MOCK/mode"
 php_s "$ROOT/public/lib/reintentar-contrata.php" >"$WORK/cron-n8n.txt"
-check "el cron reenvía" 'grep evt_test_n8n_caido "$DIR/cola-estado.jsonl" | grep -q "\"estado\":\"enviado\""'
+check "el cron reenvía" 'cola_enviada evt_test_n8n_caido "$DIR/cola.jsonl" "$DIR/cola-estado.jsonl"'
 check "dos entregas del mismo id, no un alta nueva" '[ "$(lineas_evento evt_test_n8n_caido)" = 2 ] && [ "$(grep -c evt_test_n8n_caido "$DIR/cola.jsonl")" = 1 ]'
 cerrar 8 "n8n caído" pasa "El mock responde 500 y luego 200. El cron reintenta el mismo aviso." "$A"
 
 echo "9. Fallo en cerrado"
-A=$(FAIL)
+A=$FAIL
 cp "$DIR/disponibilidad.json" "$WORK/disp-buena.json"
 php -r '$j=json_decode(file_get_contents($argv[1]), true); $j["generado"]=gmdate("c", time()-4*3600); file_put_contents($argv[1], json_encode($j, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));' "$DIR/disponibilidad.json"
 HUELLA=$(sha256sum "$DIR/disponibilidad.json" | awk '{print $1}')
@@ -277,7 +282,7 @@ check "al restaurar vuelve la disponibilidad" '[ "$(disp | json ok)" = true ]'
 cerrar 9 "Fallo en cerrado" pasa "JSON de más de 3 h y firma mala. El botón, en la lógica compartida, va al formulario. La alerta no se ha enviado por correo." "$A"
 
 echo "10. Bloqueo"
-A=$(FAIL)
+A=$FAIL
 reset_estado
 cat > "$WORK/fixture.json" <<'JSON'
 {"proyectos":[],"bloqueos":[{"inicio":"2026-11-16","fin":"2026-11-21"}]}
@@ -290,7 +295,7 @@ sembrar >/dev/null
 cerrar 10 "Bloqueo" pasa "Publicación firmada con un bloqueo de calendario. Google no se ha llamado." "$A"
 
 echo "11. Reembolso"
-A=$(FAIL)
+A=$FAIL
 reset_estado
 : > "$MOCK/received.jsonl"
 CODE=$(crear "$SEMANA_A")
@@ -305,7 +310,7 @@ check "n8n simulado recibe el reembolso" 'grep -q charge.refunded "$MOCK/receive
 cerrar 11 "Reembolso" simulada "charge.refunded firmado actualiza el PHP. No se ha reembolsado en el Dashboard ni borrado un evento." "$A"
 
 echo "12. NIF-IVA UE"
-A=$(FAIL)
+A=$FAIL
 reset_estado
 CODE=$(crear "$SEMANA_A" "123")
 check "NIF mal formado → 422" '[ "$CODE" = 422 ]'
@@ -320,12 +325,12 @@ check "alerta de facturar y sin llamada a VIES" 'grep -q revisar_antes_de_factur
 cerrar 12 "NIF-IVA UE" pasa "Formato y 21 % con alerta. VIES no se ha llamado." "$A"
 
 echo "13. Separación de calendarios"
-A=$(FAIL)
+A=$FAIL
 check "JSON y nodos Code" 'node tests/contrata/test-n8n.mjs'
 cerrar 13 "Separación de calendarios" simulada "Revisión estática: dos IDs placeholder, nodos de Google deshabilitados y workflow inactivo. La ejecución real en n8n queda pendiente de cuenta." "$A"
 
 echo "14. Accesibilidad y móvil"
-A=$(FAIL)
+A=$FAIL
 if [ ! -d /tmp/contrata-pptr/node_modules/puppeteer-core ]; then
   mkdir -p /tmp/contrata-pptr
   ( cd /tmp/contrata-pptr && npm init -y >/dev/null 2>&1 && npm install --silent puppeteer-core >/dev/null )
@@ -349,7 +354,7 @@ wait "$ASTRO_PID" 2>/dev/null || true
 cerrar 14 "Accesibilidad y móvil" pasa "Teclado y 360 px hasta el pago simulado. Hay empresa, email y NIF antes de Stripe: no son tres clics literales." "$A"
 
 echo "15. Contenido del build"
-A=$(FAIL)
+A=$FAIL
 unset PUBLIC_CONTRATA_ACTIVO || true
 env -u PUBLIC_CONTRATA_ACTIVO npm run build >"$WORK/build.log" 2>&1
 BUILD_OK=$?

@@ -32,10 +32,18 @@ const enfocado = () => page.evaluate(() => {
 await page.goto(`${base}/`, { waitUntil: "networkidle0" });
 await page.waitForSelector("#contrata-boton", { timeout: 15000 });
 t("hay botón en portada", true);
+await page.waitForFunction(() => {
+  const nota = document.getElementById("contrata-nota");
+  const boton = document.getElementById("contrata-boton");
+  return !!(nota && boton && !nota.hidden && /lunes/.test(nota.textContent || "") && boton.getAttribute("href") === "/contratar/");
+}, { timeout: 10000 });
+t("la nota sale del cálculo y el botón sigue en contratar", true);
 t("la portada cabe en 360 px", await sinScroll());
 const altoBoton = await page.$eval("#contrata-boton", (e) => e.getBoundingClientRect().height);
 t("el botón mide al menos 48 px", altoBoton >= 48, String(Math.round(altoBoton)));
-await page.focus("#contrata-boton");
+const boton = await page.$("#contrata-boton");
+await boton.evaluate((e) => e.scrollIntoView({ block: "center" }));
+await boton.focus();
 await page.keyboard.press("Enter");
 await page.waitForFunction(() => location.pathname.includes("/contratar"), { timeout: 10000 });
 await page.waitForFunction(() => {

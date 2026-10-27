@@ -60,7 +60,7 @@ npm run demo:contrata
 
 Queda así:
 
-- Astro en http://127.0.0.1:4321/ con el flag encendido
+- Astro en http://127.0.0.1:4321/ con el flag encendido. En dev, `/api/` y `/contact.php` se reenvían al PHP (Vite, si no, entregaría el fuente porque vive en `public/`).
 - PHP en 127.0.0.1:8787 (simulación)
 - un n8n falso en 127.0.0.1:8788 que solo comprueba la firma
 

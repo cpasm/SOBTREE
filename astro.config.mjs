@@ -2,6 +2,7 @@ import { defineConfig } from "astro/config";
 import mdx from "@astrojs/mdx";
 import sitemap from "@astrojs/sitemap";
 import { readdirSync, readFileSync, rmSync } from "node:fs";
+import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -49,16 +50,51 @@ function quitarContrataSiApagado() {
 
 const phpOrigin = process.env.CONTRATA_PHP_ORIGIN;
 
+// Vite sirve antes lo que ya está en public/, así que server.proxy no llega a
+// ejecutar los PHP. En dev, este middleware va delante y los reenvía a php -S.
+function proxyPhpEnDev(origin) {
+  if (!origin) return { name: "contrata-php-dev", hooks: {} };
+  let destino;
+  try { destino = new URL(origin); } catch { return { name: "contrata-php-dev", hooks: {} }; }
+  const local = destino.protocol === "http:" && (destino.hostname === "127.0.0.1" || destino.hostname === "localhost");
+  if (!local) return { name: "contrata-php-dev", hooks: {} };
+  return {
+    name: "contrata-php-dev",
+    hooks: {
+      "astro:server:setup": ({ server }) => {
+        server.middlewares.use((req, res, next) => {
+          const url = req.url || "/";
+          const ruta = url.split("?")[0];
+          if (!(ruta.startsWith("/api/") || ruta === "/contact.php")) return next();
+          const preq = http.request({
+            hostname: destino.hostname,
+            port: destino.port,
+            method: req.method,
+            path: url,
+            headers: { ...req.headers, host: destino.host }
+          }, (pres) => {
+            res.writeHead(pres.statusCode || 502, pres.headers);
+            pres.pipe(res);
+          });
+          preq.on("error", () => {
+            if (!res.headersSent) res.statusCode = 502;
+            res.end();
+          });
+          req.pipe(preq);
+        });
+      }
+    }
+  };
+}
+
 export default defineConfig({
   site: "https://sobtree.com",
   // En Hostinger un directorio sin barra responde 301 a la URL con barra. Esa es la canónica.
   trailingSlash: "always",
-  ...(phpOrigin
-    ? { server: { proxy: { "/api": phpOrigin, "/contact.php": phpOrigin } } }
-    : {}),
   integrations: [
     mdx(),
     sitemap({ filter: indexable }),
-    quitarContrataSiApagado()
+    quitarContrataSiApagado(),
+    proxyPhpEnDev(phpOrigin)
   ]
 });
