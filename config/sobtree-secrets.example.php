@@ -20,4 +20,20 @@ return [
     // 'LEADS_DIR' => '/home/<usuario>/domains/sobtree.com/sobtree-leads',
     // 'LEADS_NOTIFY_TO' => 'info@sobtree.com',
     // 'LEADS_NOTIFY_FROM' => 'info@sobtree.com',   // por defecto; usa solo un buzón o alias que exista
+
+    // Botón Contrata (api/contrata + lib/contrata.php). Solo los nombres: los valores
+    // reales van en sobtree-secrets.php, nunca en el repositorio. Claves de Stripe
+    // solo de test (rk_test_ o sk_test_). El código rechaza sk_live_ y rk_live_.
+    'STRIPE_RESTRICTED_KEY' => '',
+    'STRIPE_WEBHOOK_SECRET' => '',
+    'STRIPE_PRICE_DIAGNOSTICO' => '',
+    'CONTRATA_HMAC_SECRET' => '',
+    'CONTRATA_N8N_WEBHOOK_URL' => '',
+    // Calendarios secundarios de info@sobtree.com. Placeholders hasta que existan.
+    'CONTRATA_CALENDAR_PROYECTOS_ID' => '', // «Sobtree · Proyectos»
+    'CONTRATA_CALENDAR_BLOQUEOS_ID' => '',  // «Sobtree · Bloqueos»
+    'CONTRATA_CALENDAR_CUENTA' => 'info@sobtree.com',
+    // 'CONTRATA_MODO' => '', // vacio = apagado. simulacion | stripe_test
+    // 'CONTRATA_PUBLIC_URL' => 'https://sobtree.com',
+    // 'CONTRATA_DIR' => '/home/<usuario>/domains/sobtree.com/sobtree-contrata',
 ];

@@ -1,0 +1,23 @@
+---
+import Base from "../../layouts/Base.astro";
+import { CONTRATA } from "../../data/contrata";
+
+const activo = CONTRATA.activo;
+---
+{activo ? (
+<Base title="Pago recibido | Sobtree" description="Volvemos del pago del diagnóstico." noindex={true}>
+<main id="main" class="section">
+  <div class="wrap" style="max-width: 720px;">
+    <p class="eyebrow">Diagnóstico IA exprés</p>
+    <h1>Hemos vuelto del pago</h1>
+    <p class="section-sub">Si el pago se ha completado, te escribimos para confirmar la semana. La fecha se confirma por email en 1 día laborable; si no fuera posible, te ofrecemos otra semana o el reembolso íntegro.</p>
+    <p>El recibo, si el pago es real, lo envía Stripe. Esta página no comprueba la tarjeta: quien confirma el cobro es el aviso firmado que Stripe envía a nuestro servidor.</p>
+    <p><a class="btn btn-primary" href="/">Volver al inicio</a></p>
+  </div>
+</main>
+</Base>
+) : (
+<Base title="Sobtree" noindex={true}>
+<main id="main" class="section"><div class="wrap"><p>Esta página no está publicada.</p></div></main>
+</Base>
+)}

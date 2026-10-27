@@ -5,6 +5,7 @@ import Articulos from "../components/Articulos.astro";
 import Asistente from "../components/Asistente.astro";
 import { FAQ } from "../data/faq";
 import { BUILD_VERSION, COMERCIAL_CONSENT_TEXT, DIAGNOSTICO, TEXTOS } from "../data/site";
+import ContrataBoton from "../components/ContrataBoton.astro";
 import CASOS from "../data/casos.json";
 import { graph, organization, website, person, faqPage } from "../data/schema";
 
@@ -77,6 +78,7 @@ const jsonld = graph(organization(), website(), person(), faqPage());
         </dl>
         <p class="fine offer-discount">{TEXTOS.lineaCorta}</p>
         {TEXTOS.condiciones && <p class="fine">{TEXTOS.condiciones}</p>}
+        <ContrataBoton />
         <a class="btn btn-primary btn-block" href="#contacto" data-interest="Diagnóstico IA exprés">Quiero mi diagnóstico</a>
         <p class="fine">¿Prefieres hacer números primero? <a href="/calculadora/">Calcula tu ahorro</a>.</p>
       </div>

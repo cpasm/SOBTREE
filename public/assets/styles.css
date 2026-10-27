@@ -625,3 +625,16 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 .res-assume ul { margin: 10px 0 0; padding-left: 1.2em; display: grid; gap: 6px; }
 @media (max-width: 960px) { .calc { grid-template-columns: minmax(0, 1fr); } .calc-out { position: static; } }
 @media (max-width: 640px) { .area-grid { grid-template-columns: 1fr; } .calc-q { padding: 18px; } .bar-row { grid-template-columns: 110px 1fr; } }
+
+/* Contrata: semanas y total. El botón largo del fallo en cerrado puede partirse. */
+#contrata-boton { white-space: normal; text-align: center; }
+.contrata-precio { display: grid; gap: 4px; margin: 18px 0; }
+.contrata-total { font-size: clamp(28px, 5vw, 42px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+.semanas { border: 0; margin: 0; padding: 0; display: grid; gap: 10px; }
+.semanas legend { font-weight: 800; margin-bottom: 4px; }
+.semana { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid var(--line-strong); border-radius: 16px; min-height: 48px; }
+.semana:has(input:checked) { border-color: var(--accent); }
+.semana input { margin-top: 4px; width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+.semana.completa { opacity: .6; }
+.contrata-slot { display: grid; gap: 8px; }
+#contrata-pagar { min-height: 48px; white-space: normal; }

@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "demo:contrata": "bash scripts/demo-contrata.sh",
+    "test:contrata": "bash tests/contrata/run-tests.sh"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.14",

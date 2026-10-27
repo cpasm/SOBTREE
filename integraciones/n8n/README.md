@@ -59,3 +59,13 @@ Nativas que se reutilizan: `email`, `firstname`, `lastname`, `phone`, `jobtitle`
 | `sobtree_contexto_lead` | Contexto del lead (calculadora/asistente) | Texto de varias líneas | resumen de la calculadora y motivo del asistente |
 
 Grupo: «Sobtree» (ver la ficha en Drive para el estado de creación).
+
+## Contrata (v1, simulación)
+
+Workflows aparte, también con `"active": false`. No comparten el secreto de los leads.
+
+- `sobtree-disponibilidad.json`: «Sobtree · Disponibilidad». Calcula plazas en simulación. Los nodos de Google Calendar están deshabilitados. La URL de publicación es `https://ejemplo.invalid/...` y el secreto es `REEMPLAZAR_EN_N8N`, así que un disparo manual no llama a Google ni escribe en la web.
+- `sobtree-contrata.json`: «Sobtree · Contrata». Verifica el HMAC y responde un acuse simulado. El nodo que crearía el deal en HubSpot está deshabilitado: no se han pedido permisos `crm.objects.deals`.
+- `contrata-verificar.js` y `build-contrata.mjs`: fuente y regeneración (`node integraciones/n8n/build-contrata.mjs`).
+
+Importarlos no los activa. Los pasos para pasar a live están en `docs/contrata.md`. Credenciales solo por nombre (`REEMPLAZAR_ID_CREDENCIAL`).

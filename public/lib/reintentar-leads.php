@@ -54,4 +54,14 @@ foreach ($leads as $id => $lead) {
 $line = gmdate('c') . ' reintentar-leads ' . json_encode($stats);
 echo $line . "\n";
 if ($stats['errores'] || $stats['agotados']) error_log($line);
+
+// El mismo cron barre retenciones caducadas de Contrata y reintenta su cola.
+// Si Contrata no está configurado, no crea carpetas ni envía correo.
+try {
+    require_once __DIR__ . '/contrata.php';
+    contrata_mantenimiento($dry);
+} catch (Throwable $e) {
+    error_log('contrata: ' . $e->getMessage());
+}
+
 exit($stats['agotados'] > 0 ? 2 : 0);
