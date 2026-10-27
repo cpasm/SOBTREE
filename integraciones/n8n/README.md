@@ -1,6 +1,10 @@
 # n8n · Lead web → HubSpot
 
-Instancia: `https://sobtree.app.n8n.cloud` · Webhook de producción: `https://sobtree.app.n8n.cloud/webhook/sobtree-lead`
+La URL de producción del webhook no está en este repositorio. Vive solo en `sobtree-secrets.php` (fuera de `public_html`, en Hostinger), en la clave `N8N_LEADS_WEBHOOK_URL`. Hay que tenerla puesta antes de desplegar. Si falta, está vacía o sigue siendo el marcador de la plantilla, la web guarda el lead, responde al visitante y lo deja encolado (estado `omitido`, igual que si n8n estuviera caído) para que el cron lo reenvíe al configurarla. No hay error 500.
+
+El path del nodo Webhook es `sobtree-lead` (no es un secreto). La forma de la URL es `https://<TU-INSTANCIA>.app.n8n.cloud/webhook/sobtree-lead`. En el JSON, `meta.instancia` usa ese marcador y `meta.webhook_produccion` vale `${N8N_LEADS_WEBHOOK_URL}`.
+
+Antes de desplegar, añade también `IP_HASH_SECRET` al mismo fichero (ver el README del repo, sección «Captura de leads»). Sin esa clave el formulario sigue funcionando y no se guarda ningún resumen de la IP.
 
 Ficheros (sin credenciales ni secretos):
 

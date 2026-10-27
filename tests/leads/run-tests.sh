@@ -12,9 +12,14 @@ ok()   { PASS=$((PASS+1)); echo "  ✔ $1"; }
 ko()   { FAIL=$((FAIL+1)); echo "  ✘ $1"; }
 check(){ if eval "$2"; then ok "$1"; else ko "$1"; fi; }
 
-write_config() { # $1 = url (vacío = sin webhook)
+write_config() { # $1 = url (vacío = sin webhook). $2 = IP_HASH_SECRET (opcional; vacío = sin clave)
+  local ipsecret="${2-}"
   cat > "$BASE/sobtree-secrets.php" <<PHP
-<?php return ['N8N_LEADS_WEBHOOK_URL' => '$1', 'N8N_LEADS_WEBHOOK_SECRET' => '$SECRET'];
+<?php return [
+  'N8N_LEADS_WEBHOOK_URL' => '$1',
+  'N8N_LEADS_WEBHOOK_SECRET' => '$SECRET',
+  'IP_HASH_SECRET' => '$ipsecret',
+];
 PHP
 }
 MAILLOG="$WORK/mails.log"; MAILFAIL="$WORK/mail-fail"; : > "$MAILLOG"
@@ -190,6 +195,55 @@ unset(\$lead[\"consentimiento_comercial\"]);
 \$lead[\"id\"]=getenv(\"OLD\").\"-mail\";
 exit(leads_send_mail(\$lead, \"test\") ? 0 : 1);
 " < <(tail -1 "$LEADS")'
+
+echo "12. URL del webhook y hash de la IP"
+write_config "" "ip-secret-de-prueba"
+CODE=$(post "${VALID[@]}"); ID=$(last_id)
+check "URL ausente → 200 (no 500) y el lead se guarda" '[ "$CODE" = 200 ] && [ -n "$ID" ]'
+check "URL ausente → n8n omitido (encolado) y correo de respaldo" '[ "$(last_state "$ID" n8n)" = omitido ] && [ "$(mails_for "$ID")" = 1 ]'
+PLACEHOLDER='https://<TU-INSTANCIA>.app.n8n.cloud/webhook/sobtree-lead'
+write_config "$PLACEHOLDER" "ip-secret-de-prueba"
+CODE=$(post "${VALID[@]}"); ID=$(last_id)
+check "marcador de plantilla → se trata como URL ausente (200, omitido)" '[ "$CODE" = 200 ] && [ "$(last_state "$ID" n8n)" = omitido ]'
+write_config "$WEBHOOK" "ip-secret-de-prueba"
+echo 200 > "$MOCK/mode"
+CODE=$(post "${VALID[@]}"); ID=$(last_id)
+check "URL configurada y secreto presente → 200 y n8n enviado" '[ "$CODE" = 200 ] && [ "$(last_state "$ID" n8n)" = enviado ]'
+check "ip_hash es HMAC con la clave y no el sha256 sin secreto" 'tail -1 "$LEADS" | php -r "
+\$j=json_decode(stream_get_contents(STDIN), true);
+\$day=substr((string)(\$j[\"fecha\"] ?? \"\"), 0, 10);
+\$ip=\"127.0.0.1\";
+\$esperado=hash_hmac(\"sha256\", \$ip . \"|\" . \$day, \"ip-secret-de-prueba\");
+\$plano=hash(\"sha256\", \$ip . \$day);
+\$h=\$j[\"meta\"][\"ip_hash\"] ?? null;
+exit((is_string(\$h) && hash_equals(\$esperado, \$h) && !hash_equals(\$plano, \$h)) ? 0 : 1);
+"'
+check "el secreto de la IP no viaja en el lead ni en el webhook" '! grep -q "ip-secret-de-prueba" "$LEADS" "$RECV"'
+write_config "$WEBHOOK" ""
+CODE=$(post "${VALID[@]}"); ID=$(last_id)
+check "secreto ausente → el formulario responde 200 y n8n sigue enviando" '[ "$CODE" = 200 ] && [ "$(last_state "$ID" n8n)" = enviado ]'
+check "secreto ausente → ip_hash es null (no hay hash sin clave)" 'tail -1 "$LEADS" | php -r "
+\$j=json_decode(stream_get_contents(STDIN), true);
+\$meta=\$j[\"meta\"] ?? [];
+\$day=substr((string)(\$j[\"fecha\"] ?? \"\"), 0, 10);
+\$plano=hash(\"sha256\", \"127.0.0.1\" . \$day);
+\$plano2=hash(\"sha256\", \"127.0.0.1|\" . \$day);
+\$h=\$meta[\"ip_hash\"] ?? null;
+exit((array_key_exists(\"ip_hash\", \$meta) && \$h===null && \$plano!==\$plano2) ? 0 : 1);
+"'
+check "helper sin clave → null" 'SOBTREE_BASE_DIR=/tmp/sobtree-secrets-ausente IP_HASH_SECRET= php -r "
+require \"$ROOT/public/lib/ip-hash.php\";
+exit(sobtree_ip_hash(\"203.0.113.8\", \"2026-10-27\") === null ? 0 : 1);
+"'
+check "helper con clave → HMAC" 'SOBTREE_BASE_DIR=/tmp/sobtree-secrets-ausente IP_HASH_SECRET=clave-de-prueba php -r "
+require \"$ROOT/public/lib/ip-hash.php\";
+\$con=sobtree_ip_hash(\"203.0.113.8\", \"2026-10-27\");
+exit(\$con === hash_hmac(\"sha256\", \"203.0.113.8|2026-10-27\", \"clave-de-prueba\") ? 0 : 1);
+"'
+check "contact, asistente y newsletter usan la clave y no un hash sin secreto" 'grep -q sobtree_ip_hash "$ROOT/public/contact.php" && grep -q sobtree_ip_hash "$ROOT/public/api/asistente.php" && grep -q sobtree_ip_hash "$ROOT/public/api/newsletter.php" && ! grep -F "hash('"'"'sha256'"'"'" "$ROOT/public/contact.php" "$ROOT/public/api/asistente.php" "$ROOT/public/api/newsletter.php"'
+check "la política sigue siendo cierta si falta la clave de la IP" 'grep -q "Si esa clave no está configurada, no guardamos ningún resumen de la IP" "$ROOT/src/pages/privacidad.astro" && grep -q "no guardamos ningún identificador de la conexión" "$ROOT/src/pages/privacidad.astro"'
+PROD_HOST="$(printf '%s.%s.%s.%s' sobtree app n8n cloud)"
+check "el árbol no contiene el host de producción de n8n" '! grep -RInF --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=dist "$PROD_HOST" "$ROOT"'
 
 echo; echo "Resultado: $PASS correctas, $FAIL fallidas"
 [ "$FAIL" = 0 ]

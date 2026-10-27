@@ -7,12 +7,15 @@
 //
 // Configuración (nunca en el repositorio): en domains/sobtree.com/sobtree-secrets.php
 // (fuera de public_html; ver config/sobtree-secrets.example.php) o en variables de entorno:
-//   N8N_LEADS_WEBHOOK_URL     URL https del webhook de n8n (si falta, el reenvío se omite)
+//   N8N_LEADS_WEBHOOK_URL     URL https del webhook de n8n (si falta, el reenvío se omite y el lead queda encolado)
 //   N8N_LEADS_WEBHOOK_SECRET  secreto compartido para la firma HMAC-SHA256
+//   IP_HASH_SECRET            clave del resumen de la IP (lib/ip-hash.php). Si falta, no se guarda hash
 //   LEADS_DIR                 carpeta del registro (por defecto domains/sobtree.com/sobtree-leads)
 //   LEADS_NOTIFY_TO           destinatario del aviso por correo (por defecto info@sobtree.com)
 //   LEADS_NOTIFY_FROM         remitente del aviso (por defecto info@sobtree.com, buzón real de Google Workspace)
 declare(strict_types=1);
+
+require_once __DIR__ . '/ip-hash.php';
 
 const LEADS_SCHEMA_VERSION = 1;
 // Versión publicada en /privacidad/ (POLITICA_VERSION en src/data/site.ts). Va firmada con el lead.
@@ -58,9 +61,11 @@ function leads_config(): array {
         $dir = $base ? "$base/sobtree-leads" : dirname(__DIR__) . '/_leads';
     }
     $url = $get('N8N_LEADS_WEBHOOK_URL');
+    // Un marcador de la plantilla (con < > o TU-INSTANCIA) no es una URL: se trata como ausente.
+    $marcador = $url === '' || str_contains($url, '<') || str_contains($url, '>') || str_contains($url, '${') || str_contains($url, 'TU-INSTANCIA');
     $cfg = [
         'dir' => rtrim($dir, '/'),
-        'webhook_url' => preg_match('#^https://#', $url) || getenv('LEADS_ALLOW_HTTP_WEBHOOK') === '1' ? $url : '',
+        'webhook_url' => !$marcador && (preg_match('#^https://#', $url) || getenv('LEADS_ALLOW_HTTP_WEBHOOK') === '1') ? $url : '',
         'webhook_secret' => $get('N8N_LEADS_WEBHOOK_SECRET'),
         'notify_to' => $get('LEADS_NOTIFY_TO', 'info@sobtree.com'),
         'notify_from' => $get('LEADS_NOTIFY_FROM', 'info@sobtree.com'),

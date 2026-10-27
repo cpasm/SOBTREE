@@ -131,8 +131,9 @@ workflow = {
     "nodes": nodes, "connections": connections, "active": False,
     "settings": {"executionOrder": "v1", "saveDataErrorExecution": "all", "saveDataSuccessExecution": "all",
                  "errorWorkflow": "REEMPLAZAR_ID_WORKFLOW_ERRORES", "timezone": "Europe/Madrid"},
-    "meta": {"instancia": "https://sobtree.app.n8n.cloud",
-             "webhook_produccion": "https://sobtree.app.n8n.cloud/webhook/sobtree-lead"},
+    # La URL real solo está en sobtree-secrets.php (clave N8N_LEADS_WEBHOOK_URL), fuera del repositorio.
+    "meta": {"instancia": "https://<TU-INSTANCIA>.app.n8n.cloud",
+             "webhook_produccion": "${N8N_LEADS_WEBHOOK_URL}"},
     "tags": [],
 }
 
