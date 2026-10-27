@@ -60,12 +60,12 @@ Nativas que se reutilizan: `email`, `firstname`, `lastname`, `phone`, `jobtitle`
 
 Grupo: «Sobtree» (ver la ficha en Drive para el estado de creación).
 
-## Contrata (v1, simulación)
+## Contrata (Stripe, hoja y calendario)
 
-Workflows aparte, también con `"active": false`. No comparten el secreto de los leads.
+Workflows aparte, con `"active": false` al importarlos. No comparten el secreto de los leads. Detalle en `docs/contrata.md`.
 
-- `sobtree-disponibilidad.json`: «Sobtree · Disponibilidad». Calcula plazas en simulación. Los nodos de Google Calendar están deshabilitados. La URL de publicación es `https://ejemplo.invalid/...` y el secreto es `REEMPLAZAR_EN_N8N`, así que un disparo manual no llama a Google ni escribe en la web.
-- `sobtree-contrata.json`: «Sobtree · Contrata». Verifica el HMAC y responde un acuse simulado. El nodo que crearía el deal en HubSpot está deshabilitado: no se han pedido permisos `crm.objects.deals`.
-- `contrata-verificar.js` y `build-contrata.mjs`: fuente y regeneración (`node integraciones/n8n/build-contrata.mjs`).
+- `sobtree-disponibilidad.json`: «Sobtree · Disponibilidad». Cada hora lee **un** calendario (info@sobtree.com), clasifica los eventos (`CONTRATA ·` = proyecto, `BLOQUEO` = bloqueo a mano, el resto se ignora) y publica las semanas en la web.
+- `sobtree-contrata.json`: «Sobtree · Contrata». Verifica el HMAC del aviso, escribe la venta (con NIF) en «Ventas» e «Historial», crea el evento `CONTRATA · …` y avisa a info@. Un reembolso cambia `estado` en «Ventas». No guarda las ejecuciones correctas.
+- `contrata-verificar.js` y `build-contrata.mjs`: fuente y regeneración (`node integraciones/n8n/build-contrata.mjs`; opciones en la cabecera del script).
 
-Importarlos no los activa. Los pasos para pasar a live están en `docs/contrata.md`. Credenciales solo por nombre (`REEMPLAZAR_ID_CREDENCIAL`).
+La constante `SECRET` de cada flujo se pega en n8n (nunca en el repositorio). Credenciales solo por nombre (`REEMPLAZAR_ID_CREDENCIAL`).
