@@ -32,6 +32,10 @@ RewriteRule ^(.*)index\.html$ https://sobtree.com/$1 [R=301,L]
 # No hay página /contacto: el formulario está en la portada, ancla #contacto.
 RewriteRule ^contacto/?$ https://sobtree.com/#contacto [R=301,L,NE,NC,QSD]
 
+# Unificar dominio: www.sobtree.com → https://sobtree.com (301, conserva ruta y query)
+RewriteCond %{HTTP_HOST} ^www\.sobtree\.com$ [NC]
+RewriteRule ^ https://sobtree.com%{REQUEST_URI} [R=301,L]
+
 # Forzar HTTPS
 RewriteCond %{HTTPS} off
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
