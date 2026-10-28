@@ -1,0 +1,101 @@
+# Autonomía de producto de los agentes (decisión del fundador, 2026-10-28).
+# Ramas claude/auto-*: compila, prueba, deja etiqueta de vuelta atrás, fusiona en main, despliega,
+# comprueba la web en vivo y, si falla, revierte sola y vuelve a desplegar.
+# Excluido (necesita OK del fundador): precios, condiciones, privacidad, pagos/API, configuración, integraciones y .github.
+name: Auto-publicación de agentes
+on:
+  push:
+    branches: ['claude/auto-**']
+permissions:
+  contents: write
+  actions: write
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Archivos protegidos
+        id: protegidos
+        run: |
+          git fetch -q origin main
+          CAMBIOS=$(git diff --name-only origin/main...HEAD)
+          echo "$CAMBIOS"
+          PROT=$(echo "$CAMBIOS" | grep -E '^(src/data/(site|contrata|contrata-logica|faq|schema)\.|src/pages/(condiciones|privacidad|contratar)|public/(api|lib)/|public/contact\.php|public/\.htaccess|api/|config/|integraciones/|\.github/|package(-lock)?\.json)' || true)
+          if [ -n "$PROT" ]; then echo "bloqueado=1" >> "$GITHUB_OUTPUT"; echo "motivo=archivos que requieren OK del fundador: $(echo $PROT)" >> "$GITHUB_OUTPUT"; else echo "bloqueado=0" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/setup-node@v4
+        if: steps.protegidos.outputs.bloqueado == '0'
+        with:
+          node-version: 22
+          cache: npm
+      - name: Compilar y probar
+        id: pruebas
+        if: steps.protegidos.outputs.bloqueado == '0'
+        run: |
+          npm ci
+          npm run build
+          npm run test:leads-hoja
+          node tests/calculadora.mjs
+      - name: Fusionar, desplegar, comprobar y revertir si falla
+        id: publicar
+        if: steps.protegidos.outputs.bloqueado == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RAMA: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          ANTES=$(git rev-parse origin/main)
+          ETIQUETA="vuelta-atras-$(date -u +%Y%m%d-%H%M%S)"
+          git tag "$ETIQUETA" "$ANTES" && git push -q origin "$ETIQUETA"
+          git checkout -q -B main origin/main
+          git merge --no-ff -q -m "Auto-publicación de $RAMA" "$GITHUB_SHA"
+          git push -q origin main
+          desplegar() {
+            gh workflow run deploy.yml -R "$REPO" --ref main
+            sleep 15
+            ID=$(gh run list -R "$REPO" --workflow deploy.yml --limit 1 --json databaseId -q '.[0].databaseId')
+            gh run watch "$ID" -R "$REPO" --exit-status
+            sleep 150   # Hostinger publica la rama hostinger
+          }
+          comprobar() {
+            ok=1
+            for u in https://sobtree.com/ https://sobtree.com/contratar/ https://sobtree.com/condiciones/; do
+              c=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$u"); echo "$u → $c"; [ "$c" = "200" ] || ok=0
+            done
+            curl -s --max-time 20 https://sobtree.com/ | grep -qi 'sobtree' || ok=0
+            curl -s --max-time 20 https://sobtree.com/api/contrata/disponibilidad.php | grep -q '"ok"' || ok=0
+            [ $ok = 1 ]
+          }
+          desplegar
+          if comprobar; then
+            echo "estado=publicado" >> "$GITHUB_OUTPUT"
+          else
+            echo "Fallo tras desplegar: revierto a $ETIQUETA"
+            git push -q -f origin "$ANTES:main"
+            desplegar
+            comprobar && echo "estado=revertido" >> "$GITHUB_OUTPUT" || echo "estado=revertido_con_fallo" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Registrar resultado
+        if: always()
+        env:
+          RAMA: ${{ github.ref_name }}
+          BLOQ: ${{ steps.protegidos.outputs.bloqueado }}
+          MOTIVO: ${{ steps.protegidos.outputs.motivo }}
+          PRUEBAS: ${{ steps.pruebas.outcome }}
+          ESTADO: ${{ steps.publicar.outputs.estado }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "$BLOQ" = "1" ]; then E="pendiente_ok_fundador"; M="$MOTIVO"; elif [ "$PRUEBAS" != "success" ]; then E="pruebas_fallidas"; M="compilación o pruebas en rojo"; else E="${ESTADO:-error}"; M="ver ejecución $GITHUB_RUN_ID"; fi
+          git fetch -q origin claude/auto-resultados && git worktree add -q /tmp/res origin/claude/auto-resultados || git worktree add -q --orphan -b tmp-res /tmp/res
+          mkdir -p /tmp/res/web
+          printf '{"fecha":"%s","rama":"%s","commit":"%s","estado":"%s","motivo":"%s"}\n' "$(date -u +%FT%TZ)" "$RAMA" "$GITHUB_SHA" "$E" "$M" >> /tmp/res/web/registro.jsonl
+          cd /tmp/res && git add -A && git commit -qm "auto-publicación: $RAMA $E" && git push -q origin HEAD:claude/auto-resultados
