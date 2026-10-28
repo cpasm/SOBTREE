@@ -112,3 +112,6 @@ Lo que falle lo reenvía `public/lib/reintentar-leads.php` (y envía el respaldo
 - **Origen:** `assets/origen.js` guarda en `sessionStorage` (sin cookies) la página de entrada, el referrer externo y las UTM; `main.js` las copia en campos ocultos al enviar.
 - **Workflow de n8n:** `integraciones/n8n/` (sin credenciales).
 - **Pruebas locales:** `bash tests/leads/run-tests.sh` (servidor PHP local + webhook simulado; no toca nada externo).
+
+## Publicación automática de agentes
+Las ramas `claude/auto-*` se compilan, prueban, publican y comprueban solas (`.github/workflows/auto-claude.yml`). Si la web falla tras publicar, se revierte sola. Resultado en la rama `claude/auto-resultados`.
