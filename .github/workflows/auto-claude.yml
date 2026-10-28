@@ -71,8 +71,11 @@ jobs:
             for u in https://sobtree.com/ https://sobtree.com/contratar/ https://sobtree.com/condiciones/; do
               c=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$u"); echo "$u → $c"; [ "$c" = "200" ] || ok=0
             done
-            curl -s --max-time 20 https://sobtree.com/ | grep -qi 'sobtree' || ok=0
-            curl -s --max-time 20 https://sobtree.com/api/contrata/disponibilidad.php | grep -q '"ok"' || ok=0
+            # Se guarda en variable: con pipefail, «curl | grep -q» da falso fallo (curl recibe SIGPIPE).
+            home=$(curl -s --max-time 20 https://sobtree.com/ || true)
+            grep -qi 'sobtree' <<<"$home" || { echo "portada sin 'sobtree'"; ok=0; }
+            disp=$(curl -s --max-time 20 https://sobtree.com/api/contrata/disponibilidad.php || true)
+            grep -q '"ok":true' <<<"$disp" || { echo "disponibilidad sin ok:true"; ok=0; }
             [ $ok = 1 ]
           }
           desplegar
