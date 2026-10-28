@@ -115,3 +115,4 @@ Lo que falle lo reenvía `public/lib/reintentar-leads.php` (y envía el respaldo
 
 ## Publicación automática de agentes
 Las ramas `claude/auto-*` se compilan, prueban, publican y comprueban solas (`.github/workflows/auto-claude.yml`). Si la web falla tras publicar, se revierte sola. Resultado en la rama `claude/auto-resultados`.
+Los cambios en archivos protegidos quedan con estado `pendiente_ok_fundador` y no se publican.
