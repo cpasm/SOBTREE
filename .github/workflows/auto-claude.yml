@@ -9,8 +9,9 @@ on:
 permissions:
   contents: write
   actions: write
+# Grupo propio: si compartiera «deploy» con deploy.yml, cada uno esperaría al otro.
 concurrency:
-  group: deploy
+  group: auto-claude
   cancel-in-progress: false
 jobs:
   publicar:
