@@ -90,7 +90,7 @@ El menú desplegable utiliza una superficie ligeramente más clara que el fondo 
 En escritorio (≥1280×800) la primera pantalla muestra, sin hacer scroll:
 1. Cabecera con el lockup, la pestaña destacada **«Calcula tu ahorro»** (píldora, `/calculadora/`) y «Contrata y empieza a ahorrar» (con `PUBLIC_CONTRATA_ACTIVO=1`; si no, «Reservar 25 min»).
 2. Antetítulo («IA para pymes · precio cerrado, sin sorpresas»), titular y una frase de apoyo.
-3. Dos acciones: **Calcula tu ahorro** (primaria) y **Contrata y empieza a ahorrar** (enlace a `/contratar/` con el flag; si no, «Reservar 25 min» a `#contacto`).
+3. Dos acciones: **Calcula tu ahorro** (primaria) y **Contrata y empieza a ahorrar** como botón blanco principal a `/contratar/` (con el flag; si no, «Calcula tu ahorro» primario y «Reservar 25 min» secundario a `#contacto`).
 4. Diagrama interactivo horizontal (Tus tareas → Caso de uso → IA → Tu equipo).
 5. «Cómo lo hacemos»: tres tarjetas (2–3 sem. · 490 € + IVA a precio cerrado, −490 € si contratas el proyecto en 30 días desde la entrega del informe, condiciones en las FAQ · 0 €).
 6. Franja «Trabajamos con»: Claude, ChatGPT, Gemini y Copilot.

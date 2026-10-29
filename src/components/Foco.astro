@@ -30,9 +30,13 @@ const ias = IAS.map((i) => ({ ...i, logo: logoDe(i.slug) }));
       <h1 id="foco-title">Implanta IA en tu empresa <span class="hl">sin pagar pastizales<svg viewBox="0 0 300 20" preserveAspectRatio="none" aria-hidden="true"><path d="M3 14 C 60 4, 120 4, 180 10 S 270 16, 297 6"></path></svg></span>.</h1>
       <p class="foco-sub">Antes de empezar te decimos cuánto vas a ahorrar y cuánto te va a costar. Tu primer caso de uso, funcionando en 2–3 semanas con herramientas que ya existen.</p>
       <div class="foco-actions">
-        <a class="btn btn-primary" href="/calculadora/">Calcula tu ahorro</a>
         {CONTRATA.activo ? (
-          <a class="btn btn-ghost" href={CTA_CONTRATA.href} data-contrata-cta data-texto-cerrado={CTA_RESERVA.texto} data-href-cerrado="#contacto">{CTA_CONTRATA.texto}</a>
+          <a class="btn btn-primary" href={CTA_CONTRATA.href} data-contrata-cta data-texto-cerrado={CTA_RESERVA.texto} data-href-cerrado="#contacto">{CTA_CONTRATA.texto}</a>
+        ) : (
+          <a class="btn btn-primary" href="/calculadora/">Calcula tu ahorro</a>
+        )}
+        {CONTRATA.activo ? (
+          <a class="btn btn-ghost" href="/calculadora/">Calcula tu ahorro</a>
         ) : (
           <a class="btn btn-ghost" href="#contacto" data-interest="Diagnóstico IA exprés">{CTA_RESERVA.texto}</a>
         )}
