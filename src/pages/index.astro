@@ -5,7 +5,8 @@ import Articulos from "../components/Articulos.astro";
 import Asistente from "../components/Asistente.astro";
 import { FAQ } from "../data/faq";
 import { BUILD_VERSION, COMERCIAL_CONSENT_TEXT, DIAGNOSTICO, TEXTOS } from "../data/site";
-import ContrataBoton from "../components/ContrataBoton.astro";
+import OfertaDiagnostico from "../components/OfertaDiagnostico.astro";
+import { CONTRATA } from "../data/contrata";
 import CASOS from "../data/casos.json";
 import { graph, organization, website, person, faqPage } from "../data/schema";
 
@@ -15,7 +16,17 @@ const jsonld = graph(organization(), website(), person(), faqPage());
 <main id="main">
 
 <!-- ============ PORTADA ============ -->
-<Foco />
+<Foco>
+  {CONTRATA.activo && (
+    <div class="foco-contrata" id="diagnostico" role="region" aria-labelledby="diagnostico-title">
+      <div class="section-head">
+        <p class="eyebrow">Contrata el diagnóstico</p>
+        <h2 id="diagnostico-title">Contrata y empieza a ahorrar</h2>
+      </div>
+      <OfertaDiagnostico />
+    </div>
+  )}
+</Foco>
 
 <!-- ============ ARTÍCULOS ============ -->
 <Articulos />
@@ -57,34 +68,9 @@ const jsonld = graph(organization(), website(), person(), faqPage());
       <p class="section-sub">Sin cuotas escondidas ni licencias revendidas. Antes de empezar sabes cuánto cuesta y cuánto vas a ahorrar, y el precio no se mueve. Precios sin IVA.</p>
     </div>
 
-    <div class="offer">
-      <div class="offer-main">
-        <span class="badge">Por aquí se empieza</span>
-        <h3>Diagnóstico IA exprés</h3>
-        <p>Vemos cómo trabajáis, detectamos las tareas que más tiempo os comen y salís con un plan claro: qué automatizar, con qué herramienta, cuánto ahorra y cuánto cuesta. Informe en un máximo de 10 días laborables. {TEXTOS.cierreFicha}</p>
-        <ul class="checks">
-          <li>Entrevista con quien hace el trabajo de verdad</li>
-          <li>3 casos de uso priorizados por ahorro y facilidad</li>
-          <li>Ahorro estimado y coste de cada uno, en euros</li>
-          <li>Herramienta recomendada y coste mensual de licencias</li>
-          <li>Plan para tener el primero funcionando en 2–3 semanas</li>
-        </ul>
-      </div>
-      <div class="offer-side">
-        <dl class="offer-facts">
-          <div><dt>Entrega</dt><dd>Máximo 10 días laborables</dd></div>
-          <div><dt>Precio cerrado</dt><dd>{DIAGNOSTICO.precio} € + IVA</dd></div>
-          <div><dt>Entregable</dt><dd>Plan con ahorro y coste</dd></div>
-        </dl>
-        <p class="fine offer-discount">{TEXTOS.lineaCorta}</p>
-        {TEXTOS.condiciones && <p class="fine">{TEXTOS.condiciones}</p>}
-        <ContrataBoton />
-        <a class="btn btn-primary btn-block" href="#contacto" data-interest="Diagnóstico IA exprés">Quiero mi diagnóstico</a>
-        <p class="fine">¿Prefieres hacer números primero? <a href="/calculadora/">Calcula tu ahorro</a>.</p>
-      </div>
-    </div>
+    {!CONTRATA.activo && <OfertaDiagnostico />}
 
-    <div class="grid-4 services">
+    <div class={CONTRATA.activo ? "grid-4 services sin-oferta" : "grid-4 services"}>
       <article class="card svc">
         <h3>Primer caso de uso en marcha</h3>
         <p>Implantamos una automatización completa con herramientas que ya existen: atención al cliente, presupuestos, facturas, contenidos…</p>

@@ -4,6 +4,7 @@
 import { existsSync } from "node:fs";
 import { IAS } from "../data/confianza";
 import { DIAGNOSTICO, TEXTOS } from "../data/site";
+import { CONTRATA, CTA_CONTRATA, CTA_HABLAR, CTA_RESERVA } from "../data/contrata";
 
 const NODOS = [
   { k: "01", name: "Tus tareas", text: "Emails, presupuestos, facturas, atención al cliente: todo lo que hoy hacéis a mano y os come horas." },
@@ -13,7 +14,7 @@ const NODOS = [
 ];
 const COMO = [
   { n: "2–3 sem", dot: true, b: "Primer caso de uso", t: "Funcionando, no en un PowerPoint", href: "#metodo", go: "Cómo" },
-  { n: `${DIAGNOSTICO.precio} €`, dot: false, b: "Precio cerrado", t: TEXTOS.focoDetalle, href: "#servicios", go: "Precios" },
+  { n: `${DIAGNOSTICO.precio} €`, dot: false, b: "Precio cerrado", t: TEXTOS.focoDetalle, href: CONTRATA.activo ? "#diagnostico" : "#servicios", go: "Precios" },
   { n: "0 €", dot: false, b: "En comisiones", t: "No revendemos licencias", href: "#por-que", go: "Por qué" }
 ];
 // Logo oficial si existe en public/img/logos/ia/; si no, el nombre en texto.
@@ -30,8 +31,13 @@ const ias = IAS.map((i) => ({ ...i, logo: logoDe(i.slug) }));
       <p class="foco-sub">Antes de empezar te decimos cuánto vas a ahorrar y cuánto te va a costar. Tu primer caso de uso, funcionando en 2–3 semanas con herramientas que ya existen.</p>
       <div class="foco-actions">
         <a class="btn btn-primary" href="/calculadora/">Calcula tu ahorro</a>
-        <a class="btn btn-ghost" href="#contacto" data-interest="Diagnóstico IA exprés">Reservar 25 min</a>
+        {CONTRATA.activo ? (
+          <a class="btn btn-ghost" href={CTA_CONTRATA.href} data-contrata-cta data-texto-cerrado={CTA_RESERVA.texto} data-href-cerrado="#contacto">{CTA_CONTRATA.texto}</a>
+        ) : (
+          <a class="btn btn-ghost" href="#contacto" data-interest="Diagnóstico IA exprés">{CTA_RESERVA.texto}</a>
+        )}
       </div>
+      {CONTRATA.activo && <p class="foco-hablar"><a href="#contacto" data-interest="Diagnóstico IA exprés">{CTA_HABLAR.texto}</a></p>}
     </div>
 
     <div class="flow" aria-label="Cómo encaja todo: del dato al agente">
@@ -69,5 +75,6 @@ const ias = IAS.map((i) => ({ ...i, logo: logoDe(i.slug) }));
         ))}
       </ul>
     </div>
+    <slot />
   </div>
 </section>

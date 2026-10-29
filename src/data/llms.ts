@@ -1,6 +1,7 @@
 // Genera llms.txt (índice) y llms-full.txt (contenido completo) a partir de los mismos datos que la web.
 // Formato: https://llmstxt.org
 import { SITE, SERVICES, TEXTOS } from "./site";
+import { CONTRATA, CTA_CONTRATA } from "./contrata";
 import { FAQ } from "./faq";
 import { getAnalisis, getRadar } from "./content";
 
@@ -65,6 +66,8 @@ export async function buildLlms(full: boolean) {
     out.push("");
   }
 
-  out.push("## Contacto", "", `- Email: ${SITE.email}`, `- Reservar diagnóstico: ${SITE.url}/#contacto`, "");
+  const ctaAbs = CONTRATA.activo ? `${SITE.url}/contratar/` : `${SITE.url}/#contacto`;
+  const ctaTxt = CONTRATA.activo ? CTA_CONTRATA.texto : "Reservar diagnóstico";
+  out.push("## Contacto", "", `- Email: ${SITE.email}`, `- ${ctaTxt}: ${ctaAbs}`, "");
   return out.join("\n");
 }

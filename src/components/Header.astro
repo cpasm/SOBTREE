@@ -1,6 +1,7 @@
 ---
 import Brand from "./Brand.astro";
 import { getAnalisis, getRadar } from "../data/content";
+import { CONTRATA, CTA_HABLAR, CTA_PRINCIPAL } from "../data/contrata";
 
 const [analisis, radar] = await Promise.all([getAnalisis(), getRadar()]);
 const path = Astro.url.pathname;
@@ -20,12 +21,13 @@ const NAV = [
       {NAV.map((n) => <a href={n.href}>{n.label}</a>)}
       <a class="nav-tab" href="/calculadora/" aria-current={path.startsWith("/calculadora") ? "page" : undefined}>Calcula tu ahorro</a>
     </nav>
-    <a class="btn btn-primary btn-sm header-cta" href="/contratar/">Contratar</a>
+    <a class="btn btn-primary btn-sm header-cta" href={CTA_PRINCIPAL.href}>{CTA_PRINCIPAL.texto}</a>
     <button class="menu-toggle" aria-expanded="false" aria-controls="mobile-nav" aria-label="Abrir menú"><span></span><span></span></button>
   </div>
   <nav class="mobile-nav" id="mobile-nav" aria-label="Principal móvil" hidden>
     <a class="mobile-tab" href="/calculadora/">Calcula tu ahorro</a>
     {NAV.map((n) => <a href={n.href}>{n.label}</a>)}
-    <a class="btn btn-primary" href="/contratar/">Contratar</a>
+    <a class="btn btn-primary" href={CTA_PRINCIPAL.href}>{CTA_PRINCIPAL.texto}</a>
+    {CONTRATA.activo && <a class="mobile-hablar" href={CTA_HABLAR.href}>{CTA_HABLAR.texto}</a>}
   </nav>
 </header>

@@ -29,6 +29,11 @@ import { TEXTO_RESERVA } from "../data/contrata-logica.mjs";
             boton.setAttribute("href", "/#contacto");
             nota.hidden = true;
             nota.textContent = "";
+            // El CTA del hero vuelve a su texto de siempre y al formulario.
+            document.querySelectorAll("[data-contrata-cta]").forEach(function (el) {
+              el.textContent = el.getAttribute("data-texto-cerrado") || el.textContent;
+              el.setAttribute("href", el.getAttribute("data-href-cerrado") || "#contacto");
+            });
             return;
           }
           boton.textContent = "Contrata";

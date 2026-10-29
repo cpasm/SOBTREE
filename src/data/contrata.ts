@@ -61,3 +61,10 @@ export const CONTRATA = {
   },
   contacto: "/#contacto"
 };
+
+// CTA principal de la portada y de la cabecera. Con el flag encendido lleva a /contratar/; apagado, al formulario
+// como antes. El botón del hero y el de la oferta vuelven al formulario si la disponibilidad falla (ContrataBoton).
+export const CTA_CONTRATA = { texto: "Contrata y empieza a ahorrar", href: "/contratar/" } as const;
+export const CTA_RESERVA = { texto: "Reservar 25 min", href: "/#contacto" } as const;
+export const CTA_HABLAR = { texto: "Prefiero hablar antes", href: "/#contacto" } as const;
+export const CTA_PRINCIPAL = activo ? CTA_CONTRATA : CTA_RESERVA;

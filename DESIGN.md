@@ -88,9 +88,9 @@ El menú desplegable utiliza una superficie ligeramente más clara que el fondo 
 ## 5. Portada: todo de un vistazo
 
 En escritorio (≥1280×800) la primera pantalla muestra, sin hacer scroll:
-1. Cabecera con el lockup, la pestaña destacada **«Calcula tu ahorro»** (píldora, `/calculadora/`) y «Reservar 25 min».
+1. Cabecera con el lockup, la pestaña destacada **«Calcula tu ahorro»** (píldora, `/calculadora/`) y «Contrata y empieza a ahorrar» (con `PUBLIC_CONTRATA_ACTIVO=1`; si no, «Reservar 25 min»).
 2. Antetítulo («IA para pymes · precio cerrado, sin sorpresas»), titular y una frase de apoyo.
-3. Dos acciones: **Calcula tu ahorro** (primaria) y **Reservar 25 min**.
+3. Dos acciones: **Calcula tu ahorro** (primaria) y **Contrata y empieza a ahorrar** (enlace a `/contratar/` con el flag; si no, «Reservar 25 min» a `#contacto`).
 4. Diagrama interactivo horizontal (Tus tareas → Caso de uso → IA → Tu equipo).
 5. «Cómo lo hacemos»: tres tarjetas (2–3 sem. · 490 € + IVA a precio cerrado, −490 € si contratas el proyecto en 30 días desde la entrega del informe, condiciones en las FAQ · 0 €).
 6. Franja «Trabajamos con»: Claude, ChatGPT, Gemini y Copilot.
@@ -104,7 +104,7 @@ Cinco preguntas visuales (sector en chips, personas, horas repetitivas y coste p
 
 ## 6. Componentes
 
-**Llamadas a reservar:** como máximo **dos** en la primera pantalla: «Reservar 25 min» (cabecera y titular). El resto de tarjetas enlazan a su explicación con una flecha («Qué incluye →», «Cómo →», «Por qué →»). Más abajo: el formulario de contacto y la oferta del asistente.
+**Llamadas a reservar:** como máximo **dos** en la primera pantalla: «Contrata y empieza a ahorrar» en cabecera y botón blanco del titular (con el flag); opción secundaria «Prefiero hablar antes» a `#contacto`. El resto de tarjetas enlazan a su explicación con una flecha («Qué incluye →», «Cómo →», «Por qué →»). Más abajo: el formulario de contacto y la oferta del asistente.
 
 - **Botón primario:** píldora, blanco sobre marino, 700, 15–16 px, padding 15×26. Hover: sube 2 px.
 - **Botón fantasma:** píldora, borde `--line-strong`, texto blanco.

@@ -640,6 +640,7 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
 #contrata-pagar { min-height: 48px; white-space: normal; }
 
 
+
 /* Contrata: bloque de valor antes de iniciar el pago. Sin prometer porcentajes de ahorro no verificados. */
 .contrata-impacto {
   display: grid;
@@ -719,4 +720,24 @@ input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius
   #contrata-semanas .semana {
     padding: 9px 11px;
   }
+}
+
+/* Portada: Contrata dentro del hero, con PUBLIC_CONTRATA_ACTIVO=1.
+   Escritorio: tras los nodos, las tres cifras y los logos. Móvil: justo debajo de los botones del hero. */
+.foco-contrata { position: relative; margin-top: 44px; }
+.foco-contrata .section-head { max-width: 760px; }
+.foco-contrata .section-head h2 { margin-top: 10px; font-size: clamp(26px, 3.2vw, 38px); font-weight: 800; letter-spacing: -0.03em; }
+.foco-contrata .offer { margin-top: 22px; }
+.services.sin-oferta { margin-top: 48px; }
+.foco-hablar { margin: 14px 0 0; text-align: center; font-size: 15px; }
+.foco-hablar a { color: var(--accent-2); text-decoration: underline; text-underline-offset: 3px; }
+.foco-hablar a:hover { color: var(--white); }
+.mobile-nav a.mobile-hablar { padding: 14px 0 4px; text-align: center; color: var(--accent-2); font-weight: 600; font-size: 16px; text-decoration: underline; text-underline-offset: 3px; }
+.header-cta { white-space: nowrap; }
+@media (max-width: 640px) {
+  .foco > .wrap { display: flex; flex-direction: column; }
+  .foco > .wrap > .foco-copy { order: 0; }
+  .foco > .wrap > .foco-contrata { order: 1; margin-top: 28px; }
+  .foco > .wrap > .flow, .foco > .wrap > .how-grid, .foco > .wrap > .trust { order: 2; }
+  .foco-hablar { text-align: left; }
 }
