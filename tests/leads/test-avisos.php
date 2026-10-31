@@ -63,9 +63,9 @@ function cron(int $ts, array $env = []): string {
 
 $MIE_10 = madrid('2026-11-04 10:00');
 $SAB_11 = madrid('2026-11-07 11:00');
-$LUN_905 = madrid('2026-11-09 09:05');
+$LUN_905 = madrid('2026-11-10 09:05'); // martes: el lunes 9-nov es festivo (La Almudena)
 
-echo "1. Horario de E-02 (L-V 9:00-19:00 Europe/Madrid, festivos nacionales de la lista)\n";
+echo "1. Horario de E-02 (L-V 9:00-19:00 Europe/Madrid, sin los festivos de la lista)\n";
 t('miércoles 10:00 → sí', leads_e02_en_horario($MIE_10));
 t('miércoles 08:59 → no', !leads_e02_en_horario(madrid('2026-11-04 08:59')));
 t('miércoles 09:00 → sí (incluida)', leads_e02_en_horario(madrid('2026-11-04 09:00')));
@@ -73,6 +73,7 @@ t('miércoles 18:59 → sí', leads_e02_en_horario(madrid('2026-11-04 18:59')));
 t('miércoles 19:00 → no (excluida)', !leads_e02_en_horario(madrid('2026-11-04 19:00')));
 t('sábado y domingo → no', !leads_e02_en_horario($SAB_11) && !leads_e02_en_horario(madrid('2026-11-08 12:00')));
 t('festivo 8-dic (martes) → no', !leads_e02_en_horario(madrid('2026-12-08 10:00')));
+t('festivos de Madrid (pendientes de verificar en BOCM): lunes 9-nov-2026 y 2-nov-2026 → no; martes 10-nov → sí', !leads_e02_en_horario(madrid('2026-11-09 10:00')) && !leads_e02_en_horario(madrid('2026-11-02 10:00')) && leads_e02_en_horario(madrid('2026-11-10 10:00')));
 t('horario de verano: lunes 29-mar-2027 09:30 CEST → sí; 07:30 UTC en noviembre (08:30 CET) → no',
   leads_e02_en_horario(madrid('2027-03-29 09:30')) && !leads_e02_en_horario(gmmktime(7, 30, 0, 11, 2, 2026)));
 
@@ -94,6 +95,14 @@ t('nombre, empresa y mensaje idénticos → spam', $f(['nombre' => 'qwerty asd',
 t('nombre sin vocales (≥4 letras) → spam; «Brynn» no', $f(['nombre' => 'Xkcdq Zzrt']) === 'spam' && $f(['nombre' => 'Brynn']) === null);
 t('cirílico o CJK en el mensaje → spam', $f(['mensaje' => 'Привет, купить']) === 'spam' && $f(['mensaje' => '你好']) === 'spam');
 t('palabra de 30+ caracteres en el nombre → spam', $f(['nombre' => str_repeat('ab', 16)]) === 'spam');
+t('caso real (QA): nombre=empresa «NAEWTRER276562NERTHRTYHR», mensaje «MEJTYJY276562MAVNGHJTH», x@notlettersmail.com → descartado',
+  leads_e02_filtro(['tipo_formulario' => 'contacto', 'nombre' => 'NAEWTRER276562NERTHRTYHR', 'empresa' => 'NAEWTRER276562NERTHRTYHR', 'email' => 'x@notlettersmail.com', 'mensaje' => 'MEJTYJY276562MAVNGHJTH']) !== null);
+t('caso real con un email normal → spam (no depende solo del dominio)', $f(['nombre' => 'NAEWTRER276562NERTHRTYHR', 'empresa' => 'NAEWTRER276562NERTHRTYHR', 'mensaje' => 'MEJTYJY276562MAVNGHJTH']) === 'spam');
+t('notlettersmail.com → desechable', $f(['email' => 'ana@notlettersmail.com']) === 'desechable');
+t('letras con 3+ dígitos incrustados en empresa o mensaje → spam', $f(['empresa' => 'ACME123XYZ']) === 'spam' && $f(['mensaje' => 'hola qwe9876rty']) === 'spam');
+t('la misma secuencia de dígitos en nombre y mensaje → spam', $f(['nombre' => 'Ana 48213', 'mensaje' => 'Ref 48213 info']) === 'spam');
+t('legítimos con números: «Talleres 2000 S.L.», «Calle Mayor 123», teléfono en el mensaje → se responde',
+  $f(['empresa' => 'Talleres 2000 S.L.']) === null && $f(['mensaje' => 'Estamos en Calle Mayor 123, llamad al 600 123 456']) === null && $f(['nombre' => 'Ana', 'empresa' => 'Grupo 3M Ibérica', 'mensaje' => 'Somos 250 personas']) === null);
 
 echo "3. Aviso a info@ (principal, siempre) y E-02 en horario\n";
 ahora($MIE_10);
@@ -108,7 +117,7 @@ t('el aviso lleva todos los campos útiles', str_contains($b, 'Nombre:      Luc�
 t('el aviso lleva origen y cada utm_* (vacío = —)', str_contains($b, 'utm_source:   linkedin') && str_contains($b, 'utm_medium:   —') && str_contains($b, 'utm_campaign: otono')
   && str_contains($b, 'utm_term:     —') && str_contains($b, 'utm_content:  —') && str_contains($b, 'Referrer:     https://www.linkedin.com/') && str_contains($b, 'Página:       https://sobtree.com/'));
 t('el aviso lleva el consentimiento comercial y la previsión de E-02', str_contains($b, 'Comunicaciones comerciales: sí') && str_contains($b, 'Se envía ahora'));
-t('Reply-To del aviso = email del lead; remitente info@', str_contains($av[0]['headers'], 'Reply-To: ' . $L['email']) && str_contains($av[0]['headers'], 'From: Sobtree Web <info@sobtree.com>'));
+t('Reply-To del aviso = email del lead; remitente info@; texto plano UTF-8 con Content-Transfer-Encoding', str_contains($av[0]['headers'], 'Reply-To: ' . $L['email']) && str_contains($av[0]['headers'], 'From: Sobtree Web <info@sobtree.com>') && str_contains($av[0]['headers'], 'Content-Type: text/plain; charset=UTF-8') && str_contains($av[0]['headers'], 'Content-Transfer-Encoding: 8bit'));
 t('estado correo_ok y e02 enviado', $r['correo'] === 'correo_ok' && $r['e02'] === 'enviado' && estado($L['id'], 'e02') === 'enviado');
 $e = correos('e02', $L['id']);
 t('una respuesta E-02 al email del lead', count($e) === 1 && $e[0]['to'] === $L['email']);
@@ -147,7 +156,7 @@ t('sábado: aviso sí («En cola»), E-02 pendiente', count(correos('aviso', $Q[
 $out = cron($SAB_11 + 900);
 t('cron del sábado: sigue en cola y no envía', estado($Q['id'], 'e02') === 'pendiente' && count(correos('e02', $Q['id'])) === 0 && str_contains($out, '"e02_pendientes":1'));
 $out = cron($LUN_905);
-t('cron del lunes 9:05: la envía', estado($Q['id'], 'e02') === 'enviado' && count(correos('e02', $Q['id'])) === 1 && str_contains($out, '"e02_enviados":1'));
+t('cron del martes 9:05 (el lunes 9-nov es festivo): la envía', estado($Q['id'], 'e02') === 'enviado' && count(correos('e02', $Q['id'])) === 1 && str_contains($out, '"e02_enviados":1'));
 $out = cron($LUN_905 + 900);
 t('cron siguiente: nada más (ni avisos ni E-02 repetidos)', count(correos('e02', $Q['id'])) === 1 && count(correos('aviso', $Q['id'])) === 1 && str_contains($out, '"e02_enviados":0') && str_contains($out, '"avisos":0'));
 

@@ -30,8 +30,17 @@ const LEADS_E02_TIPOS = ['contacto'];       // ni calculadora ni asistente
 const LEADS_E02_ZONA = 'Europe/Madrid';
 const LEADS_E02_HORA_INICIO = 9;            // 09:00 incluida
 const LEADS_E02_HORA_FIN = 19;              // 19:00 excluida
-// Festivos nacionales en los que no se envía (como en la especificación). Los locales no están verificados.
-const LEADS_E02_FESTIVOS = ['2026-12-08', '2026-12-25', '2027-01-01', '2027-01-06'];
+// Días laborables (L-V) en los que no se envía. Equivocarse solo retrasa la respuesta al siguiente día hábil.
+// - Nacionales de la especificación E-02: 2026-12-08, 2026-12-25, 2027-01-01, 2027-01-06.
+// - Comunidad de Madrid y Madrid capital: PENDIENTES DE VERIFICAR en el BOCM (calendario laboral autonómico)
+//   y en el acuerdo municipal; no se pudo consultar BOE/BOCM desde el entorno de construcción. Son las fechas
+//   habituales: 2-nov (traslado de Todos los Santos en domingo), 9-nov (La Almudena, local), 7-dic (traslado de
+//   la Constitución en domingo), Jueves y Viernes Santo 2027, 12-oct, 1-nov, 9-nov, 6-dic y 8-dic de 2027.
+const LEADS_E02_FESTIVOS = [
+    '2026-11-02', '2026-11-09', '2026-12-07', '2026-12-08', '2026-12-25',
+    '2027-01-01', '2027-01-06', '2027-03-25', '2027-03-26', '2027-10-12', '2027-11-01', '2027-11-09',
+    '2027-12-06', '2027-12-08',
+];
 const LEADS_E02_MAX_POR_CRON = 5;           // freno por ejecución del cron
 const LEADS_E02_MAX_POR_HORA = 20;          // freno global (contact.php + cron) en la última hora
 const LEADS_E02_DIAS_IDEMPOTENCIA = 7;      // una sola respuesta por email en 7 días
@@ -46,6 +55,7 @@ const LEADS_E02_DESECHABLES = [
     'getnada.com', 'nada.email', 'dispostable.com', 'maildrop.cc', 'throwawaymail.com', 'fakeinbox.com',
     'mintemail.com', 'emailondeck.com', 'mohmal.com', 'mailnesia.com', 'spamgourmet.com', 'discard.email',
     'moakt.com', 'mailcatch.com', 'mytemp.email', 'burnermail.io', 'spambox.us', 'getairmail.com', 'inboxkitten.com',
+    'notlettersmail.com',
 ];
 
 /** Carpeta base candidata a domains/sobtree.com (misma lógica que asistente.php). */
@@ -258,7 +268,7 @@ function leads_send_mail(array $lead, string $nota = ''): bool {
 
     $h  = "From: Sobtree Web <{$c['notify_from']}>\r\n";
     $h .= 'Reply-To: ' . $one($lead['email'] ?? '') . "\r\n";
-    $h .= "MIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n";
+    $h .= "MIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n";
     return leads_mail('aviso', (string)$lead['id'], $c['notify_to'], leads_asunto_mime($subject), $b, $h);
 }
 
@@ -351,7 +361,10 @@ function leads_e02_limpiar(mixed $v, int $max): string {
  *   desechable  dominio de correo desechable conocido (LEADS_E02_DESECHABLES) o subdominio suyo
  *   spam        enlaces en nombre o empresa; 2 o más enlaces en el mensaje; nombre, empresa y mensaje
  *               idénticos; nombre sin ninguna vocal (con 4 o más letras); alfabeto cirílico o CJK en el
- *               mensaje; una «palabra» de 30 o más caracteres seguidos sin espacios en nombre o empresa
+ *               mensaje; una «palabra» de 30 o más caracteres seguidos sin espacios en nombre o empresa;
+ *               letras con 3+ dígitos incrustados en medio (p. ej. «NAEWTRER276562NERTH») en nombre, empresa o
+ *               mensaje; la misma secuencia de 3+ dígitos en el nombre y en el mensaje
+ *               («Talleres 2000 S.L.» o «Calle Mayor 123» no se filtran: los dígitos van separados por espacios)
  * El honeypot (campo «web») y el tiempo mínimo ya los descarta contact.php antes de guardar.
  */
 function leads_e02_filtro(array $lead): ?string {
@@ -378,6 +391,9 @@ function leads_e02_filtro(array $lead): ?string {
     if (mb_strlen($letras) >= 4 && !preg_match('/[aeiouyáéíóúàèìòùäëïöüâêîôû]/iu', $letras)) return 'spam';
     if (preg_match('/[\p{Cyrillic}\p{Han}\p{Hiragana}\p{Katakana}\p{Hangul}]/u', $mensaje)) return 'spam';
     if (preg_match('/\S{30,}/u', $nombre) || preg_match('/\S{30,}/u', $empresa)) return 'spam';
+    $incrustados = '/\p{L}{2,}\d{3,}\p{L}{2,}/u';
+    if (preg_match($incrustados, $nombre) || preg_match($incrustados, $empresa) || preg_match($incrustados, $mensaje)) return 'spam';
+    if (preg_match_all('/\d{3,}/', $nombre, $dn) && preg_match_all('/\d{3,}/', $mensaje, $dm) && array_intersect($dn[0], $dm[0])) return 'spam';
     return null;
 }
 

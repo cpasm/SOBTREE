@@ -1413,8 +1413,13 @@ function contrata_registrar(array $evento): array {
     });
 }
 
-/** Aviso por correo de una fila del registro. Marca correo_ok / correo_error en cola-estado.jsonl. */
+/**
+ * Aviso por correo de una fila del registro. Marca correo_ok / correo_error en cola-estado.jsonl.
+ * Si esa fila ya tiene correo_ok (p. ej. el cron lo envió y luego Stripe reintentó el evento tras un 500), no repite.
+ */
 function contrata_entregar(array $row): array {
+    [, $state] = contrata_cargar_cola();
+    if (in_array($state[$row['id']]['ultimo'] ?? null, ['correo_ok', 'enviado'], true)) return ['correo_ok', 'ya_enviado'];
     $ok = contrata_enviar_aviso($row);
     $estado = $ok ? 'correo_ok' : 'correo_error';
     contrata_marcar_cola($row['id'], $estado, $ok ? '' : 'mail_fallo');
@@ -1478,7 +1483,7 @@ function contrata_mail(string $tipo, string $subject, string $body, string $repl
     $h = "From: Sobtree Web <{$c['notify_from']}>\r\n";
     $replyTo = str_replace(["\r", "\n"], '', $replyTo);
     if ($replyTo !== '' && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) $h .= "Reply-To: $replyTo\r\n";
-    $h .= "MIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n";
+    $h .= "MIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n";
     return @mail($c['notify_to'], $subj, $body, $h);
 }
 

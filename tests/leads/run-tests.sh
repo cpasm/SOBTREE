@@ -17,7 +17,7 @@ MAILLOG="$WORK/mails.jsonl"; MAILFAIL="$WORK/mail-fail"; : > "$MAILLOG"
 madrid() { php -r 'echo (new DateTimeImmutable($argv[1], new DateTimeZone("Europe/Madrid")))->getTimestamp();' "$1"; }
 EN_HORA=$(madrid "2026-11-04 10:00")      # miércoles
 FUERA=$(madrid "2026-11-07 11:00")        # sábado
-LUNES=$(madrid "2026-11-09 09:05")
+LUNES=$(madrid "2026-11-10 09:05")    # martes: el lunes 9-nov es festivo (La Almudena)
 export SOBTREE_BASE_DIR="$BASE" LEADS_DISABLE_MAIL=1 LEADS_TEST_MAIL_LOG="$MAILLOG" LEADS_TEST_MAIL_FAIL_FILE="$MAILFAIL" TMPDIR="$WORK/tmp"
 P2=""
 arrancar() { # $1 = LEADS_AHORA del servidor
@@ -96,7 +96,7 @@ check "sábado: aviso sí, E-02 pendiente y sin enviar" '[ "$(mails "$IDS" aviso
 cron "$FUERA" >/dev/null
 check "cron del sábado: sigue en cola" '[ "$(mails "$IDS" e02)" = 0 ]'
 cron "$LUNES" > "$WORK/cron-lunes.out"
-check "cron del lunes 9:05: la envía una vez" '[ "$(mails "$IDS" e02)" = 1 ] && [ "$(last_state "$IDS" e02)" = enviado ] && grep -q "\"e02_enviados\":1" "$WORK/cron-lunes.out"'
+check "cron del martes 9:05: la envía una vez" '[ "$(mails "$IDS" e02)" = 1 ] && [ "$(last_state "$IDS" e02)" = enviado ] && grep -q "\"e02_enviados\":1" "$WORK/cron-lunes.out"'
 arrancar "$EN_HORA"
 
 echo "7. Falla el correo: OK al visitante y el cron reintenta solo lo que falló"

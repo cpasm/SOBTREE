@@ -289,6 +289,24 @@ WR3=$(webhook)
 check "un tercer envío ya es duplicado" '[ "$WR3" = 200 ] && grep -q "\"duplicado\":true" "$WORK/whbody" && [ "$(filas_evento evt_test_registro_caido)" = 1 ]'
 cerrar 8b "Registro caído" pasa "Escritura del registro forzada a fallar: 500, sin marcar el evento; el reintento lo registra una vez." "$A"
 
+echo "8c. Venta registrada pero falla la marca del evento (500): el cron avisa y el reintento de Stripe no duplica el correo"
+A=$FAIL
+reset_estado
+: > "$CORREOS"
+CODE=$(crear "$SEMANA_C")
+SRF=$(campo sesion)
+rm -f "$DIR/eventos.jsonl"; mkdir "$DIR/eventos.jsonl"   # marcar el evento como procesado falla
+firmar "$SRF" checkout.session.completed evt_test_marca_caida
+WF1=$(webhook)
+check "la venta queda registrada pero el webhook responde 500 (Stripe reintentará)" '[ "$WF1" = 500 ] && [ "$(filas_evento evt_test_marca_caida)" = 1 ] && [ "$(correos venta)" = 0 ]'
+php -r '$f=$argv[1]; $o=[]; foreach (file($f, FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES) as $l) { $j=json_decode($l, true); $j["fecha"]=gmdate("c", time()-600); $o[]=json_encode($j, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); } file_put_contents($f, implode("\n", $o)."\n");' "$DIR/cola.jsonl"
+php_s "$ROOT/public/lib/reintentar-contrata.php" >/dev/null
+check "el cron envía el aviso de esa venta (una vez)" '[ "$(correos venta "$SRF")" = 1 ] && [ "$(cola_estado evt_test_marca_caida)" = correo_ok ]'
+rmdir "$DIR/eventos.jsonl"
+WF2=$(webhook)
+check "el reintento de Stripe entra (200, pagada, una fila) y NO repite el correo" '[ "$WF2" = 200 ] && [ "$(estado_ret "$SRF")" = pagada ] && [ "$(filas_evento evt_test_marca_caida)" = 1 ] && grep -q evt_test_marca_caida "$DIR/eventos.jsonl" && [ "$(correos venta "$SRF")" = 1 ]'
+cerrar 8c "Marca del evento caída" pasa "500 tras registrar; el cron avisa; el reintento de Stripe marca el evento sin segundo correo." "$A"
+
 echo "9. Fallo en cerrado (archivo de bloqueos no válido)"
 A=$FAIL
 reset_estado
@@ -534,9 +552,18 @@ for _ in $(seq 1 60); do
   sleep 0.5
 done
 check "Astro en marcha" '[ "$listo" = 1 ]'
-# Precalienta /contratar/ y /contratar/gracias/: la primera compilación del dev server puede pasar de los 10 s de espera de a11y.mjs.
-curl -s -o /dev/null --max-time 60 "http://127.0.0.1:$ASTRO/contratar/" || true
-curl -s -o /dev/null --max-time 60 "http://127.0.0.1:$ASTRO/contratar/gracias/" || true
+# Causa raíz de los fallos intermitentes de a11y: tras un «astro build» (sección 15 de la ejecución anterior), la
+# primera página que el dev server renderiza dispara la resincronización de contenido de Astro (reescribe .astro/)
+# y el dev server manda un full-reload a los navegadores conectados. Si eso coincide con la prueba, /contratar/ se
+# recarga a mitad (navegación iniciada por @vite/client). Por eso se renderizan aquí las páginas y se espera a que
+# .astro/ deje de cambiar antes de abrir el navegador. No se amplía ningún tiempo de espera de la prueba.
+for r in / /contratar/ /contratar/gracias/; do curl -s -o /dev/null --max-time 60 "http://127.0.0.1:$ASTRO$r" || true; done
+huella_astro() { find "$ROOT/.astro" -type f -printf '%T@ %p\n' 2>/dev/null | sort | md5sum; }
+ANTES=$(huella_astro); QUIETO=0
+for _ in $(seq 1 40); do
+  sleep 0.5; AHORA=$(huella_astro)
+  if [ "$AHORA" = "$ANTES" ]; then QUIETO=$((QUIETO + 1)); [ "$QUIETO" -ge 4 ] && break; else QUIETO=0; ANTES="$AHORA"; fi
+done
 if [ "$listo" = 1 ]; then
   check "teclado a 360 px" 'PPTR_ROOT=/tmp/contrata-pptr node tests/contrata/a11y.mjs "http://127.0.0.1:$ASTRO"'
 fi
