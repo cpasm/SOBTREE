@@ -73,23 +73,47 @@ try { contrata_price_coincide(59290, 'eur', false, 'otro'); } catch (InvalidArgu
 $t('un Price para un servicio que no existe no se compara', $lanzo);
 $t('días de bloqueo entre 1 y 5', array_reduce(contrata_servicios(), fn($ok, $s) => $ok && $s['dias_bloqueo'] >= 1 && $s['dias_bloqueo'] <= CONTRATA_DIAS_BLOQUEO_MAX, true));
 $t('el Price del diagnóstico sale de STRIPE_PRICE_DIAGNOSTICO', CONTRATA_SERVICIOS['diagnostico']['env_price'] === 'STRIPE_PRICE_DIAGNOSTICO');
-// ---- Sesiones de Stripe en lo publicado por «Disponibilidad»: test y live (un pago real deja un cs_live_ en el calendario)
+// ---- Disponibilidad calculada en el PHP (D-116): bloqueos del archivo + ventas y retenciones locales
+$t('archivo de bloqueos del repositorio válido', contrata_validar_bloqueos(json_decode((string)file_get_contents(dirname(__DIR__, 2) . '/public/datos/bloqueos.json'), true)) !== null);
+$t('el archivo de bloqueos está protegido (.htaccess deny)', str_contains((string)file_get_contents(dirname(__DIR__, 2) . '/public/datos/.htaccess'), 'Require all denied'));
+$vb = fn($b) => contrata_validar_bloqueos(['bloqueos' => $b]);
+$t('bloqueo válido: «hasta» inclusive', $vb([['desde' => '2026-11-16', 'hasta' => '2026-11-20', 'nota' => 'vacaciones']]) === [['inicio' => '2026-11-16', 'fin' => '2026-11-21']]);
+$t('lista vacía vale', $vb([]) === []);
+foreach ([
+    'fecha imposible' => [['desde' => '2026-02-30', 'hasta' => '2026-03-01']],
+    'hasta < desde' => [['desde' => '2026-11-20', 'hasta' => '2026-11-16']],
+    'clave desconocida' => [['desde' => '2026-11-16', 'hasta' => '2026-11-20', 'cliente' => 'x']],
+    'nota con email' => [['desde' => '2026-11-16', 'hasta' => '2026-11-20', 'nota' => 'a@b.es']],
+    'nota larga' => [['desde' => '2026-11-16', 'hasta' => '2026-11-20', 'nota' => str_repeat('x', 81)]],
+    'sin hasta' => [['desde' => '2026-11-16']],
+    'formato libre' => [['desde' => '16/11/2026', 'hasta' => '20/11/2026']],
+] as $nombre => $b) {
+    $t("bloqueos no válidos ($nombre) → null", $vb($b) === null);
+}
+$t('raíz sin «bloqueos» o con clave extra → null', contrata_validar_bloqueos(['x' => []]) === null && contrata_validar_bloqueos(['bloqueos' => [], 'otra' => 1]) === null && contrata_validar_bloqueos('[]') === null);
 $hoyU = contrata_hoy();
 $lunesU = contrata_primer_lunes($hoyU);
-$pubU = function (string $sesion) use ($hoyU, $lunesU): array {
-    $sem = contrata_calcular_semanas($hoyU, [['inicio' => $lunesU, 'fin' => contrata_sumar_dias($lunesU, 5), 'sesion' => $sesion]], []);
-    return ['generado' => gmdate('c'), 'max_proyectos_simultaneos' => CONTRATA_MAX_PROYECTOS, 'semanas' => $sem];
-};
-$t('publicación con proyecto cs_live_ se acepta', contrata_validar_cuerpo_publicado($pubU('cs_live_a1ZInu98Ig9Z7B0e3BHeKGoNtbujwbdX6g0IPv2ImKB2KRYiK3IEeQtnAN')) === null);
-$t('publicación con proyecto cs_test_ se sigue aceptando', contrata_validar_cuerpo_publicado($pubU('cs_test_abc123')) === null);
-foreach (['cs_prod_abc', 'cs_live_', 'cs_live_a b', 'cs_live_<x>', 'xcs_live_abc', 'CS_LIVE_abc', 'cs_live_abc@x'] as $malo) {
-    $t("sesión no permitida: $malo", contrata_validar_cuerpo_publicado($pubU($malo)) !== null);
-}
 $ahoraU = 1800000000;
-$retLive = ['semana' => $lunesU, 'estado' => 'retenida', 'expira' => $ahoraU + 600, 'sesion' => 'cs_live_abc123'];
-$t('retención cs_live_: sin evento en el calendario cuenta', contrata_retencion_cuenta($retLive, $lunesU, [], $ahoraU) === true);
-$t('retención cs_live_ ya en el calendario no cuenta doble', contrata_retencion_cuenta($retLive, $lunesU, ['cs_live_abc123'], $ahoraU) === false);
-$t('retención cs_live_ pagada ya en el calendario no cuenta doble', contrata_retencion_cuenta(['estado' => 'pagada'] + $retLive, $lunesU, ['cs_live_abc123'], $ahoraU) === false);
-$t('retención cs_live_ de otra sesión sí cuenta', contrata_retencion_cuenta($retLive, $lunesU, ['cs_live_otra'], $ahoraU) === true);
+$t('una retención pagada ocupa su semana', contrata_retencion_cuenta(['semana' => $lunesU, 'estado' => 'pagada'], $lunesU, $ahoraU));
+$t('una retención viva ocupa; caducada, liberada o reembolsada no', contrata_retencion_cuenta(['semana' => $lunesU, 'estado' => 'retenida', 'expira' => $ahoraU + 60], $lunesU, $ahoraU)
+    && !contrata_retencion_cuenta(['semana' => $lunesU, 'estado' => 'retenida', 'expira' => $ahoraU - 1], $lunesU, $ahoraU)
+    && !contrata_retencion_cuenta(['semana' => $lunesU, 'estado' => 'liberada'], $lunesU, $ahoraU)
+    && !contrata_retencion_cuenta(['semana' => $lunesU, 'estado' => 'reembolsada'], $lunesU, $ahoraU));
+$t('otra semana no cuenta', !contrata_retencion_cuenta(['semana' => contrata_sumar_dias($lunesU, 7), 'estado' => 'pagada'], $lunesU, $ahoraU));
+$tmpB = tempnam(sys_get_temp_dir(), 'bloq');
+file_put_contents($tmpB, json_encode(['bloqueos' => [['desde' => contrata_sumar_dias($lunesU, 16), 'hasta' => contrata_sumar_dias($lunesU, 16)]]]));
+// contrata_config() guarda caché: el fichero se lee con la ruta de la primera llamada. Se prueba en un proceso aparte.
+$calc = json_decode((string)shell_exec('CONTRATA_BLOQUEOS_FILE=' . escapeshellarg($tmpB) . ' php -r ' . escapeshellarg('require "' . dirname(__DIR__, 2) . '/public/lib/contrata.php"; $l = contrata_primer_lunes(contrata_hoy());
+echo json_encode(contrata_semanas_calculadas([["semana" => $l, "estado" => "pagada"], ["semana" => contrata_sumar_dias($l, 7), "estado" => "retenida", "expira" => contrata_ahora() + 600]], contrata_ahora()));')), true);
+$t('semanas calculadas: pagada → 0, retenida viva → 0, miércoles bloqueado → semana bloqueada, resto 1',
+    is_array($calc) && count($calc) === 4 && $calc[0]['libres'] === 0 && $calc[0]['ocupadas'] === 1 && $calc[1]['libres'] === 0
+    && $calc[2]['bloqueada'] === true && $calc[2]['plazas'] === 0 && $calc[2]['libres'] === 0 && $calc[3]['libres'] === 1 && $calc[3]['plazas'] === 1);
+file_put_contents($tmpB, json_encode(['bloqueos' => [['desde' => contrata_sumar_dias($lunesU, 19), 'hasta' => contrata_sumar_dias($lunesU, 20)]]]));
+$calc = json_decode((string)shell_exec('CONTRATA_BLOQUEOS_FILE=' . escapeshellarg($tmpB) . ' php -r ' . escapeshellarg('require "' . dirname(__DIR__, 2) . '/public/lib/contrata.php"; echo json_encode(contrata_semanas_calculadas([], contrata_ahora()));')), true);
+$t('un bloqueo solo de fin de semana no cierra la semana', is_array($calc) && $calc[2]['bloqueada'] === false && $calc[2]['libres'] === 1);
+file_put_contents($tmpB, '{no es json');
+$calc = shell_exec('CONTRATA_BLOQUEOS_FILE=' . escapeshellarg($tmpB) . ' php -r ' . escapeshellarg('require "' . dirname(__DIR__, 2) . '/public/lib/contrata.php"; var_export(contrata_semanas_calculadas([], contrata_ahora()));'));
+$t('bloqueos ilegibles → null (fallo en cerrado)', trim((string)$calc) === 'NULL');
+unlink($tmpB);
 if ($fail > 0) exit(1);
 echo "ok\n";

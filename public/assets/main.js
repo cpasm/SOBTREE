@@ -116,7 +116,7 @@
   renderQ();
 
   /* ---------- Formulario de contacto ---------- */
-  // En Hostinger se envía a contact.php: guarda el lead, avisa a info@sobtree.com y lo reenvía a n8n/HubSpot.
+  // En Hostinger se envía a contact.php: guarda el lead en el servidor y avisa a info@sobtree.com por correo.
   // Si el PHP no está disponible (p. ej. abriendo el fichero en local), abre el correo del visitante.
   const contact = $("#contact");
   const status = $("#contact-status");

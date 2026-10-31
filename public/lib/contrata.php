@@ -4,7 +4,9 @@
 //
 // Secretos: solo en sobtree-secrets.php (fuera de public_html) o en el entorno.
 // Nunca claves live de Stripe: se descartan en contrata_marca_live().
-// Modo por defecto: apagado. «simulacion» no llama a Stripe, Google ni n8n reales.
+// Modo por defecto: apagado. «simulacion» no llama a Stripe ni envía correo real en las pruebas.
+// Desde D-116: cada venta o reembolso se guarda en el registro local (cola.jsonl) y se avisa por correo
+// a info@; la disponibilidad la calcula este PHP con las ventas locales y public/datos/bloqueos.json.
 declare(strict_types=1);
 
 const CONTRATA_PRECIO_BASE_EUR = 490;          // tiene que coincidir con DIAGNOSTICO.precio en src/data/site.ts
@@ -16,11 +18,8 @@ const CONTRATA_MAX_PROYECTOS = 1;
 const CONTRATA_PLAZO_LABORABLES = 3;
 const CONTRATA_SEMANAS_VISIBLES = 4;
 const CONTRATA_RETENCION_SEG = 1800;
-const CONTRATA_FRESCURA_SEG = 3 * 3600;
 const CONTRATA_FIRMA_VENTANA = 300;
 const CONTRATA_CSRF_VENTANA = 7200;
-const CONTRATA_MAX_INTENTOS = 8;
-const CONTRATA_WEBHOOK_TIMEOUT = 10;
 const CONTRATA_MSG_PAGO = 'No hemos podido abrir el pago; inténtalo en un minuto o escríbenos.';
 const CONTRATA_MSG_RESERVA = 'Reserva tu diagnóstico; te confirmamos la fecha en 1 día laborable';
 const CONTRATA_MSG_SEMANA = 'Esa semana ya está completa. Elige otra.';
@@ -112,8 +111,6 @@ function contrata_config(): array {
     if (!preg_match('#^https://[a-z0-9.-]+$#i', $public) && !($modo === 'simulacion' && $httpLocal)) {
         $public = 'https://sobtree.com';
     }
-    $n8n = $get('CONTRATA_N8N_WEBHOOK_URL');
-    $n8nOk = preg_match('#^https://#', $n8n) || ($n8n !== '' && getenv('CONTRATA_ALLOW_HTTP_WEBHOOK') === '1' && preg_match('#^http://#', $n8n));
     $cfg = [
         'dir' => rtrim($dir, '/'),
         'modo' => $modo,
@@ -124,12 +121,10 @@ function contrata_config(): array {
         'stripe_prices' => $prices,
         'stripe_tax_rate' => $get('STRIPE_TAX_RATE_IVA21'),
         'live' => $modo === 'stripe_live',
+        // Secreto del token CSRF del formulario de pago (ya no firma nada hacia fuera).
         'hmac_secret' => $get('CONTRATA_HMAC_SECRET'),
-        'n8n_url' => $n8nOk ? $n8n : '',
         'public_url' => $public,
-        'cal_proyectos' => $get('CONTRATA_CALENDAR_PROYECTOS_ID'),
-        'cal_bloqueos' => $get('CONTRATA_CALENDAR_BLOQUEOS_ID'),
-        'cal_cuenta' => $get('CONTRATA_CALENDAR_CUENTA', 'info@sobtree.com'),
+        'bloqueos_file' => (string)(getenv('CONTRATA_BLOQUEOS_FILE') ?: ''),
         'notify_to' => $get('CONTRATA_NOTIFY_TO', 'info@sobtree.com'),
         'notify_from' => $get('CONTRATA_NOTIFY_FROM', 'info@sobtree.com'),
     ];
@@ -152,10 +147,9 @@ function contrata_stripe_utilizable(): bool {
     }
     if ($c['modo'] === 'stripe_test') return $comun && preg_match('/^(rk|sk)_test_/', $c['stripe_key']) === 1;
     if ($c['modo'] === 'stripe_live') {
-        // Para cobrar de verdad hace falta todo: clave live, webhook firmado, aviso a n8n firmado y web en https.
+        // Para cobrar de verdad hace falta: clave live, webhook de Stripe firmado, secreto CSRF y web en https.
         return $comun && contrata_clave_prohibida($c['stripe_key'])
             && str_starts_with($c['webhook_secret'], 'whsec' . '_')
-            && $c['n8n_url'] !== '' && str_starts_with($c['n8n_url'], 'https://')
             && $c['hmac_secret'] !== ''
             && str_starts_with($c['public_url'], 'https://');
     }
@@ -441,14 +435,6 @@ function contrata_csrf_validar(string $token): bool {
     return $edad <= CONTRATA_CSRF_VENTANA;
 }
 
-function contrata_firma_ok(string $secret, string $ts, string $firma, string $body): bool {
-    if ($secret === '' || !preg_match('/^\d+$/', $ts)) return false;
-    if (abs(contrata_ahora() - (int)$ts) > CONTRATA_FIRMA_VENTANA) return false;
-    $esperada = 'sha256=' . contrata_sign($secret, $ts, $body);
-    $dada = trim($firma);
-    return strlen($esperada) === strlen($dada) && hash_equals($esperada, $dada);
-}
-
 function contrata_validar_nif(string $nif): bool {
     if (!preg_match('/^\d{8}[A-Z]$/', $nif)) return false;
     $letras = 'TRWAGMYFPDXBNJZSQVHLCKE';
@@ -518,93 +504,55 @@ function contrata_validar_identificacion(string $raw): ?array {
     return $base + ['pais' => $m[1], 'tipo' => 'iva_ue', 'normalizado' => $id, 'iva_ue' => true];
 }
 
-function contrata_file_pub(): string { return contrata_ensure_dir() . '/disponibilidad.json'; }
 function contrata_file_ret(): string { return contrata_ensure_dir() . '/retenciones.json'; }
 function contrata_file_ses(): string { return contrata_ensure_dir() . '/sesiones.json'; }
 function contrata_file_eventos(): string { return contrata_ensure_dir() . '/eventos.jsonl'; }
+// Registro local de ventas y reembolsos confirmados por Stripe (una fila por evento) y estado de su aviso.
 function contrata_file_cola(): string { return contrata_ensure_dir() . '/cola.jsonl'; }
 function contrata_file_cola_estado(): string { return contrata_ensure_dir() . '/cola-estado.jsonl'; }
 
-function contrata_cargar_publicacion(): ?array {
-    $j = contrata_leer_json(contrata_file_pub(), []);
-    if (!isset($j['generado'], $j['cuerpo']) || !is_array($j['cuerpo'])) return null;
-    return $j;
+/**
+ * Semanas bloqueadas: archivo del repositorio public/datos/bloqueos.json (se despliega con la web en
+ * public_html/datos/, protegido con .htaccess). Lo actualiza la rutina de NEXUS cuando ve eventos BLOQUEO
+ * en el calendario. CONTRATA_BLOQUEOS_FILE solo sirve para las pruebas locales.
+ */
+function contrata_file_bloqueos(): string {
+    $f = contrata_config()['bloqueos_file'];
+    return $f !== '' ? $f : dirname(__DIR__) . '/datos/bloqueos.json';
 }
 
-function contrata_publicacion_fresca(?array $pub, ?int $ahora = null): bool {
-    if (!$pub) return false;
-    $ts = strtotime((string)$pub['generado']);
-    if ($ts === false) return false;
-    $ahora = $ahora ?? contrata_ahora();
-    $edad = $ahora - $ts;
-    return $edad >= -CONTRATA_FIRMA_VENTANA && $edad <= CONTRATA_FRESCURA_SEG;
+/**
+ * Valida el contenido del archivo de bloqueos. Formato:
+ *   {"bloqueos": [{"desde": "AAAA-MM-DD", "hasta": "AAAA-MM-DD", "nota": "opcional, sin datos personales"}]}
+ * «hasta» es inclusive. Cualquier clave desconocida, fecha imposible, «hasta» < «desde» o nota con @ invalida
+ * el archivo entero. Devuelve los bloqueos como [inicio, fin exclusivo] o null si no vale.
+ * @return list<array{inicio:string,fin:string}>|null
+ */
+function contrata_validar_bloqueos(mixed $j): ?array {
+    if (!is_array($j) || !isset($j['bloqueos']) || !is_array($j['bloqueos']) || !array_is_list($j['bloqueos'])) return null;
+    foreach (array_keys($j) as $k) if (!in_array($k, ['bloqueos', 'actualizado', '_leeme'], true)) return null;
+    $out = [];
+    foreach ($j['bloqueos'] as $b) {
+        if (!is_array($b)) return null;
+        foreach (array_keys($b) as $k) if (!in_array($k, ['desde', 'hasta', 'nota'], true)) return null;
+        $desde = $b['desde'] ?? null;
+        $hasta = $b['hasta'] ?? null;
+        if (!is_string($desde) || !is_string($hasta)) return null;
+        try { contrata_fecha($desde); contrata_fecha($hasta); } catch (Throwable $e) { return null; }
+        if ($hasta < $desde) return null;
+        if (array_key_exists('nota', $b) && (!is_string($b['nota']) || mb_strlen($b['nota']) > 80 || str_contains($b['nota'], '@'))) return null;
+        $out[] = ['inicio' => $desde, 'fin' => contrata_sumar_dias($hasta, 1)];
+    }
+    return $out;
 }
 
-/** @return array{http:int,body:array} */
-function contrata_post_disponibilidad(string $raw, array $server): array {
-    if (strlen($raw) > 100000) return ['http' => 413, 'body' => ['ok' => false, 'error' => 'Cuerpo demasiado grande.']];
-    if (str_contains($raw, '@')) return ['http' => 400, 'body' => ['ok' => false, 'error' => 'La publicación no puede llevar datos personales.']];
-    $secret = contrata_config()['hmac_secret'];
-    $ts = (string)($server['HTTP_X_SOBTREE_TIMESTAMP'] ?? '');
-    $firma = (string)($server['HTTP_X_SOBTREE_SIGNATURE'] ?? '');
-    if (!contrata_firma_ok($secret, $ts, $firma, $raw)) {
-        contrata_auditar('publicacion_rechazada', ['motivo' => 'firma']);
-        return ['http' => 401, 'body' => ['ok' => false, 'error' => 'Firma no válida.']];
-    }
-    $data = json_decode($raw, true);
-    if (!is_array($data)) return ['http' => 400, 'body' => ['ok' => false, 'error' => 'JSON no válido.']];
-    $err = contrata_validar_cuerpo_publicado($data);
-    if ($err !== null) return ['http' => 400, 'body' => ['ok' => false, 'error' => $err]];
-    $generado = (string)$data['generado'];
-    $gts = strtotime($generado);
-    $ahora = contrata_ahora();
-    if ($gts === false || $ahora - $gts > CONTRATA_FRESCURA_SEG || $gts - $ahora > CONTRATA_FIRMA_VENTANA) {
-        return ['http' => 400, 'body' => ['ok' => false, 'error' => 'La marca de tiempo de la publicación no es válida.']];
-    }
-    contrata_con_bloqueo(function () use ($data, $raw, $generado) {
-        contrata_guardar_json(contrata_file_pub(), [
-            'recibido' => gmdate('c'),
-            'generado' => $generado,
-            'huella' => hash('sha256', $raw),
-            'cuerpo' => $data,
-        ]);
-    });
-    contrata_auditar('publicacion', [
-        'generado' => $generado,
-        'semanas' => count($data['semanas']),
-        'huella' => hash('sha256', $raw),
-    ]);
-    return ['http' => 200, 'body' => ['ok' => true]];
-}
-
-function contrata_validar_cuerpo_publicado(array $data): ?string {
-    $permitidas = ['generado', 'max_proyectos_simultaneos', 'semanas'];
-    foreach (array_keys($data) as $k) if (!in_array($k, $permitidas, true)) return 'Campo no permitido.';
-    if (!isset($data['generado']) || !is_string($data['generado'])) return 'Falta generado.';
-    if (($data['max_proyectos_simultaneos'] ?? null) !== CONTRATA_MAX_PROYECTOS) return 'La capacidad no coincide.';
-    if (!isset($data['semanas']) || !is_array($data['semanas']) || count($data['semanas']) !== CONTRATA_SEMANAS_VISIBLES) return 'Hacen falta 4 semanas.';
-    $hoy = contrata_hoy();
-    $esperada = contrata_primer_lunes($hoy);
-    foreach ($data['semanas'] as $i => $s) {
-        if (!is_array($s)) return 'Semana no válida.';
-        foreach (array_keys($s) as $k) if (!in_array($k, ['lunes', 'plazas', 'bloqueada', 'proyectos', 'sesiones'], true)) return 'Campo de semana no permitido.';
-        $lunes = (string)($s['lunes'] ?? '');
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $lunes) || !contrata_es_lunes($lunes)) return 'El inicio tiene que ser un lunes.';
-        if ($lunes !== contrata_sumar_dias($esperada, $i * 7)) return 'La semana no sigue el calendario de publicación.';
-        $bloqueada = (bool)($s['bloqueada'] ?? false);
-        $proyectos = $s['proyectos'] ?? null;
-        $plazas = $s['plazas'] ?? null;
-        if (!is_int($proyectos) || $proyectos < 0 || !is_int($plazas) || $plazas < 0) return 'Plazas no válidas.';
-        $calculadas = $bloqueada ? 0 : max(0, CONTRATA_MAX_PROYECTOS - $proyectos);
-        if ($plazas !== $calculadas) return 'Las plazas no cuadran con la fórmula.';
-        if ($bloqueada && $plazas !== 0) return 'Una semana bloqueada tiene 0 plazas.';
-        $sesiones = $s['sesiones'] ?? [];
-        if (!is_array($sesiones)) return 'Sesiones no válidas.';
-        foreach ($sesiones as $sid) {
-            if (!is_string($sid) || !preg_match('/^cs_(?:test|live)_[A-Za-z0-9_]+$/', $sid)) return 'Identificador de sesión no permitido.';
-        }
-    }
-    return null;
+/** Bloqueos del archivo, o null si falta o no es válido (entonces la disponibilidad falla en cerrado). */
+function contrata_cargar_bloqueos(): ?array {
+    $f = contrata_file_bloqueos();
+    if (!is_file($f)) return null;
+    $raw = @file_get_contents($f);
+    if (!is_string($raw)) return null;
+    return contrata_validar_bloqueos(json_decode($raw, true));
 }
 
 function contrata_leer_retenciones(): array {
@@ -613,18 +561,41 @@ function contrata_leer_retenciones(): array {
     return $j;
 }
 
-function contrata_retencion_cuenta(array $r, string $semana, array $sesionesYaEnCalendario, int $ahora): bool {
+/** Una retención ocupa plaza en su semana si está pagada o retenida y sin caducar. */
+function contrata_retencion_cuenta(array $r, string $semana, int $ahora): bool {
     if (($r['semana'] ?? '') !== $semana) return false;
     $estado = $r['estado'] ?? '';
-    $sesion = (string)($r['sesion'] ?? '');
-    if ($sesion !== '' && in_array($sesion, $sesionesYaEnCalendario, true)) return false;
     if ($estado === 'pagada') return true;
     if ($estado === 'retenida' && (int)($r['expira'] ?? 0) > $ahora) return true;
     return false;
 }
 
+/**
+ * Disponibilidad calculada por el propio PHP: capacidad de cada semana (0 si un bloqueo la toca) menos las
+ * ventas pagadas y las retenciones vivas del registro local. null si el archivo de bloqueos no es válido.
+ * @return list<array{lunes:string,plazas:int,bloqueada:bool,ocupadas:int,libres:int}>|null
+ */
+function contrata_semanas_calculadas(?array $rets = null, ?int $ahora = null): ?array {
+    $bloqueos = contrata_cargar_bloqueos();
+    if ($bloqueos === null) return null;
+    $ahora = $ahora ?? contrata_ahora();
+    $rets = $rets ?? contrata_leer_retenciones()['retenciones'];
+    $out = [];
+    foreach (contrata_calcular_semanas(contrata_hoy(), [], $bloqueos) as $s) {
+        $ocupadas = 0;
+        foreach ($rets as $r) if (is_array($r) && contrata_retencion_cuenta($r, $s['lunes'], $ahora)) $ocupadas++;
+        $out[] = [
+            'lunes' => $s['lunes'],
+            'plazas' => $s['plazas'],
+            'bloqueada' => $s['bloqueada'],
+            'ocupadas' => $ocupadas,
+            'libres' => max(0, $s['plazas'] - $ocupadas),
+        ];
+    }
+    return $out;
+}
+
 function contrata_estado_publico(): array {
-    $pub = contrata_cargar_publicacion();
     $cerrado = function (string $motivo): array {
         return [
             'ok' => false,
@@ -633,29 +604,21 @@ function contrata_estado_publico(): array {
             'reserva' => ['href' => '/#contacto', 'texto' => CONTRATA_MSG_RESERVA],
         ];
     };
-    if (!$pub) return $cerrado('sin_datos');
-    if (!contrata_publicacion_fresca($pub)) return $cerrado('antiguo');
-    $cuerpo = $pub['cuerpo'];
-    if (contrata_validar_cuerpo_publicado($cuerpo) !== null) return $cerrado('firma');
     $ahora = contrata_ahora();
+    $calc = contrata_semanas_calculadas(null, $ahora);
+    if ($calc === null) return $cerrado('bloqueos');
     $hoy = contrata_hoy();
-    $rets = contrata_leer_retenciones()['retenciones'];
     $semanas = [];
     $proxima = null;
-    foreach ($cuerpo['semanas'] as $s) {
-        $sesiones = $s['sesiones'] ?? [];
-        $activas = 0;
-        foreach ($rets as $r) if (contrata_retencion_cuenta($r, $s['lunes'], $sesiones, $ahora)) $activas++;
-        $libres = max(0, (int)$s['plazas'] - $activas);
-        $texto = contrata_texto_plazas($libres, $s['lunes'], CONTRATA_MAX_PROYECTOS, $hoy);
-        $fila = [
+    foreach ($calc as $s) {
+        $libres = $s['libres'];
+        $semanas[] = [
             'lunes' => $s['lunes'],
             'libres' => $libres,
-            'plazas_publicadas' => (int)$s['plazas'],
-            'bloqueada' => (bool)$s['bloqueada'],
-            'texto_plazas' => $texto,
+            'plazas_publicadas' => $s['plazas'],
+            'bloqueada' => $s['bloqueada'],
+            'texto_plazas' => contrata_texto_plazas($libres, $s['lunes'], CONTRATA_MAX_PROYECTOS, $hoy),
         ];
-        $semanas[] = $fila;
         if ($proxima === null && $libres >= 1) {
             $proxima = ['lunes' => $s['lunes'], 'texto' => contrata_texto_proxima($s['lunes'], $hoy)];
         }
@@ -676,7 +639,7 @@ function contrata_estado_publico(): array {
     }
     $out = [
         'ok' => true,
-        'generado' => $pub['generado'],
+        'generado' => gmdate('c', $ahora),
         'max_proyectos_simultaneos' => CONTRATA_MAX_PROYECTOS,
         'precio' => $precio,
         'servicios' => $servicios,
@@ -804,11 +767,6 @@ function contrata_abrir_sesion(array $in, array $ctx = []): array {
     try {
         $ret = contrata_con_bloqueo(function () use ($semana, $producto) {
             $ahora = contrata_ahora();
-            $pub = contrata_cargar_publicacion();
-            if (!contrata_publicacion_fresca($pub, $ahora)) return null;
-            $cuerpoSem = null;
-            foreach ($pub['cuerpo']['semanas'] as $s) if ($s['lunes'] === $semana) $cuerpoSem = $s;
-            if ($cuerpoSem === null) return ['fuera' => true];
             $data = contrata_leer_retenciones();
             foreach ($data['retenciones'] as &$r) {
                 if (($r['estado'] ?? '') === 'retenida' && (int)$r['expira'] <= $ahora) {
@@ -818,11 +776,12 @@ function contrata_abrir_sesion(array $in, array $ctx = []): array {
                 }
             }
             unset($r);
-            $activas = 0;
-            foreach ($data['retenciones'] as $r) {
-                if (contrata_retencion_cuenta($r, $semana, $cuerpoSem['sesiones'] ?? [], $ahora)) $activas++;
-            }
-            if ((int)$cuerpoSem['plazas'] - $activas < 1) {
+            $calc = contrata_semanas_calculadas($data['retenciones'], $ahora);
+            if ($calc === null) return null;
+            $fila = null;
+            foreach ($calc as $s) if ($s['lunes'] === $semana) $fila = $s;
+            if ($fila === null) return ['fuera' => true];
+            if ($fila['libres'] < 1) {
                 contrata_guardar_json(contrata_file_ret(), $data);
                 return ['completa' => true];
             }
@@ -1096,10 +1055,12 @@ function contrata_stripe_request(string $method, string $path, array $form = [],
     if (!function_exists('curl_init')) throw new RuntimeException('curl');
     $baseEnv = getenv('CONTRATA_STRIPE_API_BASE');
     $base = 'https://api.stripe.com';
-    if (is_string($baseEnv) && preg_match('#^https://api\.stripe\.com$#', $baseEnv)) {
-        $base = $baseEnv;
-    } elseif (is_string($baseEnv) && getenv('CONTRATA_ALLOW_HTTP_WEBHOOK') === '1' && preg_match('#^http://127\.0\.0\.1:\d+$#', $baseEnv)) {
-        $base = $baseEnv;
+    if (is_string($baseEnv) && $baseEnv !== '') {
+        // Solo pruebas: Stripe simulado en 127.0.0.1 con CONTRATA_STRIPE_API_LOCAL=1. Si la variable existe pero no
+        // vale, se falla en cerrado: nunca se cae a la API real por una configuración de prueba incompleta.
+        if (preg_match('#^https://api\.stripe\.com$#', $baseEnv)) $base = $baseEnv;
+        elseif (getenv('CONTRATA_STRIPE_API_LOCAL') === '1' && preg_match('#^http://127\.0\.0\.1:\d+$#', $baseEnv)) $base = $baseEnv;
+        else throw new RuntimeException('stripe_api_base');
     }
     $ch = curl_init($base . $path);
     $cabeceras = [
@@ -1156,20 +1117,24 @@ function contrata_verificar_firma_stripe(string $payload, string $header, string
     return $event;
 }
 
-function contrata_evento_nuevo(string $id): bool {
-    return (bool)contrata_con_bloqueo(function () use ($id) {
-        $f = contrata_file_eventos();
-        if (is_file($f)) {
-            foreach (file($f, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
-                $row = json_decode($line, true);
-                if (is_array($row) && ($row['id'] ?? '') === $id) return false;
-            }
-        }
-        return contrata_append($f, ['id' => $id, 'fecha' => gmdate('c')]);
-    });
+/** ¿Ya se procesó (y registró) este evento de Stripe? */
+function contrata_evento_visto(string $id): bool {
+    $f = contrata_file_eventos();
+    if (!is_file($f)) return false;
+    foreach (file($f, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+        $row = json_decode($line, true);
+        if (is_array($row) && ($row['id'] ?? '') === $id) return true;
+    }
+    return false;
 }
 
-/** @return array{http:int,body:array} */
+/**
+ * Webhook de Stripe. Ningún cobro sin registro: si no se puede guardar la venta, el reembolso, la retención o
+ * la marca del evento, lanza una excepción y stripe-webhook.php responde 500 para que Stripe lo reintente.
+ * El evento solo se marca como procesado DESPUÉS de registrarlo; la cola deduplica por event_id.
+ * El correo a info@ se envía al final y, si falla, lo reintenta el cron (no hace fallar el webhook).
+ * @return array{http:int,body:array}
+ */
 function contrata_recibir_webhook(string $raw, string $header): array {
     try {
         $event = contrata_verificar_firma_stripe($raw, $header, contrata_config()['webhook_secret']);
@@ -1182,20 +1147,39 @@ function contrata_recibir_webhook(string $raw, string $header): array {
         contrata_auditar('webhook_modo_distinto', ['tipo' => (string)($event['type'] ?? '')]);
         return ['http' => 200, 'body' => ['ok' => true, 'ignorado' => 'livemode']];
     }
-    if (!contrata_evento_nuevo((string)$event['id'])) {
-        return ['http' => 200, 'body' => ['ok' => true, 'duplicado' => true]];
-    }
+    $eventId = (string)$event['id'];
     $tipo = (string)$event['type'];
     $obj = $event['data']['object'] ?? [];
     if (!is_array($obj)) $obj = [];
-    if ($tipo === 'checkout.session.completed') {
-        contrata_aplicar_pago($obj, (string)$event['id']);
-    } elseif ($tipo === 'checkout.session.expired') {
-        contrata_aplicar_expiracion($obj);
-    } elseif ($tipo === 'charge.refunded') {
-        contrata_aplicar_reembolso($obj, (string)$event['id']);
-    } else {
-        contrata_auditar('webhook_ignorado', ['tipo' => $tipo]);
+    $aviso = null;
+    // Un webhook a la vez (fichero de bloqueo propio: los aplicar_* usan el bloqueo de estado).
+    $fh = fopen(contrata_ensure_dir() . '/.webhook.lock', 'c');
+    if (!$fh || !flock($fh, LOCK_EX)) {
+        if ($fh) fclose($fh);
+        throw new RuntimeException('bloqueo_webhook');
+    }
+    try {
+        if (contrata_evento_visto($eventId)) {
+            return ['http' => 200, 'body' => ['ok' => true, 'duplicado' => true]];
+        }
+        if ($tipo === 'checkout.session.completed') {
+            $aviso = contrata_aplicar_pago($obj, $eventId);
+        } elseif ($tipo === 'checkout.session.expired') {
+            contrata_aplicar_expiracion($obj);
+        } elseif ($tipo === 'charge.refunded') {
+            $aviso = contrata_aplicar_reembolso($obj, $eventId);
+        } else {
+            contrata_auditar('webhook_ignorado', ['tipo' => $tipo]);
+        }
+        if (!contrata_append(contrata_file_eventos(), ['id' => $eventId, 'fecha' => gmdate('c')])) {
+            throw new RuntimeException('registro_eventos');
+        }
+    } finally {
+        flock($fh, LOCK_UN);
+        fclose($fh);
+    }
+    if ($aviso !== null) {
+        try { contrata_entregar($aviso); } catch (Throwable $e) { error_log('contrata: aviso pendiente (lo reintenta el cron)'); }
     }
     return ['http' => 200, 'body' => ['ok' => true]];
 }
@@ -1216,43 +1200,30 @@ function contrata_alerta_territorio(array $detalles): string {
     return '';
 }
 
-function contrata_aplicar_pago(array $obj, string $eventId): void {
+/** Retención que corresponde a un objeto de Stripe (por retención, sesión o payment_intent). */
+function contrata_retencion_de(string $retId, string $sesion, string $pi = ''): ?array {
+    foreach (contrata_leer_retenciones()['retenciones'] as $r) {
+        if (!is_array($r)) continue;
+        if (($retId !== '' && ($r['id'] ?? '') === $retId) || ($sesion !== '' && ($r['sesion'] ?? '') === $sesion)
+            || ($pi !== '' && ($r['payment_intent'] ?? '') === $pi)) return $r;
+    }
+    return null;
+}
+
+/** Pago confirmado: 1) registro de la venta, 2) retención pagada. Devuelve la fila registrada (o null si no hay pago). */
+function contrata_aplicar_pago(array $obj, string $eventId): ?array {
     $meta = contrata_meta($obj);
     $retId = (string)($meta['retencion_id'] ?? '');
     $sesion = (string)($obj['id'] ?? '');
     if (($obj['payment_status'] ?? '') !== 'paid') {
         // Solo un pago confirmado crea venta, plaza y aviso.
         contrata_auditar('pago_no_confirmado', ['estado' => (string)($obj['payment_status'] ?? '')]);
-        return;
+        return null;
     }
-    $fuera = false;
-    $nifGuardado = '';
     $pi = (string)($obj['payment_intent'] ?? '');
-    contrata_con_bloqueo(function () use ($retId, $sesion, $pi, &$fuera, &$nifGuardado) {
-        $data = contrata_leer_retenciones();
-        $tocada = false;
-        foreach ($data['retenciones'] as &$r) {
-            $match = ($retId !== '' && ($r['id'] ?? '') === $retId) || ($sesion !== '' && ($r['sesion'] ?? '') === $sesion);
-            if (!$match) continue;
-            if (($r['estado'] ?? '') === 'liberada') $fuera = true;
-            if (($r['estado'] ?? '') !== 'reembolsada') $r['estado'] = 'pagada';
-            if ($sesion !== '') $r['sesion'] = $sesion;
-            if ($pi !== '') $r['payment_intent'] = $pi;
-            $r['pagada'] = gmdate('c');
-            if (isset($r['nif']) && is_string($r['nif'])) $nifGuardado = $r['nif'];
-            unset($r['nif']); // ya no hace falta fuera del aviso a n8n
-            $tocada = true;
-        }
-        unset($r);
-        if ($tocada) contrata_guardar_json(contrata_file_ret(), $data);
-    });
-    if (contrata_modo() === 'simulacion' && $sesion !== '') {
-        contrata_con_bloqueo(function () use ($sesion) {
-            $all = contrata_leer_json(contrata_file_ses(), ['sesiones' => []]);
-            if (isset($all['sesiones'][$sesion])) $all['sesiones'][$sesion]['status'] = 'paid';
-            contrata_guardar_json(contrata_file_ses(), $all);
-        });
-    }
+    $ret = contrata_retencion_de($retId, $sesion);
+    $fuera = $ret !== null && ($ret['estado'] ?? '') === 'liberada';
+    $nifGuardado = ($ret !== null && is_string($ret['nif'] ?? null)) ? $ret['nif'] : '';
     $servicioId = (string)($meta['producto'] ?? CONTRATA_PRODUCTO_DEFECTO);
     $servicio = contrata_servicio($servicioId);
     $imp = contrata_importes($servicio !== null ? $servicioId : CONTRATA_PRODUCTO_DEFECTO);
@@ -1280,7 +1251,8 @@ function contrata_aplicar_pago(array $obj, string $eventId): void {
     }
     if ($alerta !== '') contrata_auditar('pago_con_alerta', ['alerta' => $alerta]);
     $email = (string)($detalles['email'] ?? $obj['customer_email'] ?? '');
-    contrata_encolar_y_enviar([
+    // 1) Registro de la venta. Si falla, lanza y Stripe reintenta.
+    $row = contrata_registrar([
         'tipo' => 'checkout.session.completed',
         'event_id' => $eventId,
         'cuerpo' => [
@@ -1289,7 +1261,7 @@ function contrata_aplicar_pago(array $obj, string $eventId): void {
             'producto' => $servicio !== null ? $servicioId : '',
             'servicio_nombre' => $servicio !== null ? (string)$servicio['nombre'] : '',
             'dias_bloqueo' => $servicio !== null ? (int)$servicio['dias_bloqueo'] : CONTRATA_DIAS_BLOQUEO_MAX,
-            'semana_lunes' => (string)($meta['semana_lunes'] ?? ''),
+            'semana_lunes' => (string)($meta['semana_lunes'] ?? ($ret['semana'] ?? '')),
             'importe_base_centimos' => $imp['base_centimos'],
             'iva_porcentaje' => CONTRATA_IVA_PORCIENTO,
             'importe_total_centimos' => (int)($obj['amount_total'] ?? $imp['total_centimos']),
@@ -1303,12 +1275,38 @@ function contrata_aplicar_pago(array $obj, string $eventId): void {
             'condiciones_aceptadas' => ($obj['consent']['terms_of_service'] ?? '') === 'accepted',
             'alerta_facturacion' => $alerta,
             'factura' => (string)($obj['invoice'] ?? ''),
+            'payment_intent' => $pi,
             'politica_version' => (string)($meta['politica_version'] ?? ''),
             'lead_id' => (string)($meta['lead_id'] ?? ''),
             'fuera_de_orden' => $fuera,
             'livemode' => contrata_livemode_esperado(),
         ],
     ]);
+    // 2) La retención pasa a pagada (ocupa la plaza) y deja de guardar el NIF (ya está en la venta).
+    contrata_con_bloqueo(function () use ($retId, $sesion, $pi) {
+        $data = contrata_leer_retenciones();
+        $tocada = false;
+        foreach ($data['retenciones'] as &$r) {
+            $match = ($retId !== '' && ($r['id'] ?? '') === $retId) || ($sesion !== '' && ($r['sesion'] ?? '') === $sesion);
+            if (!$match) continue;
+            if (($r['estado'] ?? '') !== 'reembolsada') $r['estado'] = 'pagada';
+            if ($sesion !== '') $r['sesion'] = $sesion;
+            if ($pi !== '') $r['payment_intent'] = $pi;
+            $r['pagada'] = gmdate('c');
+            unset($r['nif']);
+            $tocada = true;
+        }
+        unset($r);
+        if ($tocada) contrata_guardar_json(contrata_file_ret(), $data);
+    });
+    if (contrata_modo() === 'simulacion' && $sesion !== '') {
+        contrata_con_bloqueo(function () use ($sesion) {
+            $all = contrata_leer_json(contrata_file_ses(), ['sesiones' => []]);
+            if (isset($all['sesiones'][$sesion])) $all['sesiones'][$sesion]['status'] = 'paid';
+            contrata_guardar_json(contrata_file_ses(), $all);
+        });
+    }
+    return $row;
 }
 
 function contrata_aplicar_expiracion(array $obj): void {
@@ -1333,7 +1331,8 @@ function contrata_aplicar_expiracion(array $obj): void {
     contrata_auditar('expiracion', ['sesion' => $sesion !== '' ? 'presente' : 'ausente']);
 }
 
-function contrata_aplicar_reembolso(array $obj, string $eventId): void {
+/** Reembolso: 1) registro, 2) si es total, la retención pasa a reembolsada y libera la plaza. */
+function contrata_aplicar_reembolso(array $obj, string $eventId): array {
     $meta = contrata_meta($obj);
     $sesion = (string)($meta['checkout_session_id'] ?? '');
     $retId = (string)($meta['retencion_id'] ?? '');
@@ -1343,29 +1342,17 @@ function contrata_aplicar_reembolso(array $obj, string $eventId): void {
     // Un reembolso parcial no libera la plaza ni cierra la venta.
     $total = array_key_exists('refunded', $obj) ? ($obj['refunded'] === true) : ($amount === 0 || $devuelto >= $amount);
     $semana = (string)($meta['semana_lunes'] ?? '');
-    $encontrada = false;
+    $ret = contrata_retencion_de($retId, $sesion, $pi);
     $servicioRet = '';
-    contrata_con_bloqueo(function () use (&$retId, &$sesion, &$semana, $pi, $total, &$encontrada, &$servicioRet) {
-        $data = contrata_leer_retenciones();
-        foreach ($data['retenciones'] as &$r) {
-            $match = ($retId !== '' && ($r['id'] ?? '') === $retId) || ($sesion !== '' && ($r['sesion'] ?? '') === $sesion)
-                || ($pi !== '' && ($r['payment_intent'] ?? '') === $pi);
-            if (!$match) continue;
-            $encontrada = true;
-            $servicioRet = (string)($r['servicio'] ?? '');
-            if ($retId === '') $retId = (string)($r['id'] ?? '');
-            if ($sesion === '') $sesion = (string)($r['sesion'] ?? '');
-            if ($semana === '') $semana = (string)($r['semana'] ?? '');
-            if ($total) {
-                $r['estado'] = 'reembolsada';
-                $r['reembolsada'] = gmdate('c');
-            }
-        }
-        unset($r);
-        contrata_guardar_json(contrata_file_ret(), $data);
-    });
-    if (!$encontrada) contrata_auditar('reembolso_sin_retencion', ['pi' => $pi !== '' ? 'presente' : 'ausente']);
-    contrata_encolar_y_enviar([
+    if ($ret !== null) {
+        $servicioRet = (string)($ret['servicio'] ?? '');
+        if ($retId === '') $retId = (string)($ret['id'] ?? '');
+        if ($sesion === '') $sesion = (string)($ret['sesion'] ?? '');
+        if ($semana === '') $semana = (string)($ret['semana'] ?? '');
+    } else {
+        contrata_auditar('reembolso_sin_retencion', ['pi' => $pi !== '' ? 'presente' : 'ausente']);
+    }
+    $row = contrata_registrar([
         'tipo' => 'charge.refunded',
         'event_id' => $eventId,
         'cuerpo' => [
@@ -1375,31 +1362,69 @@ function contrata_aplicar_reembolso(array $obj, string $eventId): void {
             'producto' => contrata_servicio($servicioRet) !== null ? $servicioRet : CONTRATA_PRODUCTO_DEFECTO,
             'estado' => $total ? 'reembolsada' : 'reembolso_parcial',
             'importe_reembolsado_centimos' => $devuelto,
+            'importe_cobrado_centimos' => $amount,
+            'payment_intent' => $pi,
+            'retencion_encontrada' => $ret !== null,
             'livemode' => contrata_livemode_esperado(),
         ],
     ]);
-}
-
-function contrata_encolar_y_enviar(array $evento): array {
-    $row = [
-        'id' => contrata_uuid(),
-        'fecha' => gmdate('c'),
-        'tipo' => $evento['tipo'],
-        'event_id' => $evento['event_id'],
-        'cuerpo' => $evento['cuerpo'],
-    ];
-    if (!contrata_append(contrata_file_cola(), $row)) {
-        error_log('contrata: no se pudo encolar ' . $evento['event_id']);
-        return ['error', 'cola'];
+    if ($total && $ret !== null) {
+        contrata_con_bloqueo(function () use ($retId, $sesion, $pi) {
+            $data = contrata_leer_retenciones();
+            foreach ($data['retenciones'] as &$r) {
+                $match = ($retId !== '' && ($r['id'] ?? '') === $retId) || ($sesion !== '' && ($r['sesion'] ?? '') === $sesion)
+                    || ($pi !== '' && ($r['payment_intent'] ?? '') === $pi);
+                if (!$match) continue;
+                $r['estado'] = 'reembolsada';
+                $r['reembolsada'] = gmdate('c');
+            }
+            unset($r);
+            contrata_guardar_json(contrata_file_ret(), $data);
+        });
     }
-    return contrata_entregar($row);
+    return $row;
 }
 
+/**
+ * Registro local (cola.jsonl) de una venta o reembolso. Idempotente por event_id: si Stripe reintenta, devuelve
+ * la fila que ya existe. Si no puede escribir, lanza (el webhook responde 500 y Stripe reintenta).
+ */
+function contrata_registrar(array $evento): array {
+    return contrata_con_bloqueo(function () use ($evento) {
+        $f = contrata_file_cola();
+        if (is_file($f)) {
+            foreach (file($f, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+                $row = json_decode($line, true);
+                if (is_array($row) && ($row['event_id'] ?? '') === $evento['event_id']) return $row;
+            }
+        }
+        $row = [
+            'id' => contrata_uuid(),
+            'fecha' => gmdate('c'),
+            'tipo' => $evento['tipo'],
+            'event_id' => $evento['event_id'],
+            'cuerpo' => $evento['cuerpo'],
+        ];
+        if (!contrata_append($f, $row)) {
+            error_log('contrata: no se pudo registrar el evento ' . $evento['event_id']);
+            throw new RuntimeException('registro');
+        }
+        return $row;
+    });
+}
+
+/**
+ * Aviso por correo de una fila del registro. Marca correo_ok / correo_error en cola-estado.jsonl.
+ * Si esa fila ya tiene correo_ok (p. ej. el cron lo envió y luego Stripe reintentó el evento tras un 500), no repite.
+ */
 function contrata_entregar(array $row): array {
-    [$estado, $detalle] = contrata_enviar_webhook($row);
-    contrata_marcar_cola($row['id'], $estado, $detalle);
-    if ($estado === 'error') error_log('contrata: n8n falló para ' . $row['id'] . ': ' . $detalle);
-    return [$estado, $detalle];
+    [, $state] = contrata_cargar_cola();
+    if (in_array($state[$row['id']]['ultimo'] ?? null, ['correo_ok', 'enviado'], true)) return ['correo_ok', 'ya_enviado'];
+    $ok = contrata_enviar_aviso($row);
+    $estado = $ok ? 'correo_ok' : 'correo_error';
+    contrata_marcar_cola($row['id'], $estado, $ok ? '' : 'mail_fallo');
+    if (!$ok) error_log('contrata: falló el aviso por correo de ' . $row['id'] . ' (lo reintenta el cron)');
+    return [$estado, ''];
 }
 
 function contrata_marcar_cola(string $id, string $estado, string $detalle = ''): void {
@@ -1409,10 +1434,10 @@ function contrata_marcar_cola(string $id, string $estado, string $detalle = ''):
         'detalle' => mb_substr($detalle, 0, 300),
         'fecha' => gmdate('c'),
     ]);
-    if ($estado === 'enviado') contrata_purgar_nif_cola($id);
+    if ($estado === 'correo_ok') contrata_purgar_nif_cola($id);
 }
 
-/** Entregado el aviso, el NIF deja de guardarse en la cola. */
+/** Enviado el aviso (que lleva el NIF para facturar), el NIF deja de guardarse en el registro. */
 function contrata_purgar_nif_cola(string $id): void {
     contrata_con_bloqueo(function () use ($id) {
         $f = contrata_file_cola();
@@ -1430,40 +1455,116 @@ function contrata_purgar_nif_cola(string $id): void {
         }
         if ($cambio) {
             $tmp = $f . '.tmp';
-            if (@file_put_contents($tmp, implode("\n", $out) . "\n", LOCK_EX) !== false) @rename($tmp, $f);
+            if (@file_put_contents($tmp, implode("\n", $out) . "\n", LOCK_EX) !== false) {
+                @chmod($tmp, 0600);
+                @rename($tmp, $f);
+            }
         }
     });
 }
 
-function contrata_enviar_webhook(array $row): array {
+/**
+ * Correo con los ganchos de prueba. En producción usa mail(), igual que el aviso de leads.
+ * Solo pruebas: CONTRATA_DISABLE_MAIL=1 (o LEADS_DISABLE_MAIL=1) no envía y, con CONTRATA_TEST_MAIL_LOG,
+ * escribe una línea JSON por correo; CONTRATA_TEST_MAIL_FAIL_FILE (si existe) hace fallar el envío.
+ */
+function contrata_mail(string $tipo, string $subject, string $body, string $replyTo = ''): bool {
     $c = contrata_config();
-    if ($c['n8n_url'] === '' || $c['hmac_secret'] === '') return ['omitido', 'webhook_no_configurado'];
-    if (!function_exists('curl_init')) return ['error', 'curl_no_disponible'];
-    $body = json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    if ($body === false) return ['error', 'json'];
-    $ts = (string)contrata_ahora();
-    $ch = curl_init($c['n8n_url']);
-    curl_setopt_array($ch, [
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => $body,
-        CURLOPT_HTTPHEADER => [
-            'Content-Type: application/json',
-            'User-Agent: sobtree-contrata/1',
-            'X-Sobtree-Contrata-Id: ' . $row['id'],
-            'X-Sobtree-Timestamp: ' . $ts,
-            'X-Sobtree-Signature: sha256=' . contrata_sign($c['hmac_secret'], $ts, $body),
-        ],
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_CONNECTTIMEOUT => 2,
-        CURLOPT_TIMEOUT => CONTRATA_WEBHOOK_TIMEOUT,
-        CURLOPT_FOLLOWLOCATION => false,
-    ]);
-    $resp = curl_exec($ch);
-    $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-    $err = curl_error($ch);
-    curl_close($ch);
-    if ($status >= 200 && $status < 300) return ['enviado', 'http_' . $status];
-    return ['error', $err !== '' ? $err : 'http_' . $status];
+    $failFile = getenv('CONTRATA_TEST_MAIL_FAIL_FILE');
+    if ($failFile && is_file($failFile)) return false;
+    if (getenv('CONTRATA_DISABLE_MAIL') === '1' || getenv('LEADS_DISABLE_MAIL') === '1') {
+        if ($log = getenv('CONTRATA_TEST_MAIL_LOG')) {
+            @file_put_contents($log, json_encode(['tipo' => $tipo, 'to' => $c['notify_to'], 'subject' => $subject, 'body' => $body],
+                JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n", FILE_APPEND | LOCK_EX);
+        }
+        return true;
+    }
+    $subj = preg_match('/^[\x20-\x7E]*$/', $subject) ? $subject : '=?UTF-8?B?' . base64_encode($subject) . '?=';
+    $h = "From: Sobtree Web <{$c['notify_from']}>\r\n";
+    $replyTo = str_replace(["\r", "\n"], '', $replyTo);
+    if ($replyTo !== '' && filter_var($replyTo, FILTER_VALIDATE_EMAIL)) $h .= "Reply-To: $replyTo\r\n";
+    $h .= "MIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n";
+    return @mail($c['notify_to'], $subj, $body, $h);
+}
+
+/** Texto de cada alerta para el correo. */
+function contrata_texto_alerta(string $a): string {
+    return [
+        'servicio_desconocido' => 'el servicio pagado no está en la lista de la web: revisar antes de confirmar',
+        'importe_inesperado' => 'el importe cobrado no es el del servicio: revisar en Stripe',
+        'nif_distinto' => 'el NIF validado en la web no coincide con el que guarda Stripe: revisar antes de facturar',
+        'condiciones_sin_aceptar' => 'Stripe no marca las condiciones como aceptadas',
+        'nif_ausente' => 'no hay NIF: pedirlo antes de facturar',
+        'territorio_sin_iva' => 'dirección en Canarias, Ceuta o Melilla: revisar el IVA de la factura',
+        'direccion_fuera_de_espana' => 'dirección de facturación fuera de España: revisar el IVA de la factura',
+    ][$a] ?? $a;
+}
+
+/** Asunto y cuerpo del aviso de una venta o reembolso. @return array{0:string,1:string,2:string} */
+function contrata_correo_evento(array $row): array {
+    $c = is_array($row['cuerpo'] ?? null) ? $row['cuerpo'] : [];
+    $one = fn($s): string => str_replace(["\r", "\n"], ' ', (string)$s);
+    $v = fn($s): string => ($s = trim($one($s))) !== '' ? $s : '—';
+    $sesion = trim($one($c['sesion'] ?? ''));
+    $ref = $sesion !== '' ? $sesion : 'sin-sesion-' . $one($row['event_id'] ?? '');
+    $lunes = (string)($c['semana_lunes'] ?? '');
+    $valida = preg_match('/^\d{4}-\d{2}-\d{2}$/', $lunes) === 1;
+    $alertas = [];
+    if (($row['tipo'] ?? '') === 'charge.refunded') {
+        $total = ($c['estado'] ?? '') === 'reembolsada';
+        $b  = ($total ? 'Reembolso TOTAL' : 'Reembolso PARCIAL') . " confirmado por Stripe.\n\n";
+        $b .= 'Sesión:            ' . $v($sesion) . "\n";
+        $b .= 'Estado:            ' . $v($c['estado'] ?? '') . "\n";
+        $b .= 'Reembolsado:       ' . contrata_euros((int)($c['importe_reembolsado_centimos'] ?? 0)) . "\n";
+        if ((int)($c['importe_cobrado_centimos'] ?? 0) > 0) $b .= 'Cobrado:           ' . contrata_euros((int)$c['importe_cobrado_centimos']) . "\n";
+        $b .= 'Servicio:          ' . $v($c['producto'] ?? '') . "\n";
+        $b .= 'Semana de inicio:  ' . $v($lunes) . "\n";
+        $b .= 'Payment intent:    ' . $v($c['payment_intent'] ?? '') . "\n";
+        $b .= 'Retención:         ' . $v($c['retencion_id'] ?? '') . "\n";
+        if (($c['retencion_encontrada'] ?? true) === false) $alertas[] = 'reembolso_sin_retencion: no se encontró la venta en el registro local; revisar a mano';
+        if ($total) $alertas[] = 'plaza liberada en la web' . ($valida ? " (semana del $lunes)" : '');
+        $rutina = $total
+            ? 'Para la rutina: cancelar en Google Calendar (info@) el evento CONTRATA de esta sesión' . ($valida ? " (semana del $lunes)" : '') . '.'
+            : 'Para la rutina: reembolso parcial; el evento CONTRATA se mantiene.';
+        $subject = '[Sobtree] Reembolso ' . $ref;
+        $replyTo = '';
+    } else {
+        $dias = max(1, min(CONTRATA_DIAS_BLOQUEO_MAX, (int)($c['dias_bloqueo'] ?? CONTRATA_DIAS_BLOQUEO_MAX)));
+        $fin = $valida ? contrata_sumar_dias($lunes, $dias - 1) : '';
+        $coincide = $c['nif_coincide'] ?? null;
+        $b  = "Venta confirmada por Stripe (pago cobrado).\n\n";
+        $b .= 'Sesión:            ' . $v($sesion) . "\n";
+        $b .= 'Servicio:          ' . $v($c['servicio_nombre'] ?? '') . ' (' . $v($c['producto'] ?? '') . ")\n";
+        $b .= 'Semana de inicio:  ' . $v($lunes) . ($valida ? " (lunes; bloquea $dias días laborables, hasta $fin)" : '') . "\n";
+        $b .= 'Importe cobrado:   ' . contrata_euros((int)($c['importe_total_centimos'] ?? 0)) . ' (base ' . contrata_euros((int)($c['importe_base_centimos'] ?? 0)) . ' + IVA ' . (int)($c['iva_porcentaje'] ?? CONTRATA_IVA_PORCIENTO) . " %)\n";
+        $b .= 'Empresa:           ' . $v($c['empresa'] ?? '') . "\n";
+        $b .= 'Email:             ' . $v($c['email'] ?? '') . "\n";
+        $b .= 'NIF/CIF:           ' . $v($c['nif'] ?? '') . ' (' . $v($c['nif_tipo'] ?? '') . ', ' . $v($c['nif_pais'] ?? '') . ", formato validado, no verificado en VIES)\n";
+        $b .= 'NIF igual a Stripe: ' . ($coincide === true ? 'sí' : ($coincide === false ? 'NO' : 'sin dato')) . "\n";
+        $b .= 'Condiciones:       ' . ((($c['condiciones_aceptadas'] ?? false) === true) ? 'aceptadas' : 'NO aceptadas') . ' (política ' . $v($c['politica_version'] ?? '') . ")\n";
+        $b .= 'Factura Stripe:    ' . $v($c['factura'] ?? '') . "\n";
+        $b .= 'Payment intent:    ' . $v($c['payment_intent'] ?? '') . "\n";
+        $b .= 'Lead:              ' . $v($c['lead_id'] ?? '') . "\n";
+        $b .= 'Retención:         ' . $v($c['retencion_id'] ?? '') . "\n";
+        $a = (string)($c['alerta_facturacion'] ?? '');
+        if ($a !== '') $alertas[] = "$a: " . contrata_texto_alerta($a);
+        if (($c['fuera_de_orden'] ?? false) === true) $alertas[] = 'fuera_de_orden: el pago llegó con la retención ya caducada; comprobar que la semana no está dada a otro cliente';
+        $rutina = 'Para la rutina: crear en Google Calendar (info@) el evento «CONTRATA ' . $v($c['empresa'] ?? '') . ' · ' . $v($sesion) . '»'
+            . ($valida ? " del $lunes al $fin" : ' (semana sin dato: revisar)') . '.';
+        $subject = '[Sobtree] Venta ' . $ref;
+        $replyTo = (string)($c['email'] ?? '');
+    }
+    $b .= 'Modo:              ' . ((($c['livemode'] ?? false) === true) ? 'live (real)' : 'test') . "\n";
+    $b .= 'Evento Stripe:     ' . $v($row['event_id'] ?? '') . "\n";
+    $b .= 'Registro local:    ' . $v($row['id'] ?? '') . ' (' . $v($row['fecha'] ?? '') . ")\n\n";
+    $b .= "ALERTAS:\n" . ($alertas ? implode("\n", array_map(fn($x) => '- ' . $x, $alertas)) : '- ninguna') . "\n\n";
+    $b .= $rutina . "\n";
+    return [$subject, $b, $replyTo];
+}
+
+function contrata_enviar_aviso(array $row): bool {
+    [$subject, $body, $replyTo] = contrata_correo_evento($row);
+    return contrata_mail(($row['tipo'] ?? '') === 'charge.refunded' ? 'reembolso' : 'venta', $subject, $body, $replyTo);
 }
 
 function contrata_cargar_cola(): array {
@@ -1482,76 +1583,63 @@ function contrata_cargar_cola(): array {
             $row = json_decode($line, true);
             if (!is_array($row) || !isset($row['id'])) continue;
             $state[$row['id']]['ultimo'] = $row['estado'];
-            if (($row['estado'] ?? '') === 'error') $state[$row['id']]['intentos'] = ($state[$row['id']]['intentos'] ?? 0) + 1;
+            if (in_array($row['estado'] ?? '', ['error', 'correo_error'], true)) $state[$row['id']]['intentos'] = ($state[$row['id']]['intentos'] ?? 0) + 1;
         }
     }
     return [$items, $state];
 }
 
+/**
+ * Reintenta los avisos por correo que no salieron (últimos 30 días). «enviado» es el estado antiguo de las
+ * filas que ya entregó la integración anterior a D-116: también cuenta como hecho y no se repite.
+ */
 function contrata_reintentar_cola(bool $dry = false): array {
-    $stats = ['revisados' => 0, 'enviados' => 0, 'errores' => 0, 'agotados' => 0];
+    $stats = ['revisados' => 0, 'enviados' => 0, 'errores' => 0];
     if (!is_file(contrata_file_cola())) return $stats;
     [$items, $state] = contrata_cargar_cola();
-    $ready = contrata_config()['n8n_url'] !== '' && contrata_config()['hmac_secret'] !== '';
+    $limite = time() - 30 * 86400;
     foreach ($items as $id => $row) {
         $prev = $state[$id]['ultimo'] ?? null;
-        if ($prev === 'enviado') continue;
+        if (in_array($prev, ['correo_ok', 'enviado'], true)) continue;
+        $ts = strtotime((string)($row['fecha'] ?? ''));
+        if ($ts !== false && $ts < $limite) continue;
+        // Recién registrada y sin estado: el webhook puede estar enviando su correo ahora mismo.
+        if ($prev === null && $ts !== false && $ts > time() - 300) continue;
         $stats['revisados']++;
-        $intentos = $state[$id]['intentos'] ?? 0;
-        if ($intentos >= CONTRATA_MAX_INTENTOS) {
-            $stats['agotados']++;
-            continue;
-        }
-        if (!$ready || $dry) continue;
+        if ($dry) continue;
         [$estado] = contrata_entregar($row);
-        if ($estado === 'enviado') $stats['enviados']++;
-        elseif ($estado === 'error') $stats['errores']++;
+        $stats[$estado === 'correo_ok' ? 'enviados' : 'errores']++;
     }
     return $stats;
 }
 
-function contrata_disponibilidad_estancada(): bool {
-    $cfg = contrata_config();
-    $f = $cfg['dir'] . '/disponibilidad.json';
-    if (!is_file($f)) return $cfg['modo'] !== 'apagado';
-    $pub = contrata_leer_json($f, []);
-    return !contrata_publicacion_fresca($pub ?: null);
+function contrata_enviar_alerta(string $asunto, string $texto): bool {
+    return contrata_mail('alerta', '[Sobtree] ' . $asunto, $texto . "\n");
 }
 
-function contrata_enviar_alerta(string $texto): bool {
-    $c = contrata_config();
-    $bloqueado = getenv('CONTRATA_DISABLE_MAIL') === '1' || getenv('LEADS_DISABLE_MAIL') === '1';
-    if ($bloqueado) {
-        if ($log = getenv('CONTRATA_TEST_MAIL_LOG')) @file_put_contents($log, $texto . "\n", FILE_APPEND | LOCK_EX);
-        return true;
-    }
-    $subject = '=?UTF-8?B?' . base64_encode('Contrata: disponibilidad sin actualizar') . '?=';
-    $body = $texto . "\n\nNo se muestran fechas ni se abre el pago mientras los datos tengan más de 3 horas.\n";
-    $h = "From: Sobtree Web <{$c['notify_from']}>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n";
-    return @mail($c['notify_to'], $subject, $body, $h);
-}
-
-function contrata_alertar_estancada(): bool {
-    if (!contrata_disponibilidad_estancada()) return false;
-    $marker = contrata_ensure_dir() . '/alerta-frescura';
+/** Si el archivo de bloqueos falta o no es válido, la web no ofrece fechas: avisa a info@ como mucho una vez al día. */
+function contrata_alertar_bloqueos(): bool {
+    if (contrata_cargar_bloqueos() !== null) return false;
+    $marker = contrata_ensure_dir() . '/alerta-bloqueos';
     if (is_file($marker) && (time() - filemtime($marker)) < 86400) return false;
-    $ok = contrata_enviar_alerta('La disponibilidad de Contrata lleva más de 3 horas sin una publicación válida.');
+    $ok = contrata_enviar_alerta('Contrata: archivo de bloqueos no válido',
+        'El archivo de semanas bloqueadas (public/datos/bloqueos.json) falta o no es válido. Mientras tanto la web no muestra fechas ni abre el pago (el botón lleva al formulario de contacto). Corrige el archivo en el repositorio y vuelve a desplegar.');
     if ($ok) @touch($marker);
     return $ok;
 }
 
 function contrata_mantenimiento(bool $dry = false): array {
-    $stats = ['revisados' => 0, 'enviados' => 0, 'errores' => 0, 'agotados' => 0, 'liberadas' => 0, 'alerta' => 0];
+    $stats = ['revisados' => 0, 'enviados' => 0, 'errores' => 0, 'liberadas' => 0, 'alerta' => 0];
     $cfg = contrata_config();
     $dir = $cfg['dir'];
-    $hay = is_file($dir . '/disponibilidad.json') || is_file($dir . '/cola.jsonl') || is_file($dir . '/retenciones.json');
+    $hay = is_file($dir . '/cola.jsonl') || is_file($dir . '/retenciones.json');
     if ($cfg['modo'] === 'apagado' && !$hay) return $stats;
     if ($dry) return $stats;
     try {
         $stats['liberadas'] = contrata_barrer();
         $re = contrata_reintentar_cola(false);
-        foreach (['revisados', 'enviados', 'errores', 'agotados'] as $k) $stats[$k] = $re[$k];
-        if (contrata_disponibilidad_estancada()) $stats['alerta'] = contrata_alertar_estancada() ? 1 : 0;
+        foreach (['revisados', 'enviados', 'errores'] as $k) $stats[$k] = $re[$k];
+        if ($cfg['modo'] !== 'apagado') $stats['alerta'] = contrata_alertar_bloqueos() ? 1 : 0;
     } catch (Throwable $e) {
         error_log('contrata mantenimiento: ' . $e->getMessage());
     }

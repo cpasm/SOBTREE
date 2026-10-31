@@ -5,9 +5,9 @@
 //   1) valida y descarta spam (honeypot, tiempo mínimo, límite por IP);
 //   2) GUARDA el lead en el registro local (lib/leads.php) ANTES de cualquier envío;
 //   3) responde al visitante;
-//   4) después lo reenvía firmado a n8n (aviso principal a info@ + HubSpot). Solo si n8n falla,
-//      da timeout o no está configurado, la web envía un correo de RESPALDO a info@sobtree.com.
-//      Lo pendiente lo reintenta lib/reintentar-leads.php (cron) sin duplicar respaldos.
+//   4) después envía el aviso a info@sobtree.com («[Sobtree] Nuevo contacto <id>») y, si corresponde,
+//      la respuesta automática E-02 (solo formulario de contacto y en horario laboral; si no, en cola).
+//      Lo pendiente lo reintenta lib/reintentar-leads.php (cron) sin duplicar correos.
 declare(strict_types=1);
 ini_set('display_errors', '0');
 header('Content-Type: application/json; charset=utf-8');
@@ -20,7 +20,7 @@ function reply(int $code, array $body, bool $finish = false): void {
     http_response_code($code);
     echo json_encode($body, JSON_UNESCAPED_UNICODE);
     if (!$finish) exit;
-    // Cerramos la respuesta al visitante y seguimos trabajando (correo + n8n) sin hacerle esperar.
+    // Cerramos la respuesta al visitante y seguimos trabajando (correos) sin hacerle esperar.
     if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
     elseif (function_exists('litespeed_finish_request')) litespeed_finish_request();
     else { @ob_end_flush(); @flush(); }
@@ -104,7 +104,7 @@ if (is_file($lock) && (time() - filemtime($lock)) < 30) {
 $lead = [
     'v' => LEADS_SCHEMA_VERSION,
     'id' => leads_uuid(),
-    'fecha' => gmdate('c'),
+    'fecha' => gmdate('c', leads_ahora()),
     'tipo_formulario' => $tipo,
     'nombre' => $data['nombre'],
     'cargo' => $data['cargo'],
@@ -117,7 +117,7 @@ $lead = [
     'consentimiento' => [
         'acepta' => true,
         'texto' => 'Acepto la política de privacidad y que Sobtree use estos datos para responder a mi solicitud.',
-        'fecha' => gmdate('c'),
+        'fecha' => gmdate('c', leads_ahora()),
     ],
     'consentimiento_comercial' => leads_consentimiento_comercial($comercial),
     'origen' => [
@@ -144,7 +144,7 @@ if (!$saved) {
     if (!leads_send_mail($lead, 'sin_registro_local')) {
         reply(500, ['ok' => false, 'error' => 'No se ha podido enviar. Escríbenos directamente a info@sobtree.com.']);
     }
-    leads_send_webhook($lead, true);
+    // Sin registro no hay respuesta automática: no se podría garantizar que sale una sola vez.
     reply(200, ['ok' => true]);
 }
 
@@ -152,7 +152,6 @@ if (!$saved) {
 reply(200, ['ok' => true], true);
 
 // ---------- 3) Entrega, después de responder ----------
-// n8n envía el aviso principal a info@ y da de alta en HubSpot. El correo de la web solo sale
-// como respaldo si n8n falla, da timeout, no está configurado o no pudo enviar su aviso.
+// Aviso a info@ (siempre) y respuesta E-02 (si corresponde). Lo que falle lo reintenta el cron.
 ignore_user_abort(true);
 leads_deliver($lead);
