@@ -16,7 +16,7 @@ concurrency:
 jobs:
   publicar:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -86,7 +86,7 @@ jobs:
             done
             if [ "$c" = "403" ]; then
               { echo "--- cabeceras de respuesta de $u (Set-Cookie ocultas) ---"
-                sed -E 's/^([Ss]et-[Cc]ookie:).*/\1 [oculto]/' "$CHK/cab" 2>/dev/null || true
+                sed -E 's/^(set-cookie:).*/\1 [oculto]/I' "$CHK/cab" 2>/dev/null || true
                 echo "--- primeros 300 bytes del cuerpo ---"
                 head -c 300 "$CHK/cuerpo" 2>/dev/null || true
                 echo; echo "---"; } >&2
