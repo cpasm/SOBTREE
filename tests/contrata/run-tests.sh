@@ -146,6 +146,7 @@ for f in public/lib/contrata.php public/lib/reintentar-contrata.php public/api/c
 done
 check "unit.php" 'php_s tests/contrata/unit.php >/dev/null'
 check "lógica JS = PHP" 'node tests/contrata/test-logica.mjs >/dev/null'
+check "NIF JS = PHP" 'node tests/contrata/test-nif.mjs >/dev/null'
 check "botón en cerrado" 'node --input-type=module -e "import { estadoBoton } from \"./src/data/contrata-logica.mjs\"; const e = estadoBoton({ok:false}); if (e.href !== \"/#contacto\" || e.nota !== null || !e.texto.startsWith(\"Reserva\")) process.exit(1);"'
 
 if ! sembrar >/dev/null; then echo "No se ha podido sembrar la disponibilidad" >&2; exit 1; fi

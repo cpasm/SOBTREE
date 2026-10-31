@@ -67,8 +67,9 @@ const varios = SERVICIOS.length > 1;
         <label>Email de la empresa<input name="email" id="contrata-email" type="email" autocomplete="email" maxlength="254" required></label>
       </div>
       <label>NIF o CIF
-        <input name="nif" id="contrata-nif" autocomplete="off" maxlength="20" required inputmode="text" spellcheck="false" aria-describedby="ayuda-nif">
+        <input name="nif" id="contrata-nif" autocomplete="off" maxlength="20" required inputmode="text" spellcheck="false" aria-describedby="ayuda-nif error-nif">
       </label>
+      <p id="error-nif" class="contrata-error-campo" role="alert" hidden></p>
       <p id="ayuda-nif" class="fine" style="text-align:left">Solo empresas y autónomos con NIF o CIF español. Comprobamos el formato y lo usamos para tu factura, que recibirás por email tras el pago. Stripe te pedirá la dirección de facturación.</p>
       <aside class="contrata-impacto" aria-label="Qué obtienes con el diagnóstico">
         <div class="contrata-impacto-icono" aria-hidden="true">↗</div>
@@ -84,11 +85,17 @@ const varios = SERVICIOS.length > 1;
         <button class="btn btn-ghost" type="button" id="contrata-volver">Volver a elegir semana</button>
         <button class="btn btn-primary" type="submit" id="contrata-pagar">Pagar {euros(precio.totalCentimos)}</button>
       </div>
+      <p id="contrata-pago-estado" class="contrata-error-pago" role="alert" tabindex="-1" hidden></p>
       <p class="fine" style="text-align:left"><a href="/#contacto">Prefiero que me confirméis la fecha</a></p>
       </section>
     </form>
   </div>
 </main>
+<script>
+  import { validarIdentificacion } from "../../data/contrata-logica.mjs";
+  // Misma validación que el servidor. Si este módulo no cargara, el servidor sigue validando.
+  (window as any).sobtreeValidarId = validarIdentificacion;
+</script>
 <script is:inline define:vars={{ endpointDisp: CONTRATA.endpoints.disponibilidad, endpointPago: CONTRATA.endpoints.crearSesion, reserva: TEXTO_RESERVA, baseEsperada: DIAGNOSTICO.precio, totalEsperado: precio.totalCentimos, serviciosEsperados: serviciosConImportes.map((sv) => ({ id: sv.id, total: sv.importes.totalCentimos, base: sv.importes.baseCentimos })) }}>
 (function () {
   var estado = document.getElementById("contrata-estado");
@@ -197,14 +204,50 @@ const varios = SERVICIOS.length > 1;
     if (continuar) continuar.focus();
   });
 
+  // Aviso del NIF junto al campo. Devuelve true si se puede enviar.
+  var nifInput = document.getElementById("contrata-nif");
+  var nifError = document.getElementById("error-nif");
+  function revisarNif(enfocar) {
+    if (!nifInput || !nifError) return true;
+    var v = window.sobtreeValidarId ? window.sobtreeValidarId(nifInput.value) : { ok: true };
+    if (v.ok || (!enfocar && nifInput.value.trim() === "")) {
+      nifError.hidden = true;
+      nifError.textContent = "";
+      nifInput.removeAttribute("aria-invalid");
+      return true;
+    }
+    nifError.textContent = v.mensaje;
+    nifError.hidden = false;
+    nifInput.setAttribute("aria-invalid", "true");
+    if (enfocar) nifInput.focus();
+    return false;
+  }
+  if (nifInput) {
+    nifInput.addEventListener("blur", function () { revisarNif(false); });
+    nifInput.addEventListener("input", function () {
+      if (nifInput.getAttribute("aria-invalid") === "true") revisarNif(false);
+    });
+  }
+  // Errores del envío junto al botón Pagar, visibles y anunciados.
+  var pagoEstado = document.getElementById("contrata-pago-estado");
+  function errorPago(txt) {
+    if (!pagoEstado) return;
+    pagoEstado.textContent = txt;
+    pagoEstado.hidden = !txt;
+    if (txt) {
+      pagoEstado.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }
+
   if (form) form.addEventListener("submit", function (ev) {
     ev.preventDefault();
+    errorPago("");
     var marcada = form.querySelector("input[name=semana]:checked");
-    var status = document.getElementById("contrata-estado");
     if (!datos || !datos.csrf || !marcada) {
-      if (status) status.textContent = "Elige una semana con plazas.";
+      errorPago("Elige una semana con plazas.");
       return;
     }
+    if (!revisarNif(true)) return;
     var elegido = form.querySelector("input[name=servicio]:checked");
     var fijo = document.getElementById("contrata-servicio");
     var producto = elegido ? elegido.value : (fijo ? fijo.getAttribute("data-servicio") : "");
@@ -228,11 +271,11 @@ const varios = SERVICIOS.length > 1;
       .then(function (r) { return r.json().then(function (j) { return { okhttp: r.ok, j: j }; }); })
       .then(function (res) {
         if (res.j && res.j.ok && res.j.url) { location.href = res.j.url; return; }
-        if (status) status.textContent = (res.j && res.j.error) || "No hemos podido abrir el pago; inténtalo en un minuto o escríbenos.";
+        errorPago((res.j && res.j.error) || "No hemos podido abrir el pago; inténtalo en un minuto o escríbenos.");
         if (boton) boton.disabled = false;
       })
       .catch(function () {
-        if (status) status.textContent = "No hemos podido abrir el pago; inténtalo en un minuto o escríbenos.";
+        errorPago("No hemos podido abrir el pago; inténtalo en un minuto o escríbenos.");
         if (boton) boton.disabled = false;
       });
   });
@@ -253,6 +296,9 @@ const varios = SERVICIOS.length > 1;
   .contrata-resumen .contrata-total { font-size: clamp(1.8rem, 4vw, 2.25rem); line-height: 1.1; font-weight: 750; letter-spacing: -0.03em; }
   .contrata-resumen-detalle { min-width: 0; }
   .contrata-status:empty { display: none; }
+  .contrata-error-campo, .contrata-error-pago { margin: 0.35rem 0 0.75rem; padding: 0.6rem 0.8rem; border-radius: 10px; border: 1px solid #b42318; background: #fef3f2; color: #7a271a; font-weight: 600; text-align: left; }
+  .contrata-error-campo[hidden], .contrata-error-pago[hidden] { display: none; }
+  #contrata-nif[aria-invalid="true"] { border-color: #b42318; outline-color: #b42318; }
   .contrata-status:not(:empty) { margin: 0.75rem 0; padding: 0.75rem 0.9rem; border-radius: 10px; background: var(--surface-alt, #f3f5f9); }
   #contrata-form { margin-top: 0.75rem; }
   #contrata-paso-semana[hidden], #contrata-paso-contacto[hidden] { display: none !important; }
