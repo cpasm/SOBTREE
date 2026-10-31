@@ -1,0 +1,64 @@
+---
+import Base from "../../layouts/Base.astro";
+import { PLAZO_DIAGNOSTICO, TEXTOS } from "../../data/site";
+import { graph, organization, website } from "../../data/schema";
+
+const TAREAS = [
+  { t: "Conciliaciones", d: "Cruzar extractos, facturas y apuntes a mano, línea a línea, cada mes." },
+  { t: "Recogida de documentación", d: "Perseguir a cada cliente por email o WhatsApp para que mande facturas, nóminas o justificantes." },
+  { t: "Respuestas repetidas", d: "Contestar una y otra vez las mismas dudas: plazos, documentos necesarios, estado de un trámite." },
+  { t: "Preparación de modelos", d: "Reunir y volcar datos de varias fuentes antes de poder empezar a revisar de verdad." },
+  { t: "Archivo y clasificación", d: "Renombrar, ordenar y archivar documentos que llegan en formatos y por canales distintos." },
+  { t: "Avisos y vencimientos", d: "Recordar a los clientes lo que les toca entregar y cuándo, uno por uno." }
+];
+const ENTREGABLES = [
+  "Entrevista con quien hace el trabajo de verdad.",
+  "3 casos de uso priorizados por ahorro y facilidad.",
+  "Ahorro estimado y coste de cada uno, en euros.",
+  "Herramienta recomendada y coste mensual de licencias.",
+  "Plan para tener el primer caso de uso funcionando en 2–3 semanas.",
+  "Entregable: informe con el plan, el ahorro y el coste."
+];
+---
+<Base title="IA para asesorías y gestorías de 10 a 49 personas | Sobtree" description="Diagnóstico IA exprés para asesorías y gestorías: qué tareas repetitivas automatizar, con ahorro estimado en euros, precio cerrado y plazo máximo de entrega." jsonld={graph(organization(), website())}>
+<main id="main" class="section page-tight">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">Para asesorías y gestorías de 10 a 49 personas</p>
+      <h1 class="page-title">El tiempo de tu equipo, en revisar y asesorar, <span class="dot-accent">no en copiar y perseguir</span></h1>
+      <p class="section-sub">En una asesoría o gestoría hay tareas que se repiten cada mes con cada cliente. Un Diagnóstico IA exprés te dice cuáles tiene sentido automatizar, cuánto estimamos que se ahorra y cuánto cuesta, antes de gastar nada más.</p>
+      <p style="margin-top:24px"><a class="btn btn-primary" href="/#contacto">Solicitar conversación</a></p>
+    </div>
+
+    <h2 class="page-title" style="font-size:clamp(24px,3vw,32px);margin-top:56px">Lo que probablemente reconoces</h2>
+    <div class="grid-3">
+      {TAREAS.map((x) => (
+        <div class="card">
+          <h3>{x.t}</h3>
+          <p>{x.d}</p>
+        </div>
+      ))}
+    </div>
+
+    <h2 class="page-title" style="font-size:clamp(24px,3vw,32px);margin-top:56px">Qué incluye el Diagnóstico IA exprés</h2>
+    <p class="section-sub">Es un servicio cerrado: sabes qué recibes y qué cuesta desde el principio. El plazo de entrega del informe es de {PLAZO_DIAGNOSTICO} desde la fecha de inicio.</p>
+    <div class="card" style="margin-top:24px">
+      <ul>
+        {ENTREGABLES.map((e) => <li style="margin-top:10px;color:var(--text-2)">{e}</li>)}
+      </ul>
+    </div>
+    <p class="section-sub" style="margin-top:20px">Si no vemos un ahorro claro, te lo decimos en el informe y no te recomendamos gastos adicionales.</p>
+
+    <h2 class="page-title" style="font-size:clamp(24px,3vw,32px);margin-top:56px">Precio y plazo</h2>
+    <div class="card" style="margin-top:24px">
+      <p><strong>{TEXTOS.lineaCorta}</strong></p>
+      <p style="margin-top:12px">Precio cerrado, sin extras. Plazo de entrega del informe: {PLAZO_DIAGNOSTICO}.</p>
+      <p style="margin-top:12px">Las cifras de ahorro son estimaciones, no una garantía.</p>
+    </div>
+
+    <h2 class="page-title" style="font-size:clamp(24px,3vw,32px);margin-top:56px">Empieza por una conversación</h2>
+    <p class="section-sub">Cuéntanos cómo trabaja tu despacho. Te diremos con sinceridad si un diagnóstico tiene sentido en tu caso.</p>
+    <p style="margin-top:24px"><a class="btn btn-primary" href="/#contacto">Solicitar conversación</a></p>
+  </div>
+</main>
+</Base>

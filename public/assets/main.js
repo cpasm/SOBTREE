@@ -174,7 +174,7 @@
       $$('input[type=hidden]', contact).forEach((el) => { el.value = ""; });
       contact.elements.tipo_formulario.value = "contacto";
       stamp();
-      setStatus("Solicitud enviada. Te responderemos en menos de 24 horas laborables.", "ok");
+      setStatus("Solicitud enviada. Te responderemos en menos de 24 horas laborables. ¿Qué duda te queda antes de hablar con nosotros? Cuéntanosla en una línea respondiendo a info@sobtree.com", "ok");
     } catch (err) {
       if (err.message === "local" || err.message === "server" || err instanceof TypeError) mailtoFallback(data);
       else setStatus(err.message, "err");
