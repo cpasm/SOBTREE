@@ -20,6 +20,28 @@ if ($accion === 'enviar') {
     echo json_encode(['resultado' => $r, 'diferidos' => $n]) . "\n";
 } elseif ($accion === 'cron') {
     echo json_encode(contrata_reintentar_cola(false)) . "\n";
+} elseif ($accion === 'envejecer') {
+    // Test: retrasa la fecha de todas las filas de la cola N horas (simula tiempo transcurrido).
+    $h = (int)($argv[2] ?? 48);
+    $f = contrata_file_cola();
+    $out = [];
+    foreach (file($f, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $l) {
+        $r = json_decode($l, true);
+        $r['fecha'] = gmdate('c', time() - $h * 3600);
+        $out[] = json_encode($r, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+    file_put_contents($f, implode("\n", $out) . "\n");
+} elseif ($accion === 'barrer') {
+    echo json_encode(['purgadas' => contrata_purgar_nif_antiguos(true)]) . "\n";
+} elseif ($accion === 'enviar-historica') {
+    // Test B-1: n filas ya entregadas a n8n (sin Apps Script) y antiguas, tal como estarían antes de poner las claves.
+    $n = (int)($argv[2] ?? 3);
+    for ($i = 1; $i <= $n; $i++) {
+        $row = ['id' => contrata_uuid(), 'fecha' => gmdate('c', time() - 5 * 86400), 'tipo' => 'checkout.session.completed', 'event_id' => "evt_hist_$i",
+                'cuerpo' => ['sesion' => "cs_test_hist_$i", 'empresa' => 'Empresa Ficticia SL', 'email' => 'ana@ejemplo.test', 'nif' => '', 'livemode' => false]];
+        contrata_append(contrata_file_cola(), $row);
+        contrata_marcar_cola($row['id'], 'enviado', 'http_200');
+    }
 } elseif ($accion === 'estado') {
     [$items, $state] = contrata_cargar_cola();
     $nif = 0;

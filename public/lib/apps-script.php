@@ -55,24 +55,27 @@ function apps_script_timeout(): int {
     return APPS_SCRIPT_TIMEOUT;
 }
 
-/** La Location de una redirección solo puede ir a dominios de Google (anti-SSRF). Devuelve la URL absoluta o ''. */
+/**
+ * La Location de una redirección solo puede ir a dominios de Google (anti-SSRF): https, puerto 443 (o ausente),
+ * sin credenciales ni caracteres de control/espacios/barras invertidas, y host que cumpla el patrón estricto
+ * ^[a-z0-9-]+(\.[a-z0-9-]+)*\.(google\.com|googleusercontent\.com)$. Devuelve la URL absoluta o ''.
+ */
 function apps_script_destino_redireccion(string $location, string $actual): string {
     $location = trim($location);
-    if ($location === '') return '';
+    if ($location === '' || preg_match('/[\x00-\x20\x7f\\\\]/', $location)) return '';
     if (str_starts_with($location, '/') && !str_starts_with($location, '//')) {
         $p = parse_url($actual);
         if (!is_array($p) || !isset($p['scheme'], $p['host'])) return '';
         $location = $p['scheme'] . '://' . $p['host'] . (isset($p['port']) ? ':' . $p['port'] : '') . $location;
     }
     $p = parse_url($location);
-    if (!is_array($p) || !isset($p['scheme'], $p['host'])) return '';
+    if (!is_array($p) || !isset($p['scheme'], $p['host']) || isset($p['user']) || isset($p['pass'])) return '';
     $host = strtolower($p['host']);
     if (getenv('APPS_SCRIPT_ALLOW_HTTP') === '1' && in_array($host, ['127.0.0.1', 'localhost'], true) && in_array($p['scheme'], ['http', 'https'], true)) return $location;
     if ($p['scheme'] !== 'https') return '';
-    foreach (['google.com', 'googleusercontent.com'] as $d) {
-        if ($host === $d || str_ends_with($host, '.' . $d)) return $location;
-    }
-    return '';
+    if (isset($p['port']) && (int)$p['port'] !== 443) return '';
+    if (!preg_match('/^[a-z0-9-]+(\.[a-z0-9-]+)*\.(google\.com|googleusercontent\.com)$/', $host)) return '';
+    return $location;
 }
 
 /** Código de error de cURL sin texto (el texto de cURL puede contener la URL del despliegue). */

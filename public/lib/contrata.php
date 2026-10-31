@@ -22,6 +22,7 @@ const CONTRATA_FRESCURA_SEG = 3 * 3600;
 const CONTRATA_FIRMA_VENTANA = 300;
 const CONTRATA_CSRF_VENTANA = 7200;
 const CONTRATA_MAX_INTENTOS = 8;
+const CONTRATA_APPS_MAX_EDAD_SEG = 86400;      // Apps Script solo recibe/reintenta filas de menos de 24 h; pasado ese tiempo el NIF no se retiene por su culpa
 const CONTRATA_WEBHOOK_TIMEOUT = 10;
 const CONTRATA_MSG_PAGO = 'No hemos podido abrir el pago; inténtalo en un minuto o escríbenos.';
 const CONTRATA_MSG_RESERVA = 'Reserva tu diagnóstico; te confirmamos la fecha en 1 día laborable';
@@ -1194,6 +1195,7 @@ function contrata_recibir_webhook(string $raw, string $header): array {
         contrata_auditar('webhook_rechazado', ['motivo' => 'firma']);
         return ['http' => 400, 'body' => ['ok' => false, 'error' => 'Firma no válida.']];
     }
+    contrata_purgar_nif_antiguos(); // tope temporal del NIF en la cola (solo actúa si Apps Script lo retiene)
     if ((bool)($event['livemode'] ?? false) !== contrata_livemode_esperado()) {
         // Un evento de otro modo (test en live o live en test) se acusa sin tocar nada.
         contrata_auditar('webhook_modo_distinto', ['tipo' => (string)($event['type'] ?? '')]);
@@ -1435,6 +1437,7 @@ function contrata_apps_ejecutar_diferidos(): int {
 }
 
 function contrata_encolar_y_enviar(array $evento): array {
+    contrata_purgar_nif_antiguos();
     $row = [
         'id' => contrata_uuid(),
         'fecha' => gmdate('c'),
@@ -1528,6 +1531,36 @@ function contrata_purgar_nif_si_listo(string $id): void {
     if ($appsOk && $n8nOk) contrata_purgar_nif_cola($id);
 }
 
+/**
+ * Tope temporal duro: una fila de más de 24 h que ya no necesita el NIF para n8n lo pierde, aunque Apps Script
+ * siga fallando o el cron no corra. (Si n8n aún no entregó, el NIF sigue retenido para n8n, como siempre.)
+ * Se llama desde el cron (siempre), al encolar una venta y al recibir un webhook de Stripe (como mucho cada 10 min).
+ */
+function contrata_purgar_nif_antiguos(bool $forzar = false): int {
+    $n = 0;
+    try {
+        if (!is_file(contrata_file_cola())) return 0;
+        $marca = contrata_ensure_dir() . '/nif-barrido';
+        if (!$forzar && is_file($marca) && (time() - (int)filemtime($marca)) < 600) return 0; // como mucho cada 10 min
+        @touch($marca);
+        [$items, $state] = contrata_cargar_cola();
+        $principal = contrata_apps_principal();
+        foreach ($items as $id => $row) {
+            if (($row['cuerpo']['nif'] ?? '') === '') continue;
+            $edad = time() - (int)strtotime((string)($row['fecha'] ?? ''));
+            if ($edad < CONTRATA_APPS_MAX_EDAD_SEG) continue;
+            $st = $state[$id] ?? [];
+            $n8nOk = ($st['ultimo'] ?? null) === 'enviado' || ($principal && ($st['apps_ultimo'] ?? null) === 'enviado');
+            if (!$n8nOk) continue;
+            contrata_purgar_nif_cola($id);
+            $n++;
+        }
+    } catch (Throwable $e) {
+        error_log('contrata: purga de NIF antiguos falló');
+    }
+    return $n;
+}
+
 /** Entregado el aviso, el NIF deja de guardarse en la cola. */
 function contrata_purgar_nif_cola(string $id): void {
     contrata_con_bloqueo(function () use ($id) {
@@ -1598,7 +1631,9 @@ function contrata_cargar_cola(): array {
             $row = json_decode($line, true);
             if (!is_array($row) || !isset($row['id'])) continue;
             // Filas sin «canal» = n8n (formato histórico). Apps Script lleva su propio estado y contador.
-            $pre = ($row['canal'] ?? 'n8n') === 'apps_script' ? 'apps_' : '';
+            $canal = $row['canal'] ?? 'n8n';
+            if (!in_array($canal, ['n8n', 'apps_script'], true)) continue; // canal desconocido: se ignora
+            $pre = $canal === 'apps_script' ? 'apps_' : '';
             $state[$row['id']][$pre . 'ultimo'] = $row['estado'];
             if (($row['estado'] ?? '') === 'error') $state[$row['id']][$pre . 'intentos'] = ($state[$row['id']][$pre . 'intentos'] ?? 0) + 1;
         }
@@ -1609,6 +1644,7 @@ function contrata_cargar_cola(): array {
 function contrata_reintentar_cola(bool $dry = false): array {
     $stats = ['revisados' => 0, 'enviados' => 0, 'errores' => 0, 'agotados' => 0];
     if (!is_file(contrata_file_cola())) return $stats;
+    if (!$dry) contrata_purgar_nif_antiguos(true);
     [$items, $state] = contrata_cargar_cola();
     $ready = contrata_config()['n8n_url'] !== '' && contrata_config()['hmac_secret'] !== '';
     $appsActivo = contrata_apps_activo();
@@ -1618,7 +1654,9 @@ function contrata_reintentar_cola(bool $dry = false): array {
         $prev = $state[$id]['ultimo'] ?? null;
         $appsPrev = $state[$id]['apps_ultimo'] ?? null;
         $appsAgotado = ($state[$id]['apps_intentos'] ?? 0) >= APPS_SCRIPT_MAX_INTENTOS;
-        $appsPendiente = $appsActivo && $appsPrev !== 'enviado' && !$appsAgotado;
+        // Solo filas recientes (<24 h): al poner las claves no se reenvía la cola histórica a Apps Script.
+        $edad = time() - (int)strtotime((string)($row['fecha'] ?? ''));
+        $appsPendiente = $appsActivo && $appsPrev !== 'enviado' && !$appsAgotado && $edad >= 0 && $edad < CONTRATA_APPS_MAX_EDAD_SEG;
         if ($appsActivo && $appsAgotado && $appsPrev !== 'enviado') $stats['apps_agotados']++;
         // En principal, n8n solo hace falta si Apps Script no ha entregado.
         $n8nNecesario = !($principal && $appsPrev === 'enviado');

@@ -83,6 +83,9 @@ check "timeout por defecto 30 s (≥30)" '[ "$(env -u APPS_SCRIPT_TEST_TIMEOUT p
 U=$(php -r 'require "'"$ROOT"'/public/lib/apps-script.php"; echo json_encode([apps_script_interpretar(200,"{\"status\":200}")[0],apps_script_interpretar(200,"{\"status\":502,\"motivo\":\"hoja\"}")[1],apps_script_interpretar(200,"{\"ok\":true}")[1],apps_script_interpretar(200,"no json")[1],apps_script_interpretar(500,"{\"status\":200}")[1],apps_script_interpretar(200,"{\"status\":\"200\"}")[0],apps_script_interpretar(200,"{\"status\":199}")[0],apps_script_interpretar(200,"{\"status\":503,\"motivo\":\"Empresa X ana@e.test\"}")[1]]);')
 check "solo status 2xx entrega; sin status/JSON roto/HTTP≠2xx = fallo; motivo fuera de vocabulario no se copia" '[ "$U" = "[\"enviado\",\"status_502 hoja\",\"sin_status\",\"json_invalido\",\"http_500\",\"enviado\",\"error\",\"status_503\"]" ]'
 
+U=$(APPS_SCRIPT_ALLOW_HTTP=0 php -r 'require "'"$ROOT"'/public/lib/apps-script.php"; $a="https://script.google.com/a"; foreach (["https://x.google.com:9999/","https://x.google.com:443/ok","https://x.google.com/ok","https://google.com/x","https://evil.google.com.evil.com/","https://user@x.google.com/","https://x.google.com\\@evil.com/","https://x.google.com;evil/","https://x.goo%67le.com/","https://x_y.google.com/","https://x.google.com/a b","https://X.GoogleUserContent.com/macros/echo?u=1","//evil.com/x","https://127.0.0.1/x","https://[::1]/x","https://x.google.com./x"] as $l) echo apps_script_destino_redireccion($l,$a)===""?"0":"1";')
+check "anti-SSRF estricto: puerto 9999, usuario, \\, ;, %, _, espacios, IP, host raíz y sufijos falsos = rechazados; :443 y mayúsculas válidas" '[ "$U" = "0110000000010000" ]'
+
 echo "3. LEADS · sombra (por defecto): n8n sigue siendo el principal"
 reset; cfg "" on; amode ok
 CODE=$(post_lead); ID=$(last_id); espera_apps
@@ -185,6 +188,32 @@ reset; cfg sombra on; amode redir-externa; run_c enviar evt_test_1 >/dev/null
 check "redirección a un dominio que no es de Google: no se sigue" 'grep "\"canal\":\"apps_script\"" "$COLAE" | grep -q redireccion_no_permitida && [ "$(gets)" = 0 ]'
 reset; cfg sombra on; amode ok-directo; run_c enviar evt_test_1 >/dev/null
 check "respuesta 200 directa (sin 302) con status 2xx también vale" 'st_c | grep -q "\"apps_ultimo\":\"enviado\"" && [ "$(gets)" = 0 ]'
+
+echo "   B-1: la cola histórica no se reenvía al poner las claves"
+reset; cfg "" off; run_c enviar-historica 3 >/dev/null
+cfg "" on; : > "$AM/received.jsonl"; OUT=$(run_c cron)
+check "3 ventas antiguas ya entregadas a n8n + activación de las claves: 0 POST a Apps Script" '[ "$(posts)" = 0 ] && echo "$OUT" | grep -q "\"apps_enviados\":0"'
+reset; cfg "" off; run_c enviar evt_pre >/dev/null; cfg "" on; : > "$AM/received.jsonl"; run_c cron >/dev/null
+check "una venta reciente (<24 h) entregada a n8n antes de activar sí se envía una vez a Apps Script" '[ "$(posts)" = 1 ]'
+run_c cron >/dev/null
+check "y no se repite" '[ "$(posts)" = 1 ]'
+reset; cfg "" on; amode 503; run_c enviar evt_old >/dev/null; run_c envejecer 30 >/dev/null; : > "$AM/received.jsonl"
+for _ in 1 2 3; do run_c cron >/dev/null; done
+check "un error de Apps Script en una fila de más de 24 h ya no se reintenta (0 POST)" '[ "$(posts)" = 0 ]'
+echo "   B-2: tope temporal duro del NIF (24 h)"
+reset; cfg "" on; amode 503; run_c enviar evt_nif >/dev/null
+check "Apps Script caído y n8n entregado: el NIF se retiene mientras la fila es reciente" '[ "$(nif_c)" = 1 ]'
+run_c envejecer 30 >/dev/null
+check "pasadas 24 h sin que corra el cron, el barrido lo purga (acción independiente del estado de Apps Script)" 'run_c barrer | grep -q "\"purgadas\":1" && [ "$(nif_c)" = 0 ]'
+reset; cfg "" on; amode 503; run_c enviar evt_nif >/dev/null; run_c envejecer 30 >/dev/null; run_c enviar evt_siguiente >/dev/null
+check "una venta nueva (sin cron) también dispara el barrido de la fila antigua; la nueva conserva su NIF" '[ "$(nif_c)" = 1 ]'
+reset; cfg "" on; amode ok; echo 500 > "$NC/mode"; run_c enviar evt_n8n_caido >/dev/null; run_c envejecer 30 >/dev/null; run_c barrer >/dev/null
+check "si n8n aún no ha entregado, el NIF se conserva para n8n (comportamiento anterior intacto)" '[ "$(nif_c)" = 1 ]'
+echo "   B-3: filas de canal desconocido se ignoran"
+reset; cfg "" off; run_c enviar evt_x >/dev/null
+ID=$(php -r 'foreach (file(getenv("SOBTREE_BASE_DIR")."/sobtree-contrata/cola.jsonl") as $l){$r=json_decode($l,true);echo $r["id"];}')
+echo "{\"id\":\"$ID\",\"estado\":\"enviado\",\"canal\":\"futuro\",\"fecha\":\"2026-10-31T00:00:00+00:00\"}" >> "$COLAE"
+check "una fila de un canal desconocido no cuenta como entrega de n8n ni de Apps Script" 'run_c estado | grep -q "\"ultimo\":\"enviado\"" && ! run_c estado | grep -q "apps_"'
 
 echo "8. CONTRATA · principal"
 reset; cfg principal on; amode ok; run_c enviar evt_test_1 >/dev/null
