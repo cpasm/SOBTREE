@@ -19,13 +19,26 @@ La web solo muestra el botón, `/contratar/` y `/condiciones/` si el build se ha
 
 ## Servicios (selector)
 
-`CONTRATA_SERVICIOS` en `public/lib/contrata.php` es la lista cerrada que acepta el servidor. Cada servicio tiene `id`, `nombre`, `base_eur` (sin IVA), `dias_bloqueo` (1 a 5 días de calendario desde el lunes de inicio) y la clave de secretos de su Price (`env_price`, p. ej. `STRIPE_PRICE_DIAGNOSTICO`). `SERVICIOS` en `src/data/contrata.ts` repite los textos para el front; una prueba comprueba que coinciden. Hoy solo hay `diagnostico`.
+`CONTRATA_SERVICIOS` en `public/lib/contrata.php` es la lista cerrada que acepta el servidor. Cada servicio tiene `id`, `nombre`, `base_eur` (sin IVA), `dias_bloqueo` (1 a 5 días de calendario desde el lunes de inicio) y la clave de secretos de su Price (`env_price`, p. ej. `STRIPE_PRICE_DIAGNOSTICO`). `SERVICIOS` en `src/data/contrata.ts` repite los textos para el front; una prueba comprueba que coinciden. Hay `diagnostico` (con semana y Price) y `kit_asesorias` (precio inline, ver abajo).
 
 - El PHP rechaza (422) cualquier `producto` que no sea exactamente un id de la lista.
 - El Price de Stripe se valida contra el importe de ese servicio (base + 21 %), EUR y el modo.
 - El id viaja en la retención, en los metadatos de Stripe, en el registro local y en el correo de la venta. Si Stripe devolviera un pago con un servicio desconocido, el registro lleva `alerta_facturacion = servicio_desconocido` y el correo lo marca en «ALERTAS».
 - Con un solo servicio la página lo muestra como texto fijo (preseleccionado). Con más, aparece un selector y el desglose y el botón siguen al servicio elegido.
 - Un servicio nuevo: añadir su entrada en los dos sitios, crear su Price y poner `STRIPE_PRICE_<ID>`. Hoy el script de preparación de Stripe solo prepara el diagnóstico.
+
+## Kit IA para asesorías y gestorías (producto digital, D-119)
+
+`kit_asesorias`: 39 € + IVA 21 % = 47,19 € (4.719 céntimos). Mismo flujo de cobro que el diagnóstico (NIF español, Customer con `es_cif`, dirección obligatoria, factura automática, tax rate inclusivo `STRIPE_TAX_RATE_IVA21`, webhook, registro local y correo a info@), con estas diferencias:
+
+- **Precio inline** (`tipo => precio_inline` en `CONTRATA_SERVICIOS`): no hay Price en Stripe ni `STRIPE_PRICE_*`; la sesión lleva `line_items[0][price_data]` con el total con IVA. Como no hay Price que leer antes, el PHP comprueba `amount_total` y `currency` de la sesión creada; si no son 4719 EUR, la expira y no devuelve la URL de pago (502). Los servicios inline no se exigen en `contrata_stripe_utilizable()`: el diagnóstico sigue igual.
+- **Sin semana ni disponibilidad**: la retención se guarda con `semana = ''` (no ocupa plaza; solo guarda el NIF hasta el pago y el token de descarga). `GET disponibilidad.php?producto=kit_asesorias` da importes y token CSRF sin semanas; la disponibilidad normal solo publica el diagnóstico.
+- **Páginas**: `/kit-asesorias/` (venta), `/kit-asesorias/condiciones/` (condiciones propias, versión `2026-10-31`, que viaja en `metadata.condiciones_version`) y `/kit-asesorias/gracias/` (noindex). Solo existen con `PUBLIC_CONTRATA_ACTIVO=1`. La casilla de Stripe de la sesión del kit enlaza las condiciones del kit.
+- **Correo a info@**: «[Sobtree] Venta kit_asesorias <sesión>», sin semana y con «Para la rutina: … NO crear evento en el calendario». Lleva el enlace de descarga con token para reenviarlo si el cliente lo pide.
+- **Entrega**: `api/contrata/descargar.php?sesion=cs_…` (vuelta de Stripe) o `?k=<token>` (pie de la factura de Stripe). Solo entrega el ZIP si `cola.jsonl` tiene la venta pagada del kit (no consulta Stripe). Sin venta pero con retención viva: 403 `pendiente` con `reintentar` (la página de gracias reintenta 10 veces cada 3 s). Sesión inventada: 404. Otro producto: 403. Reembolso total: 403. Importe inesperado: 403 `revisar`. Máximo 10 descargas por compra (`descargas.json`, con bloqueo): la 11.ª es 403 `limite`.
+- **Archivo**: `public/lib/kits/kit-asesorias.zip` (en la web, `lib/` y `lib/kits/` con `Require all denied`). Opcional: `CONTRATA_KITS_DIR` o `<base>/sobtree-kits/` fuera de `public_html`, que tienen prioridad.
+- **Contenido**: textos en `kits/kit-asesorias/fuente/` (PULSE). `python3 scripts/generar-kit.py` rehace el ZIP (solo biblioteca estándar: Léeme y guía en PDF, prompts y plantillas en DOCX, hoja en XLSX con fórmulas; reproducible). `--comprobar` verifica que el ZIP guardado corresponde a la fuente (lo ejecuta `npm run test:contrata`). Cambiar el contenido no exige tocar código.
+- **Antes de vender en live**: la URL global de términos del Dashboard de Stripe sigue siendo `/condiciones/` (la sesión del kit enlaza las del kit en su texto); revisar que el email de factura/recibo de Stripe está activado para que el cliente reciba el enlace; la política de privacidad no menciona aún el kit (NEXUS).
 
 ## Precio, IVA y factura
 

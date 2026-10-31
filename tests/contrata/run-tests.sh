@@ -137,7 +137,7 @@ sleep 0.4
 
 cd "$ROOT"
 echo "0. Sintaxis, unidad y lógica"
-for f in public/lib/contrata.php public/lib/reintentar-contrata.php public/api/contrata/disponibilidad.php public/api/contrata/crear-sesion.php public/api/contrata/stripe-webhook.php public/api/contrata/sim/checkout.php tests/contrata/unit.php tests/contrata/abrir.php tests/contrata/firmar-evento.php tests/contrata/clave-live.php tests/contrata/stripe-mock.php tests/contrata/mock-stripe.php scripts/stripe-preparar.php; do
+for f in public/lib/contrata.php public/lib/reintentar-contrata.php public/api/contrata/disponibilidad.php public/api/contrata/crear-sesion.php public/api/contrata/stripe-webhook.php public/api/contrata/descargar.php public/api/contrata/sim/checkout.php tests/contrata/unit.php tests/contrata/abrir.php tests/contrata/firmar-evento.php tests/contrata/clave-live.php tests/contrata/stripe-mock.php tests/contrata/mock-stripe.php scripts/stripe-preparar.php; do
   check "php -l $(basename "$f")" 'php -l "$ROOT/$f" >/dev/null'
 done
 check "unit.php" 'php_s tests/contrata/unit.php >/dev/null'
@@ -437,6 +437,95 @@ webhook >/dev/null
 check "un pago de Stripe con un servicio que no está en la lista no se da por bueno: alerta servicio_desconocido" 'ultima_fila | php -r '"'"'$j=json_decode(stream_get_contents(STDIN), true)["cuerpo"]; exit(($j["alerta_facturacion"]==="servicio_desconocido" && $j["producto"]==="") ? 0 : 1);'"'"' && ultimo_correo venta | grep -q -- "- servicio_desconocido:"'
 cerrar 19 "Selector de servicio" simulada "Lista de servicios cerrada en el PHP; el id viaja en la retención, los metadatos de Stripe, el registro y el correo. Hoy solo hay diagnóstico." "$A"
 
+echo "20. Kit IA para asesorías (producto digital, precio inline) y descarga protegida"
+A=$FAIL
+reset_estado
+rm -f "$DIR/descargas.json"
+: > "$CORREOS"
+DESC="$API/api/contrata/descargar.php"
+crear_kit() {
+  local nif="${1:-B12345674}" token body
+  token="$(curl -s "$DISP?producto=kit_asesorias" | json csrf)"
+  body="$(php -r 'echo json_encode(["csrf"=>$argv[1], "producto"=>"kit_asesorias", "empresa"=>"Gestoría Uno SL", "email"=>"admin@example.com", "nif"=>$argv[2], "condiciones"=>"si"], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);' "$token" "$nif")"
+  curl -s -D "$WORK/hdr" -o "$WORK/body" -w '%{http_code}' -X POST "$CREAR" -H 'Content-Type: application/json' -H "Origin: http://127.0.0.1:$ASTRO" --data "$body"
+}
+descarga() { curl -s -D "$WORK/dhdr" -o "$WORK/dbody" -w '%{http_code}' "$DESC?$1"; }
+dcampo() { json "$1" < "$WORK/dbody"; }
+KD=$(curl -s "$DISP?producto=kit_asesorias")
+check "estado del kit: 39 € + IVA = 47,19 € (4719), token CSRF y sin semanas" 'echo "$KD" | php -r '"'"'$j=json_decode(stream_get_contents(STDIN), true); exit((($j["ok"]??false)===true && $j["producto"]["base_centimos"]===3900 && $j["producto"]["iva_centimos"]===819 && $j["producto"]["total_centimos"]===4719 && $j["producto"]["total_texto"]==="47,19 €" && !empty($j["csrf"]) && !isset($j["semanas"])) ? 0 : 1);'"'"''
+check "el estado por producto solo vale para productos inline (diagnóstico o inventado → ok:false)" '[ "$(curl -s "$DISP?producto=diagnostico" | json ok)" = false ] && [ "$(curl -s "$DISP?producto=otro" | json ok)" = false ]'
+check "la disponibilidad del diagnóstico no cambia: un servicio, 59290 y semanas" 'disp | php -r '"'"'$j=json_decode(stream_get_contents(STDIN), true); exit((count($j["servicios"])===1 && $j["servicios"][0]["id"]==="diagnostico" && $j["precio"]["total_centimos"]===59290 && count($j["semanas"])===4) ? 0 : 1);'"'"''
+CODE=$(crear_kit)
+SK=$(campo sesion || true)
+check "abre la sesión del kit sin semana (200, 4719)" '[ "$CODE" = 200 ] && [[ "$SK" == cs_test_* ]] && [ "$(campo total_centimos)" = 4719 ] && [ "$(campo servicio)" = kit_asesorias ]'
+check "Checkout con price_data, IVA por tax rate, factura, vuelta a /kit-asesorias/gracias/ y sin semana" 'php -r '"'"'$j=json_decode(file_get_contents($argv[1]), true); $p=$j["sesiones"][$argv[2]]["params"]; $li=$p["line_items"][0];
+  exit((!isset($li["price"]) && $li["price_data"]["unit_amount"]===4719 && $li["price_data"]["currency"]==="eur" && preg_match("/^txr_/", $li["tax_rates"][0])===1 && ($p["invoice_creation"]["enabled"]??"")==="true" && str_contains($p["success_url"], "/kit-asesorias/gracias/?sesion={CHECKOUT_SESSION_ID}") && !isset($p["metadata"]["semana_lunes"]) && str_contains($p["invoice_creation"]["invoice_data"]["footer"] ?? "", "/kit-asesorias/gracias/?k=")) ? 0 : 1);'"'"' "$DIR/sesiones.json" "$SK"'
+check "la sesión del kit no ocupa ninguna plaza" '[ "$(libres "$SEMANA_A")" = 1 ] && [ "$(libres "$SEMANA_B")" = 1 ]'
+DC=$(descarga "sesion=$SK&comprobar=1")
+check "antes del webhook: 403 «pendiente» con reintentar y Retry-After" '[ "$DC" = 403 ] && [ "$(dcampo motivo)" = pendiente ] && [ "$(dcampo reintentar)" = true ] && grep -qi "^Retry-After: 3" "$WORK/dhdr"'
+DN=$(descarga "sesion=$SK")
+check "no pagada: la descarga directa también es 403 y no entrega el ZIP" '[ "$DN" = 403 ] && ! grep -qi "^Content-Type: application/zip" "$WORK/dhdr"'
+PK=$(pagar "$SK" 4242424242424242 pagar)
+check "pagar redirige a /kit-asesorias/gracias/?sesion=" '[ "$PK" = 303 ] && grep -qi "^Location:.*/kit-asesorias/gracias/?sesion=$SK" "$WORK/payhdr"'
+check "la venta queda en el registro (entrega descarga, 0 días, sin semana) y no ocupa plaza" 'ultima_fila | php -r '"'"'$c=json_decode(stream_get_contents(STDIN), true)["cuerpo"]; exit(($c["producto"]==="kit_asesorias" && $c["entrega"]==="descarga" && $c["dias_bloqueo"]===0 && $c["semana_lunes"]==="" && $c["importe_total_centimos"]===4719 && $c["alerta_facturacion"]==="") ? 0 : 1);'"'"' && [ "$(libres "$SEMANA_A")" = 1 ]'
+check "correo «[Sobtree] Venta kit_asesorias <sesión>» con importe, NIF y enlace, sin semana ni evento de calendario" '[ "$(correos venta "[Sobtree] Venta kit_asesorias $SK")" = 1 ] && ultimo_correo venta | grep -q "47,19 €" && ultimo_correo venta | grep -q "B12345674" && ultimo_correo venta | grep -q "NO crear evento en el calendario" && ultimo_correo venta | grep -q "/kit-asesorias/gracias/?k=" && ! ultimo_correo venta | grep -q "Semana de inicio" && ! ultimo_correo venta | grep -q "evento «CONTRATA"'
+DC=$(descarga "sesion=$SK&comprobar=1")
+check "pagada y registrada: comprobar → 200 lista, 10 restantes" '[ "$DC" = 200 ] && [ "$(dcampo motivo)" = lista ] && [ "$(dcampo restantes)" = 10 ]'
+DZ=$(descarga "sesion=$SK")
+check "pagada: entrega el ZIP (application/zip, adjunto, mismo contenido que el archivo) y quedan 9" '[ "$DZ" = 200 ] && grep -qi "^Content-Type: application/zip" "$WORK/dhdr" && grep -qi "^Content-Disposition: attachment; filename=\"kit-ia-asesorias-sobtree.zip\"" "$WORK/dhdr" && cmp -s "$WORK/dbody" "$ROOT/public/lib/kits/kit-asesorias.zip" && grep -qi "^X-Descargas-Restantes: 9" "$WORK/dhdr" && grep -qi "^Cache-Control: no-store" "$WORK/dhdr"'
+TOKK=$(php -r '$j=json_decode(file_get_contents($argv[1]), true); foreach ($j["retenciones"] as $r) if (($r["sesion"]??"")===$argv[2]) echo $r["token_descarga"];' "$DIR/retenciones.json" "$SK")
+DT=$(descarga "k=$TOKK")
+check "con el token de la factura (?k=) también descarga y cuenta en la misma compra (quedan 8)" '[ "$DT" = 200 ] && grep -qi "^X-Descargas-Restantes: 8" "$WORK/dhdr"'
+for _ in $(seq 3 10); do descarga "sesion=$SK" >/dev/null; done
+check "tras 10 descargas se han contado 10" '[ "$(php -r '"'"'echo json_decode(file_get_contents($argv[1]), true)["descargas"][$argv[2]]["n"];'"'"' "$DIR/descargas.json" "$SK")" = 10 ]'
+DL=$(descarga "sesion=$SK")
+check "límite de descargas: la 11.ª es 403 «limite» y no entrega el ZIP" '[ "$DL" = 403 ] && [ "$(dcampo motivo)" = limite ] && ! grep -qi "^Content-Type: application/zip" "$WORK/dhdr"'
+check "límite de descargas también con el token" '[ "$(descarga "k=$TOKK")" = 403 ] && [ "$(dcampo motivo)" = limite ]'
+DI=$(descarga "sesion=cs_test_inventada1234567890&comprobar=1")
+check "sesión inventada → 404" '[ "$DI" = 404 ] && [ "$(dcampo motivo)" = desconocida ] && [ "$(descarga "sesion=cs_test_inventada1234567890")" = 404 ]'
+check "token inventado y formatos raros → 404" '[ "$(descarga "k=0123456789abcdef0123456789abcdef")" = 404 ] && [ "$(descarga "sesion=..%2F..%2Fsobtree-secrets.php")" = 404 ] && [ "$(descarga "")" = 404 ]'
+check "solo GET (POST → 405)" '[ "$(curl -s -o /dev/null -w %{http_code} -X POST "$DESC?sesion=$SK")" = 405 ]'
+CODE=$(crear "$SEMANA_B")
+SDG=$(campo sesion)
+pagar "$SDG" 4242424242424242 pagar >/dev/null
+DO=$(descarga "sesion=$SDG")
+check "otro producto: una compra pagada del diagnóstico no descarga el kit (403 otro_producto)" '[ "$(estado_ret "$SDG")" = pagada ] && [ "$DO" = 403 ] && [ "$(dcampo motivo)" = otro_producto ]'
+CODE=$(crear_kit)
+SKA=$(campo sesion)
+pagar "$SKA" "" abandonar >/dev/null
+check "kit abandonado (sesión caducada, sin pago): 403 «no_pagada», sin reintentar" '[ "$(descarga "sesion=$SKA&comprobar=1")" = 403 ] && [ "$(dcampo motivo)" = no_pagada ] && [ "$(dcampo reintentar)" = false ]'
+check "y vuelve a /kit-asesorias/?cancelado=1" 'grep -qi "^Location:.*/kit-asesorias/?cancelado=1" "$WORK/payhdr"'
+CODE=$(crear_kit)
+SKR=$(campo sesion)
+firmar "$SKR" checkout.session.completed evt_test_kit_pago
+webhook >/dev/null
+check "otra compra del kit pagada descarga" '[ "$(descarga "sesion=$SKR&comprobar=1")" = 200 ]'
+firmar "$SKR" charge.refunded evt_test_kit_reembolso
+webhook >/dev/null
+check "reembolso total del kit: la descarga queda bloqueada (403 reembolsada)" '[ "$(descarga "sesion=$SKR")" = 403 ] && [ "$(dcampo motivo)" = reembolsada ]'
+check "el correo del reembolso del kit no pide cancelar ningún evento" 'ultimo_correo reembolso | grep -q "producto digital; no hay evento que cancelar" && ! ultimo_correo reembolso | grep -q "cancelar en Google Calendar"'
+CODE=$(crear_kit)
+SKI=$(campo sesion)
+firmar "$SKI" checkout.session.completed evt_test_kit_importe '{"amount_total":3900}'
+webhook >/dev/null
+check "kit cobrado con otro importe: alerta importe_inesperado y descarga retenida (403 revisar)" 'ultima_fila | grep -q "\"alerta_facturacion\":\"importe_inesperado\"" && [ "$(descarga "sesion=$SKI")" = 403 ] && [ "$(dcampo motivo)" = revisar ]'
+CODE=$(crear_kit "DE123456789")
+check "kit: un NIF-IVA de otro país no abre el pago (422 fuera_de_espana)" '[ "$CODE" = 422 ] && [ "$(campo motivo)" = fuera_de_espana ]'
+TOKEN=$(curl -s "$DISP?producto=kit_asesorias" | json csrf)
+CODE=$(curl -s -o "$WORK/body" -w '%{http_code}' -X POST "$CREAR" -H 'Content-Type: application/json' -H "Origin: http://127.0.0.1:$ASTRO" --data "{\"csrf\":\"$TOKEN\",\"producto\":\"kit_asesorias\",\"empresa\":\"X\",\"email\":\"a@example.com\",\"nif\":\"B12345674\"}")
+check "kit: sin aceptar las condiciones → 422" '[ "$CODE" = 422 ]'
+mv "$ROOT/public/lib/kits/kit-asesorias.zip" "$WORK/kit.zip.bak"
+CODE=$(crear_kit); SKF=$(campo sesion); pagar "$SKF" 4242424242424242 pagar >/dev/null
+check "si falta el archivo: 503 sin gastar ninguna descarga" '[ "$(descarga "sesion=$SKF")" = 503 ] && [ "$(dcampo motivo)" = no_disponible ] && [ "$(php -r '"'"'echo json_decode(file_get_contents($argv[1]), true)["descargas"][$argv[2]]["n"] ?? 0;'"'"' "$DIR/descargas.json" "$SKF")" = 0 ]'
+mv "$WORK/kit.zip.bak" "$ROOT/public/lib/kits/kit-asesorias.zip"
+check "el ZIP del repositorio corresponde a la fuente (scripts/generar-kit.py --comprobar)" 'python3 "$ROOT/scripts/generar-kit.py" --comprobar >/dev/null'
+check "el ZIP lleva Léeme y guía en PDF, prompts y plantillas en DOCX y la hoja en XLSX" 'python3 -c "import zipfile,sys; n=zipfile.ZipFile(sys.argv[1]).namelist(); need=[\"00-LEEME.pdf\",\"01-Prompts.docx\",\"02-Plantillas-email-y-WhatsApp.docx\",\"03-Hoja-de-medicion.xlsx\",\"04-Guia-que-datos-no-pegar-en-una-IA.pdf\"]; sys.exit(0 if all(any(x.endswith(\"/\"+k) for x in n) for k in need) else 1)" "$ROOT/public/lib/kits/kit-asesorias.zip"'
+check "la hoja lleva las fórmulas (horas, coste con Parametros!\$B\$1 y totales)" 'python3 -c "import zipfile,io,sys; z=zipfile.ZipFile(sys.argv[1]); x=[n for n in z.namelist() if n.endswith(\".xlsx\")][0]; s=zipfile.ZipFile(io.BytesIO(z.read(x))).read(\"xl/worksheets/sheet3.xml\").decode(); sys.exit(0 if (\"D2*E2/60\" in s and \"Parametros!\$B\$1\" in s and \"SUM(F2:F31)\" in s and \"F2-K2\" in s) else 1)" "$ROOT/public/lib/kits/kit-asesorias.zip"'
+check "el archivo del kit está en una carpeta denegada (lib/ y lib/kits/ con Require all denied)" 'grep -q "Require all denied" "$ROOT/public/lib/.htaccess" && grep -q "Require all denied" "$ROOT/public/lib/kits/.htaccess" && grep -q "descargar" "$ROOT/public/api/.htaccess"'
+check "la descarga no consulta Stripe (descargar.php no llama a contrata_stripe_request)" '! grep -q "contrata_stripe_request" "$ROOT/public/api/contrata/descargar.php" && ! php -r '"'"'$s=file_get_contents($argv[1]); $a=strpos($s,"function contrata_descarga_estado"); $b=strpos($s,"function contrata_leer_sesion_sim"); exit(str_contains(substr($s,$a,$b-$a),"contrata_stripe_request") ? 0 : 1);'"'"' "$ROOT/public/lib/contrata.php"'
+check "el NIF del kit no sale en el log de PHP ni en la auditoría (el token sí va en la URL: es un enlace de descarga)" '! grep -q "B12345674" "$WORK/php.log" && ! grep -q "B12345674" "$DIR/auditoria.jsonl" 2>/dev/null'
+cerrar 20 "Kit IA (producto digital) y descarga" simulada "Precio inline 47,19 €, sin semana; descarga solo con venta pagada y registrada: pagada OK, no pagada 403, otro producto 403, límite 10, inventada 404, reembolsada 403. Stripe real no se ha llamado." "$A"
+
 echo "16. Stripe de pruebas (simulado): factura, IVA, NIF y modo test"
 A=$FAIL
 MS_PORT="${CONTRATA_TEST_STRIPE_PORT:-18085}"
@@ -594,9 +683,13 @@ check "con el flag, el CTA blanco y la cabecera dicen «Contrata y empieza a aho
 check "con el flag, el bloque de oferta está en el hero y llms.txt apunta a /contratar/" 'python3 "$ROOT/tests/contrata/oferta-en-hero.py" "$WORK/dist-on/index.html" && grep -q "Contrata y empieza a ahorrar: https://sobtree.com/contratar/" "$WORK/dist-on/llms.txt"'
 check "sin el flag, el CTA sigue siendo «Reservar 25 min» al formulario y la oferta está en #servicios" 'grep -q "Reservar 25 min" "$ROOT/dist/index.html" && ! grep -q "Contrata y empieza a ahorrar" "$ROOT/dist/index.html" && ! grep -q "foco-contrata" "$ROOT/dist/index.html" && grep -q "Reservar diagnóstico: https://sobtree.com/#contacto" "$ROOT/dist/llms.txt"'
 check "con el flag, el build no lleva claves (sk_, rk_, whsec_) ni el simulador de pago" '! grep -RInE --binary-files=without-match "sk_|rk_|whsec_" "$WORK/dist-on" && [ ! -e "$WORK/dist-on/api/contrata/sim" ] && ! grep -RIn --binary-files=without-match "Pago simulado" "$WORK/dist-on"'
-check "con el flag, los endpoints de Contrata están y .htaccess deniega sim/ y todo lo demás de api/" '[ -f "$WORK/dist-on/api/contrata/stripe-webhook.php" ] && grep -q "contrata/(disponibilidad|crear-sesion|stripe-webhook)" "$WORK/dist-on/api/.htaccess" && grep -q "RewriteRule ^ - \[F,L\]" "$WORK/dist-on/api/.htaccess" && grep -q "Require all denied" "$WORK/dist-on/lib/.htaccess"'
+check "con el flag, los endpoints de Contrata están y .htaccess deniega sim/ y todo lo demás de api/" '[ -f "$WORK/dist-on/api/contrata/stripe-webhook.php" ] && grep -q "contrata/(disponibilidad|crear-sesion|stripe-webhook|descargar)" "$WORK/dist-on/api/.htaccess" && grep -q "RewriteRule ^ - \[F,L\]" "$WORK/dist-on/api/.htaccess" && grep -q "Require all denied" "$WORK/dist-on/lib/.htaccess"'
 check "con el flag siguen los 301 y 410 del .htaccess raíz" 'grep -q "RewriteRule ^diagnostico/?\$ https://sobtree.com/#servicios \[R=301" "$WORK/dist-on/.htaccess" && grep -q "invest/?\$ - \[G,L,NC\]" "$WORK/dist-on/.htaccess" && cmp -s "$ROOT/public/.htaccess" "$WORK/dist-on/.htaccess"'
 check "las páginas del resto del sitio son las mismas con y sin el flag (solo cambian la portada, la privacidad, los sitemaps y las dos páginas nuevas)" 'python3 "$ROOT/tests/contrata/comparar-dist.py" "$ROOT/dist" "$WORK/dist-on" > "$WORK/cmp.txt"; [ ! -s "$WORK/cmp.txt" ] || { head -5 "$WORK/cmp.txt"; false; }'
+check "con el flag, /kit-asesorias/ y sus condiciones están en el sitemap; su página de gracias, no" 'grep -q "<loc>https://sobtree.com/kit-asesorias/</loc>" "$WORK"/dist-on/sitemap-0.xml && grep -q "<loc>https://sobtree.com/kit-asesorias/condiciones/</loc>" "$WORK"/dist-on/sitemap-0.xml && ! grep -q "kit-asesorias/gracias" "$WORK"/dist-on/sitemap-0.xml'
+check "con el flag, la página del kit tiene el formulario, 47,19 €, enlaces a sus condiciones y a la privacidad, y la de gracias es noindex" 'grep -q "id=\"kit-form\"" "$WORK/dist-on/kit-asesorias/index.html" && grep -q "47,19" "$WORK/dist-on/kit-asesorias/index.html" && grep -q "href=\"/kit-asesorias/condiciones/\"" "$WORK/dist-on/kit-asesorias/index.html" && grep -q "href=\"/privacidad/\"" "$WORK/dist-on/kit-asesorias/index.html" && grep -q "name=\"robots\" content=\"noindex\"" "$WORK/dist-on/kit-asesorias/gracias/index.html" && grep -q "api/contrata/descargar.php" "$WORK/dist-on/kit-asesorias/gracias/index.html"'
+check "las condiciones del kit no llevan marcas [REVISAR] ni corchetes pendientes, y fijan ley española, 14 días y el límite de responsabilidad" '! grep -qE "REVISAR|PENDIENTE|\[FECHA|\[ENLACE" "$WORK/dist-on/kit-asesorias/condiciones/index.html" && grep -q "ley española" "$WORK/dist-on/kit-asesorias/condiciones/index.html" && grep -q "14 días naturales" "$WORK/dist-on/kit-asesorias/condiciones/index.html" && grep -q "dolo o culpa grave" "$WORK/dist-on/kit-asesorias/condiciones/index.html" && grep -q "CIF B22574222" "$WORK/dist-on/kit-asesorias/condiciones/index.html"'
+check "sin el flag no se publican las páginas del kit (ni en el sitemap) y el ZIP solo está en lib/kits/ (denegado)" '[ ! -e "$ROOT/dist/kit-asesorias" ] && ! grep -q "kit-asesorias" "$ROOT"/dist/sitemap-0.xml && [ -f "$ROOT/dist/lib/kits/kit-asesorias.zip" ] && grep -q "Require all denied" "$ROOT/dist/lib/kits/.htaccess" && [ "$(find "$ROOT/dist" -name "*.zip" | wc -l | tr -d " ")" = 1 ]'
 check "el flag encendido dice «máximo 10 días laborables» en Contrata y en gracias" 'grep -q "máximo 10 días laborables" "$WORK/dist-on/contratar/index.html" && grep -q "máximo 10 días laborables" "$WORK/dist-on/contratar/gracias/index.html"'
 cerrar 15 "Contenido de dist" pasa "Build con el flag apagado. Precio contrastado en unit.php (490 € + 21 % = 592,90 €). La regla CSS #contrata-boton puede quedar en la hoja y no pinta el botón." "$A"
 

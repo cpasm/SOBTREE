@@ -34,12 +34,27 @@ const CONTRATA_DIAS_BLOQUEO_MAX = 5;           // la disponibilidad es por seman
  * está en SERVICIOS de src/data/contrata.ts y una prueba comprueba que coinciden (id, nombre, base, días).
  * El ID de Price de cada servicio NO está aquí: viene de sobtree-secrets.php (clave env_price).
  */
+const CONTRATA_KIT_ASESORIAS_BASE_EUR = 39;    // KIT_ASESORIAS.baseEur en src/data/contrata.ts (D-119)
+const CONTRATA_DESCARGAS_MAX = 10;             // descargas por compra de un producto digital
 const CONTRATA_SERVICIOS = [
     'diagnostico' => [
         'nombre' => 'Diagnóstico de implantación de IA',
         'base_eur' => CONTRATA_PRECIO_BASE_EUR,
         'dias_bloqueo' => 5,
         'env_price' => 'STRIPE_PRICE_DIAGNOSTICO',
+    ],
+    // Producto digital (D-119): sin semana ni disponibilidad, sin Price en Stripe (price_data en la sesión) y
+    // entrega por descarga protegida (api/contrata/descargar.php). El ZIP sale de scripts/generar-kit.py.
+    'kit_asesorias' => [
+        'nombre' => 'Kit IA para asesorías y gestorías',
+        'base_eur' => CONTRATA_KIT_ASESORIAS_BASE_EUR,
+        'dias_bloqueo' => 0,
+        'tipo' => 'precio_inline',
+        'ruta' => 'kit-asesorias',
+        'archivo' => 'kit-asesorias.zip',
+        'nombre_descarga' => 'kit-ia-asesorias-sobtree.zip',
+        // Condiciones propias del kit (página «condiciones» dentro de su ruta). Igual que KIT_ASESORIAS.condicionesVersion en src/data/contrata.ts.
+        'condiciones_version' => '2026-10-31',
     ],
 ];
 const CONTRATA_TAX_RATE_TEST = 'txr_test_iva21';
@@ -105,7 +120,9 @@ function contrata_config(): array {
         $prohibida = true;
     }
     $prices = [];
-    foreach (CONTRATA_SERVICIOS as $sid => $sdef) $prices[$sid] = $get($sdef['env_price']);
+    foreach (CONTRATA_SERVICIOS as $sid => $sdef) {
+        if (is_string($sdef['env_price'] ?? null)) $prices[$sid] = $get($sdef['env_price']);
+    }
     $public = rtrim($get('CONTRATA_PUBLIC_URL', 'https://sobtree.com'), '/');
     $httpLocal = (bool)preg_match('#^http://(127\.0\.0\.1|localhost)(:\d+)?$#', $public);
     if (!preg_match('#^https://[a-z0-9.-]+$#i', $public) && !($modo === 'simulacion' && $httpLocal)) {
@@ -127,6 +144,8 @@ function contrata_config(): array {
         'bloqueos_file' => (string)(getenv('CONTRATA_BLOQUEOS_FILE') ?: ''),
         'notify_to' => $get('CONTRATA_NOTIFY_TO', 'info@sobtree.com'),
         'notify_from' => $get('CONTRATA_NOTIFY_FROM', 'info@sobtree.com'),
+        // Carpeta de los archivos de descarga (opcional). Si falta, se buscan en <base>/sobtree-kits y en lib/kits.
+        'kits_dir' => $get('CONTRATA_KITS_DIR'),
     ];
     return $cfg;
 }
@@ -141,8 +160,8 @@ function contrata_stripe_utilizable(): bool {
     if ($c['clave_prohibida']) return false;
     if ($c['modo'] === 'simulacion') return true;
     $comun = preg_match('/^txr_[A-Za-z0-9_]+$/', $c['stripe_tax_rate']) === 1;
-    // Cada servicio de la lista necesita su Price; si falta alguno no se abre el pago.
-    foreach (contrata_servicios() as $sid => $_) {
+    // Cada servicio con Price necesita el suyo; si falta alguno no se abre el pago. Los de precio inline no usan Price.
+    foreach (contrata_servicios_semana() as $sid => $_) {
         if (preg_match('/^price_[A-Za-z0-9_]+$/', (string)($c['stripe_prices'][$sid] ?? '')) !== 1) $comun = false;
     }
     if ($c['modo'] === 'stripe_test') return $comun && preg_match('/^(rk|sk)_test_/', $c['stripe_key']) === 1;
@@ -281,17 +300,39 @@ function contrata_texto_proxima(string $lunes, string $hoy): string {
     return 'Nuestros agentes pueden empezar a partir del lunes ' . contrata_fecha_larga($lunes, $hoy);
 }
 
-/** Servicios de la lista con datos coherentes (id con letras minúsculas, base entera > 0, 1 a 5 días de bloqueo). */
+/**
+ * Servicios de la lista con datos coherentes (id con letras minúsculas, base entera > 0).
+ * Con Price (por defecto): 1 a 5 días de bloqueo y clave env_price. Precio inline (producto digital): 0 días,
+ * ruta de su página y archivo de descarga sin barras.
+ */
 function contrata_servicios(): array {
     $out = [];
     foreach (CONTRATA_SERVICIOS as $id => $d) {
         if (!is_string($id) || preg_match('/^[a-z][a-z0-9_]{0,31}$/', $id) !== 1) continue;
         if (!is_int($d['base_eur'] ?? null) || $d['base_eur'] < 1) continue;
-        $dias = $d['dias_bloqueo'] ?? 0;
-        if (!is_int($dias) || $dias < 1 || $dias > CONTRATA_DIAS_BLOQUEO_MAX) continue;
+        $dias = $d['dias_bloqueo'] ?? null;
+        if (($d['tipo'] ?? 'price') === 'precio_inline') {
+            if ($dias !== 0 || isset($d['env_price'])) continue;
+            if (preg_match('/^[a-z0-9-]{1,40}$/', (string)($d['ruta'] ?? '')) !== 1) continue;
+            if (preg_match('/^[a-z0-9][a-z0-9._-]{0,80}\.zip$/', (string)($d['archivo'] ?? '')) !== 1) continue;
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($d['condiciones_version'] ?? '')) !== 1) continue;
+        } else {
+            if (($d['tipo'] ?? 'price') !== 'price') continue;
+            if (!is_int($dias) || $dias < 1 || $dias > CONTRATA_DIAS_BLOQUEO_MAX) continue;
+            if (!is_string($d['env_price'] ?? null)) continue;
+        }
         $out[$id] = ['id' => $id] + $d;
     }
     return $out;
+}
+
+function contrata_es_inline(?array $servicio): bool {
+    return $servicio !== null && ($servicio['tipo'] ?? 'price') === 'precio_inline';
+}
+
+/** Servicios con semana de inicio y Price de Stripe (hoy, el diagnóstico). Son los que publica la disponibilidad. */
+function contrata_servicios_semana(): array {
+    return array_filter(contrata_servicios(), fn($s) => !contrata_es_inline($s));
 }
 
 /** El servicio solo existe si su id está en la lista; cualquier otro valor (también «Diagnostico» o con espacios) da null. */
@@ -626,7 +667,7 @@ function contrata_estado_publico(): array {
     $precio = contrata_importes();
     unset($precio['base_eur']);
     $servicios = [];
-    foreach (contrata_servicios() as $sid => $sdef) {
+    foreach (contrata_servicios_semana() as $sid => $sdef) {
         $im = contrata_importes($sid);
         $servicios[] = [
             'id' => $sid,
@@ -652,6 +693,34 @@ function contrata_estado_publico(): array {
     ];
     if ($proxima === null) $out['sin_plazas_texto'] = CONTRATA_MSG_SIN_PLAZAS;
     return $out;
+}
+
+/**
+ * Estado de un producto de precio inline para su página de venta (GET disponibilidad.php?producto=ID): importes y
+ * token CSRF. No depende de semanas ni de bloqueos. Si el pago no está utilizable, responde cerrado.
+ */
+function contrata_estado_producto(string $id): array {
+    $sv = contrata_servicio($id);
+    if (!contrata_es_inline($sv)) {
+        return ['ok' => false, 'fallo' => 'producto', 'error' => 'Ese producto no se puede contratar online.'];
+    }
+    if (!contrata_stripe_utilizable() || contrata_config()['hmac_secret'] === '') {
+        return ['ok' => false, 'fallo' => 'cerrado', 'motivo' => 'pago_no_disponible', 'reserva' => ['href' => '/#contacto', 'texto' => 'Escríbenos y te lo enviamos']];
+    }
+    $im = contrata_importes($id);
+    return [
+        'ok' => true,
+        'producto' => [
+            'id' => $id,
+            'nombre' => (string)$sv['nombre'],
+            'base_centimos' => $im['base_centimos'],
+            'iva_centimos' => $im['iva_centimos'],
+            'total_centimos' => $im['total_centimos'],
+            'total_texto' => $im['total_texto'],
+        ],
+        'csrf' => contrata_csrf_emitir(),
+        'descargas_max' => CONTRATA_DESCARGAS_MAX,
+    ];
 }
 
 function contrata_barrer(int $ahora = 0): int {
@@ -737,6 +806,10 @@ function contrata_abrir_sesion(array $in, array $ctx = []): array {
     if (($in['condiciones'] ?? '') !== 'si') {
         return ['http' => 422, 'body' => ['ok' => false, 'error' => 'Hay que aceptar las condiciones y la política de privacidad.']];
     }
+    if (contrata_es_inline($servicio)) {
+        // Producto digital: sin semana, sin disponibilidad y sin bloqueos.
+        return contrata_abrir_sesion_inline($in, $ctx, $producto, $email, $empresa, $nif);
+    }
     $semana = (string)($in['semana'] ?? '');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $semana) || !contrata_es_lunes($semana)) {
         return ['http' => 422, 'body' => ['ok' => false, 'error' => 'Elige un lunes de inicio.']];
@@ -754,14 +827,7 @@ function contrata_abrir_sesion(array $in, array $ctx = []): array {
         return ['http' => 429, 'body' => ['ok' => false, 'error' => 'Acabas de abrir un pago. Espera unos segundos.']];
     }
 
-    $utm = [];
-    foreach (['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'] as $k) {
-        $v = trim((string)($in[$k] ?? ''));
-        $v = str_replace(["\r", "\n", "\0"], '', $v);
-        if ($v !== '') $utm[$k] = mb_substr($v, 0, 150);
-    }
-    $leadId = trim((string)($in['lead_id'] ?? ''));
-    if ($leadId !== '' && !preg_match('/^[A-Za-z0-9_-]{1,64}$/', $leadId)) $leadId = '';
+    [$utm, $leadId] = contrata_datos_origen($in);
 
     $ret = null;
     try {
@@ -834,6 +900,83 @@ function contrata_abrir_sesion(array $in, array $ctx = []): array {
     ]];
 }
 
+/** UTM y lead_id del formulario, saneados. @return array{0:array<string,string>,1:string} */
+function contrata_datos_origen(array $in): array {
+    $utm = [];
+    foreach (['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'] as $k) {
+        $v = trim((string)($in[$k] ?? ''));
+        $v = str_replace(["\r", "\n", "\0"], '', $v);
+        if ($v !== '') $utm[$k] = mb_substr($v, 0, 150);
+    }
+    $leadId = trim((string)($in['lead_id'] ?? ''));
+    if ($leadId !== '' && !preg_match('/^[A-Za-z0-9_-]{1,64}$/', $leadId)) $leadId = '';
+    return [$utm, $leadId];
+}
+
+/**
+ * Sesión de un producto de precio inline (producto digital). Crea una retención sin semana (semana = '', no ocupa
+ * ninguna plaza) que guarda el NIF hasta el pago y el token de descarga, y abre Checkout.
+ * @return array{http:int,body:array}
+ */
+function contrata_abrir_sesion_inline(array $in, array $ctx, string $producto, string $email, string $empresa, array $nif): array {
+    $ip = (string)($ctx['ip'] ?? ($_SERVER['REMOTE_ADDR'] ?? 'cli'));
+    if (!contrata_rate_ok($ip)) {
+        return ['http' => 429, 'body' => ['ok' => false, 'error' => 'Acabas de abrir un pago. Espera unos segundos.']];
+    }
+    [$utm, $leadId] = contrata_datos_origen($in);
+    try {
+        $ret = contrata_con_bloqueo(function () use ($producto) {
+            $ahora = contrata_ahora();
+            $data = contrata_leer_retenciones();
+            $r = [
+                'id' => 'ret_' . bin2hex(random_bytes(8)),
+                'semana' => '',
+                'expira' => $ahora + CONTRATA_RETENCION_SEG,
+                'estado' => 'retenida',
+                'sesion' => '',
+                'servicio' => $producto,
+                'token_descarga' => bin2hex(random_bytes(16)),
+                'creada' => gmdate('c', $ahora),
+            ];
+            $data['retenciones'][] = $r;
+            contrata_guardar_json(contrata_file_ret(), $data);
+            return $r;
+        });
+    } catch (Throwable $e) {
+        error_log('contrata retener inline: ' . $e->getMessage());
+        return ['http' => 503, 'body' => ['ok' => false, 'error' => CONTRATA_MSG_PAGO]];
+    }
+    $cliente = ['email' => $email, 'empresa' => $empresa, 'nif' => $nif, 'utm' => $utm, 'lead_id' => $leadId];
+    try {
+        $sesion = contrata_stripe_crear_sesion($ret, $cliente);
+    } catch (Throwable $e) {
+        error_log('contrata stripe inline: ' . $e->getMessage());
+        contrata_marcar_retencion($ret['id'], ['estado' => 'liberada', 'motivo' => 'stripe_error', 'liberada' => gmdate('c'), 'nif' => null]);
+        return ['http' => 502, 'body' => ['ok' => false, 'error' => CONTRATA_MSG_PAGO]];
+    }
+    contrata_marcar_retencion($ret['id'], ['sesion' => $sesion['id'], 'nif' => contrata_nif_normal((string)$nif['normalizado'])]);
+    $imp = contrata_importes($producto);
+    return ['http' => 200, 'body' => [
+        'ok' => true,
+        'servicio' => $producto,
+        'url' => $sesion['url'],
+        'sesion' => $sesion['id'],
+        'expira' => $ret['expira'],
+        'total_centimos' => $imp['total_centimos'],
+        'total_texto' => $imp['total_texto'],
+    ]];
+}
+
+/** Ruta de la página de un producto de precio inline: /<ruta>/<cola>. */
+function contrata_ruta_producto(array $servicio, string $cola = ''): string {
+    return '/' . (string)$servicio['ruta'] . '/' . $cola;
+}
+
+/** Enlace de descarga con el token de la compra (sirve para la factura y para reenviarlo a mano). */
+function contrata_url_descarga_token(array $servicio, string $token): string {
+    return contrata_config()['public_url'] . contrata_ruta_producto($servicio, 'gracias/?k=' . $token);
+}
+
 function contrata_marcar_retencion(string $id, array $cambios): void {
     contrata_con_bloqueo(function () use ($id, $cambios) {
         $data = contrata_leer_retenciones();
@@ -864,12 +1007,15 @@ function contrata_parametros_sesion(array $ret, array $cliente, string $customer
     if ($servicio === null) throw new RuntimeException('servicio');
     $imp = contrata_importes($servicioId);
     $cfg = contrata_config();
-    $price = contrata_price_de($servicioId);
-    if ($price === '') {
+    $inline = contrata_es_inline($servicio);
+    $price = $inline ? 'inline' : contrata_price_de($servicioId);
+    if ($inline) {
+        // sin Price: el importe va en price_data
+    } elseif ($price === '') {
         if (contrata_modo() !== 'simulacion') throw new RuntimeException('sin price');
         $price = CONTRATA_PRICE_TEST;
     }
-    if (!preg_match('/^price_[A-Za-z0-9_]+$/', $price)) throw new RuntimeException('price');
+    if (!$inline && !preg_match('/^price_[A-Za-z0-9_]+$/', $price)) throw new RuntimeException('price');
     $tax = $cfg['stripe_tax_rate'];
     if ($tax === '') {
         if (contrata_modo() !== 'simulacion') throw new RuntimeException('sin tax rate');
@@ -880,6 +1026,7 @@ function contrata_parametros_sesion(array $ret, array $cliente, string $customer
         if (contrata_modo() !== 'simulacion') throw new RuntimeException('sin cliente');
         $customerId = 'cus_test_simulado';
     }
+    if ($inline) return contrata_parametros_inline($ret, $cliente, $servicio, $imp, $tax, $customerId, $nifEnFactura);
     $semanaTxt = 'lunes ' . contrata_fecha_larga($ret['semana'], contrata_hoy());
     $mensaje = 'Semana de inicio: ' . $semanaTxt . '. '
         . contrata_texto_descuento() . ' Total a pagar: ' . $imp['total_texto']
@@ -937,6 +1084,74 @@ function contrata_parametros_sesion(array $ret, array $cliente, string $customer
     ];
 }
 
+/**
+ * Parámetros de Checkout de un producto de precio inline: price_data con el total con IVA (el tax rate inclusivo del
+ * 21 % separa base e IVA en la factura), sin semana ni texto de descuento del diagnóstico, y vuelta a la página de
+ * gracias del producto. El enlace de descarga con token va en el pie de la factura que emite Stripe.
+ */
+function contrata_parametros_inline(array $ret, array $cliente, array $servicio, array $imp, string $tax, string $customerId, bool $nifEnFactura): array {
+    $servicioId = (string)$servicio['id'];
+    $base = contrata_config()['public_url'];
+    $token = (string)($ret['token_descarga'] ?? '');
+    if (preg_match('/^[a-f0-9]{32}$/', $token) !== 1) throw new RuntimeException('token');
+    $mensaje = 'Producto digital. Total a pagar: ' . $imp['total_texto'] . ' (' . $imp['base_texto'] . ' + IVA '
+        . CONTRATA_IVA_PORCIENTO . ' %: ' . $imp['iva_texto'] . '). Al completar el pago volverás a nuestra web para descargarlo; el enlace también va en la factura.';
+    $meta = [
+        'producto' => $servicioId,
+        'retencion_id' => $ret['id'],
+        'politica_version' => CONTRATA_POLITICA_VERSION,
+        'condiciones_version' => (string)$servicio['condiciones_version'],
+        'importe_base_centimos' => (string)$imp['base_centimos'],
+        'iva_porcentaje' => (string)CONTRATA_IVA_PORCIENTO,
+        'importe_total_centimos' => (string)$imp['total_centimos'],
+        'price_id' => 'inline',
+        'entrega' => 'descarga',
+        'descarga_token' => $token,
+        'nif_pais' => $cliente['nif']['pais'],
+        'nif_tipo' => $cliente['nif']['tipo'],
+        'nif_verificado' => '0',
+        'empresa' => mb_substr($cliente['empresa'], 0, 200),
+    ];
+    foreach ($cliente['utm'] as $k => $v) $meta[$k] = $v;
+    if ($cliente['lead_id'] !== '') $meta['lead_id'] = $cliente['lead_id'];
+    $datosFactura = [
+        'description' => $servicio['nombre'] . ' (producto digital, descarga).',
+        'footer' => 'Descarga del producto (máximo ' . CONTRATA_DESCARGAS_MAX . ' descargas): ' . contrata_url_descarga_token($servicio, $token),
+        'metadata' => ['retencion_id' => $ret['id'], 'producto' => $servicioId],
+    ];
+    if ($nifEnFactura) {
+        $datosFactura['custom_fields'] = [['name' => 'NIF/CIF', 'value' => contrata_nif_normal((string)$cliente['nif']['normalizado'])]];
+    }
+    return [
+        'mode' => 'payment',
+        'line_items' => [[
+            'price_data' => [
+                'currency' => 'eur',
+                'unit_amount' => $imp['total_centimos'],
+                'product_data' => ['name' => (string)$servicio['nombre'], 'metadata' => ['producto' => $servicioId]],
+            ],
+            'quantity' => 1,
+            'tax_rates' => [$tax],
+        ]],
+        'expires_at' => $ret['expira'],
+        'success_url' => $base . contrata_ruta_producto($servicio, 'gracias/?sesion={CHECKOUT_SESSION_ID}'),
+        'cancel_url' => $base . contrata_ruta_producto($servicio, '?cancelado=1'),
+        'customer' => $customerId,
+        'customer_update' => ['address' => 'auto'],
+        'billing_address_collection' => 'required',
+        'invoice_creation' => ['enabled' => 'true', 'invoice_data' => $datosFactura],
+        'locale' => 'es',
+        'consent_collection' => ['terms_of_service' => 'required'],
+        'custom_text' => [
+            'submit' => ['message' => $mensaje],
+            // Las condiciones del producto, no las del diagnóstico.
+            'terms_of_service_acceptance' => ['message' => 'Acepto las [condiciones del producto](' . $base . contrata_ruta_producto($servicio, 'condiciones/') . ') (versión ' . (string)$servicio['condiciones_version'] . ') y la [política de privacidad](' . $base . '/privacidad/) (versión ' . CONTRATA_POLITICA_VERSION . ').'],
+        ],
+        'metadata' => $meta,
+        'payment_method_types' => ['card', 'link'],
+    ];
+}
+
 function contrata_stripe_crear_sesion(array $ret, array $cliente): array {
     $servicioId = (string)($ret['servicio'] ?? CONTRATA_PRODUCTO_DEFECTO);
     $imp = contrata_importes($servicioId);
@@ -974,9 +1189,12 @@ function contrata_stripe_crear_sesion(array $ret, array $cliente): array {
         return ['id' => $id, 'url' => $url];
     }
     $cfg = contrata_config();
-    $price = contrata_stripe_leer_price(contrata_price_de($servicioId));
-    if (!contrata_price_coincide((int)($price['unit_amount'] ?? 0), (string)($price['currency'] ?? ''), (bool)($price['livemode'] ?? false), $servicioId)) {
-        throw new RuntimeException('El Price de Stripe no coincide con el servicio (base + IVA) o su modo (test/live) no es el configurado.');
+    $inline = contrata_es_inline(contrata_servicio($servicioId));
+    if (!$inline) {
+        $price = contrata_stripe_leer_price(contrata_price_de($servicioId));
+        if (!contrata_price_coincide((int)($price['unit_amount'] ?? 0), (string)($price['currency'] ?? ''), (bool)($price['livemode'] ?? false), $servicioId)) {
+            throw new RuntimeException('El Price de Stripe no coincide con el servicio (base + IVA) o su modo (test/live) no es el configurado.');
+        }
     }
     $tr = contrata_stripe_request('GET', '/v1/tax_rates/' . rawurlencode($cfg['stripe_tax_rate']));
     if (!(abs((float)($tr['percentage'] ?? 0) - CONTRATA_IVA_PORCIENTO) < 0.0001 && ($tr['inclusive'] ?? null) === true
@@ -1014,6 +1232,12 @@ function contrata_stripe_crear_sesion(array $ret, array $cliente): array {
     $prefijo = $live ? 'cs_' . 'live_' : 'cs_test_';
     if (!str_starts_with($id, $prefijo) || !contrata_url_pago_permitida($url)) {
         throw new RuntimeException('respuesta de Stripe no aceptada');
+    }
+    // Precio inline: no hay Price que leer antes, así que se comprueba lo que Stripe va a cobrar en la sesión creada.
+    if ($inline && ((int)($resp['amount_total'] ?? -1) !== $imp['total_centimos'] || strtolower((string)($resp['currency'] ?? '')) !== 'eur')) {
+        try { contrata_stripe_request('POST', '/v1/checkout/sessions/' . rawurlencode($id) . '/expire'); } catch (Throwable $e) { /* caduca sola en 30 min */ }
+        contrata_auditar('sesion_importe_distinto', ['producto' => $servicioId]);
+        throw new RuntimeException('La sesión de Stripe no cobra el importe del producto (base + IVA) en EUR.');
     }
     return ['id' => $id, 'url' => $url];
 }
@@ -1261,6 +1485,9 @@ function contrata_aplicar_pago(array $obj, string $eventId): ?array {
             'producto' => $servicio !== null ? $servicioId : '',
             'servicio_nombre' => $servicio !== null ? (string)$servicio['nombre'] : '',
             'dias_bloqueo' => $servicio !== null ? (int)$servicio['dias_bloqueo'] : CONTRATA_DIAS_BLOQUEO_MAX,
+            'entrega' => contrata_es_inline($servicio) ? 'descarga' : 'semana',
+            'descarga_token' => (contrata_es_inline($servicio) && preg_match('/^[a-f0-9]{32}$/', (string)($meta['descarga_token'] ?? ($ret['token_descarga'] ?? ''))) === 1)
+                ? (string)($meta['descarga_token'] ?? $ret['token_descarga']) : '',
             'semana_lunes' => (string)($meta['semana_lunes'] ?? ($ret['semana'] ?? '')),
             'importe_base_centimos' => $imp['base_centimos'],
             'iva_porcentaje' => CONTRATA_IVA_PORCIENTO,
@@ -1526,8 +1753,37 @@ function contrata_correo_evento(array $row): array {
         $rutina = $total
             ? 'Para la rutina: cancelar en Google Calendar (info@) el evento CONTRATA de esta sesión' . ($valida ? " (semana del $lunes)" : '') . '.'
             : 'Para la rutina: reembolso parcial; el evento CONTRATA se mantiene.';
+        if (contrata_es_inline(contrata_servicio((string)($c['producto'] ?? '')))) {
+            $rutina = $total
+                ? 'Para la rutina: producto digital; no hay evento que cancelar. La descarga queda bloqueada.'
+                : 'Para la rutina: reembolso parcial de un producto digital; la descarga sigue disponible.';
+        }
         $subject = '[Sobtree] Reembolso ' . $ref;
         $replyTo = '';
+    } elseif (($c['entrega'] ?? '') === 'descarga') {
+        // Producto digital: sin semana ni evento de calendario. El cliente lo descarga desde la web.
+        $sv = contrata_servicio((string)($c['producto'] ?? ''));
+        $coincide = $c['nif_coincide'] ?? null;
+        $b  = "Venta confirmada por Stripe (pago cobrado). Producto digital: entrega por descarga.\n\n";
+        $b .= 'Sesión:            ' . $v($sesion) . "\n";
+        $b .= 'Producto:          ' . $v($c['servicio_nombre'] ?? '') . ' (' . $v($c['producto'] ?? '') . ")\n";
+        $b .= 'Importe cobrado:   ' . contrata_euros((int)($c['importe_total_centimos'] ?? 0)) . ' (base ' . contrata_euros((int)($c['importe_base_centimos'] ?? 0)) . ' + IVA ' . (int)($c['iva_porcentaje'] ?? CONTRATA_IVA_PORCIENTO) . " %)\n";
+        $b .= 'Empresa:           ' . $v($c['empresa'] ?? '') . "\n";
+        $b .= 'Email:             ' . $v($c['email'] ?? '') . "\n";
+        $b .= 'NIF/CIF:           ' . $v($c['nif'] ?? '') . ' (' . $v($c['nif_tipo'] ?? '') . ', ' . $v($c['nif_pais'] ?? '') . ", formato validado, no verificado en VIES)\n";
+        $b .= 'NIF igual a Stripe: ' . ($coincide === true ? 'sí' : ($coincide === false ? 'NO' : 'sin dato')) . "\n";
+        $b .= 'Condiciones:       ' . ((($c['condiciones_aceptadas'] ?? false) === true) ? 'aceptadas' : 'NO aceptadas') . ' (política ' . $v($c['politica_version'] ?? '') . ")\n";
+        $b .= 'Factura Stripe:    ' . $v($c['factura'] ?? '') . "\n";
+        $b .= 'Payment intent:    ' . $v($c['payment_intent'] ?? '') . "\n";
+        $b .= 'Lead:              ' . $v($c['lead_id'] ?? '') . "\n";
+        $tok = (string)($c['descarga_token'] ?? '');
+        $b .= 'Descarga:          ' . (($sv !== null && $tok !== '') ? contrata_url_descarga_token($sv, $tok) . ' (máximo ' . CONTRATA_DESCARGAS_MAX . ' descargas; para reenviarlo al cliente si lo pide)' : '—') . "\n";
+        $a = (string)($c['alerta_facturacion'] ?? '');
+        if ($a !== '') $alertas[] = "$a: " . contrata_texto_alerta($a);
+        if (in_array($a, ['importe_inesperado', 'servicio_desconocido'], true)) $alertas[] = 'descarga bloqueada hasta revisar la venta';
+        $rutina = 'Para la rutina: producto digital sin semana; NO crear evento en el calendario.';
+        $subject = '[Sobtree] Venta ' . $v($c['producto'] ?? '') . ' ' . $ref;
+        $replyTo = (string)($c['email'] ?? '');
     } else {
         $dias = max(1, min(CONTRATA_DIAS_BLOQUEO_MAX, (int)($c['dias_bloqueo'] ?? CONTRATA_DIAS_BLOQUEO_MAX)));
         $fin = $valida ? contrata_sumar_dias($lunes, $dias - 1) : '';
@@ -1644,6 +1900,114 @@ function contrata_mantenimiento(bool $dry = false): array {
         error_log('contrata mantenimiento: ' . $e->getMessage());
     }
     return $stats;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Descarga de productos digitales (api/contrata/descargar.php). Solo entrega si la venta está pagada y registrada en
+// cola.jsonl por el webhook. No consulta Stripe: si el webhook aún no ha llegado, responde «pendiente» para reintentar.
+
+function contrata_file_descargas(): string { return contrata_ensure_dir() . '/descargas.json'; }
+
+/** Mensajes al cliente por motivo. */
+function contrata_texto_descarga(string $motivo): string {
+    return [
+        'lista' => 'Tu descarga está lista.',
+        'pendiente' => 'Estamos esperando la confirmación del pago de Stripe. Suele tardar unos segundos; vuelve a intentarlo.',
+        'no_pagada' => 'Esta compra no consta como pagada. Si has pagado, escríbenos a info@sobtree.com con el email de la compra.',
+        'desconocida' => 'No encontramos esta compra. Revisa el enlace o escríbenos a info@sobtree.com.',
+        'otro_producto' => 'Este enlace no corresponde a una compra de un producto descargable.',
+        'reembolsada' => 'Esta compra se ha reembolsado; la descarga ya no está disponible.',
+        'revisar' => 'Estamos revisando esta compra; te escribimos en 1 día laborable.',
+        'limite' => 'Has alcanzado el máximo de ' . CONTRATA_DESCARGAS_MAX . ' descargas de esta compra. Escríbenos a info@sobtree.com y te lo reenviamos.',
+        'no_disponible' => 'La descarga no está disponible ahora mismo. Inténtalo en unos minutos o escríbenos a info@sobtree.com.',
+    ][$motivo] ?? 'No se puede descargar.';
+}
+
+function contrata_descargas_usadas(string $sesion): int {
+    $j = contrata_leer_json(contrata_file_descargas(), ['descargas' => []]);
+    return (int)($j['descargas'][$sesion]['n'] ?? 0);
+}
+
+/**
+ * Comprueba una compra por session_id de Stripe ($sesion) o por el token de la factura ($token).
+ * @return array{http:int,motivo:string,reintentar:bool,sesion?:string,servicio?:array,usadas?:int,restantes?:int}
+ */
+function contrata_descarga_estado(string $sesion, string $token = ''): array {
+    $no = fn(int $http, string $motivo, bool $re = false) => ['http' => $http, 'motivo' => $motivo, 'reintentar' => $re];
+    if ($sesion !== '') {
+        if (preg_match('/^cs_(test|live)_[A-Za-z0-9_]{1,250}$/', $sesion) !== 1) return $no(404, 'desconocida');
+        $token = '';
+    } elseif ($token !== '') {
+        if (preg_match('/^[a-f0-9]{32}$/', $token) !== 1) return $no(404, 'desconocida');
+    } else {
+        return $no(404, 'desconocida');
+    }
+    $coincide = function (array $c) use ($sesion, $token): bool {
+        if ($sesion !== '') return ($c['sesion'] ?? '') === $sesion;
+        $t = (string)($c['descarga_token'] ?? ($c['token_descarga'] ?? ''));
+        return $t !== '' && hash_equals($t, $token);
+    };
+    [$items] = contrata_cargar_cola();
+    $venta = null;
+    foreach ($items as $row) {
+        $c = is_array($row['cuerpo'] ?? null) ? $row['cuerpo'] : [];
+        if (($row['tipo'] ?? '') === 'checkout.session.completed' && $coincide($c)) $venta = $row;
+    }
+    if ($venta === null) {
+        // Sin venta registrada: ¿hay una retención (sesión abierta por nuestra web)?
+        $ret = null;
+        foreach (contrata_leer_retenciones()['retenciones'] as $r) {
+            if (is_array($r) && (($sesion !== '' && ($r['sesion'] ?? '') === $sesion) || ($sesion === '' && $coincide($r)))) $ret = $r;
+        }
+        if ($ret === null) return $no(404, 'desconocida');
+        if (!contrata_es_inline(contrata_servicio((string)($ret['servicio'] ?? '')))) return $no(403, 'otro_producto');
+        if (($ret['estado'] ?? '') === 'retenida' || ($ret['estado'] ?? '') === 'pagada') return $no(403, 'pendiente', true);
+        return $no(403, 'no_pagada');
+    }
+    $c = $venta['cuerpo'];
+    $servicio = contrata_servicio((string)($c['producto'] ?? ''));
+    if (!contrata_es_inline($servicio)) return $no(403, 'otro_producto');
+    if (($c['livemode'] ?? null) !== contrata_livemode_esperado()) return $no(403, 'otro_producto');
+    if (in_array((string)($c['alerta_facturacion'] ?? ''), ['importe_inesperado', 'servicio_desconocido'], true)) return $no(403, 'revisar');
+    $sesionVenta = (string)($c['sesion'] ?? '');
+    foreach ($items as $row) {
+        $r = is_array($row['cuerpo'] ?? null) ? $row['cuerpo'] : [];
+        if (($row['tipo'] ?? '') === 'charge.refunded' && $sesionVenta !== '' && ($r['sesion'] ?? '') === $sesionVenta && ($r['estado'] ?? '') === 'reembolsada') {
+            return $no(403, 'reembolsada');
+        }
+    }
+    $usadas = contrata_descargas_usadas($sesionVenta);
+    $base = ['sesion' => $sesionVenta, 'servicio' => $servicio, 'usadas' => $usadas, 'restantes' => max(0, CONTRATA_DESCARGAS_MAX - $usadas)];
+    if ($usadas >= CONTRATA_DESCARGAS_MAX) return $no(403, 'limite') + $base;
+    return ['http' => 200, 'motivo' => 'lista', 'reintentar' => false] + $base;
+}
+
+/** Suma una descarga si queda alguna (con bloqueo). Devuelve las usadas tras sumar, o null si ya no quedaban. */
+function contrata_descarga_consumir(string $sesion): ?int {
+    return contrata_con_bloqueo(function () use ($sesion) {
+        $f = contrata_file_descargas();
+        $j = contrata_leer_json($f, ['descargas' => []]);
+        if (!isset($j['descargas']) || !is_array($j['descargas'])) $j['descargas'] = [];
+        $n = (int)($j['descargas'][$sesion]['n'] ?? 0);
+        if ($n >= CONTRATA_DESCARGAS_MAX) return null;
+        $j['descargas'][$sesion] = ['n' => $n + 1, 'ultima' => gmdate('c')];
+        contrata_guardar_json($f, $j);
+        return $n + 1;
+    });
+}
+
+/** Ruta del archivo de un producto: CONTRATA_KITS_DIR, <base>/sobtree-kits (fuera de la web) o lib/kits (denegado). */
+function contrata_archivo_descarga(array $servicio): ?string {
+    $nombre = (string)($servicio['archivo'] ?? '');
+    if (preg_match('/^[a-z0-9][a-z0-9._-]{0,80}\.zip$/', $nombre) !== 1) return null;
+    $dirs = [];
+    if (contrata_config()['kits_dir'] !== '') $dirs[] = rtrim(contrata_config()['kits_dir'], '/');
+    foreach (contrata_base_dirs() as $b) $dirs[] = $b . '/sobtree-kits';
+    $dirs[] = __DIR__ . '/kits';
+    foreach ($dirs as $d) {
+        if (is_file("$d/$nombre") && is_readable("$d/$nombre")) return "$d/$nombre";
+    }
+    return null;
 }
 
 function contrata_leer_sesion_sim(string $id): ?array {

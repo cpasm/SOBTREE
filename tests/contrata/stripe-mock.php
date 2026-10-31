@@ -112,6 +112,43 @@ contrata_recibir_webhook($p, $h);
 $c4 = ($ultima())['cuerpo'] ?? [];
 $t('reembolso total: estado reembolsada y plaza liberada', ($c4['estado'] ?? '') === 'reembolsada' && $est($sid) === 'reembolsada');
 
+// ---- Kit (precio inline, D-119): price_data, sin Price ni semana, importe comprobado en la sesión creada.
+$t('estado del kit para su página: 4719 céntimos y token CSRF, sin semanas', (contrata_estado_producto('kit_asesorias')['producto']['total_centimos'] ?? 0) === 4719 && !empty(contrata_estado_producto('kit_asesorias')['csrf']) && !isset(contrata_estado_producto('kit_asesorias')['semanas']));
+$antes = count($leerPeticiones());
+$entradaKit = ['csrf' => contrata_csrf_emitir(), 'producto' => 'kit_asesorias', 'empresa' => 'Gestoría Uno SL', 'email' => 'admin@example.com', 'nif' => 'B12345674', 'condiciones' => 'si'];
+$rk = $abrir($entradaKit);
+$t('kit: abre sesión sin semana (200)', ($rk['http'] ?? 0) === 200 && ($rk['body']['total_centimos'] ?? 0) === 4719);
+if (($rk['http'] ?? 0) !== 200) fwrite(STDERR, json_encode($rk) . "\n");
+$sidK = (string)($rk['body']['sesion'] ?? '');
+$nuevas = array_slice($leerPeticiones(), $antes);
+$sesK = array_values(array_filter($nuevas, fn($q) => $q['metodo'] === 'POST' && $q['ruta'] === '/v1/checkout/sessions'))[0] ?? [];
+$fk = $sesK['form'] ?? [];
+$t('kit: line_item con price_data (4719 EUR, nombre del kit) y sin price', ($fk['line_items'][0]['price_data']['unit_amount'] ?? '') === '4719' && ($fk['line_items'][0]['price_data']['currency'] ?? '') === 'eur' && ($fk['line_items'][0]['price_data']['product_data']['name'] ?? '') === 'Kit IA para asesorías y gestorías' && !isset($fk['line_items'][0]['price']));
+$t('kit: IVA con el tax rate configurado, factura, dirección y cliente con NIF', preg_match('/^txr_/', (string)($fk['line_items'][0]['tax_rates'][0] ?? '')) === 1 && ($fk['invoice_creation']['enabled'] ?? '') === 'true' && ($fk['billing_address_collection'] ?? '') === 'required' && preg_match('/^cus_/', (string)($fk['customer'] ?? '')) === 1);
+$t('kit: no se lee ningún Price (no hace falta STRIPE_PRICE_KIT) y sí el tax rate', count(array_filter($nuevas, fn($q) => str_starts_with($q['ruta'], '/v1/prices/'))) === 0 && count(array_filter($nuevas, fn($q) => str_starts_with($q['ruta'], '/v1/tax_rates/'))) === 1);
+$t('kit: metadatos sin semana, con producto, entrega y versión de sus condiciones', ($fk['metadata']['producto'] ?? '') === 'kit_asesorias' && !isset($fk['metadata']['semana_lunes']) && ($fk['metadata']['entrega'] ?? '') === 'descarga' && ($fk['metadata']['condiciones_version'] ?? '') === '2026-10-31');
+$retK = array_values(array_filter(contrata_leer_retenciones()['retenciones'], fn($x) => ($x['sesion'] ?? '') === $sidK))[0] ?? [];
+$t('kit: la retención no tiene semana (no ocupa plaza) y guarda el token', ($retK['semana'] ?? 'x') === '' && preg_match('/^[a-f0-9]{32}$/', (string)($retK['token_descarga'] ?? '')) === 1);
+$t('kit: la disponibilidad del diagnóstico no cambia', (contrata_estado_publico()['ok'] ?? false) === true && count(contrata_estado_publico()['servicios']) === 1);
+$t('kit: antes del webhook la descarga está pendiente (403, reintentar) y sin llamar a Stripe', ($e0 = contrata_descarga_estado($sidK))['http'] === 403 && $e0['motivo'] === 'pendiente' && $e0['reintentar'] === true);
+$pagoK = ['id' => $sidK, 'object' => 'checkout.session', 'payment_status' => 'paid', 'mode' => 'payment', 'currency' => 'eur', 'amount_total' => 4719,
+    'payment_intent' => 'pi_kit_1', 'invoice' => 'in_kit_1', 'metadata' => $fk['metadata'] ?? [], 'consent' => ['terms_of_service' => 'accepted'],
+    'customer_details' => ['email' => 'admin@example.com', 'address' => ['country' => 'ES', 'postal_code' => '28001'], 'tax_ids' => [['type' => 'es_cif', 'value' => 'B12345674']]]];
+[$p, $h] = $evento('checkout.session.completed', $pagoK);
+$t('kit: webhook aceptado', contrata_recibir_webhook($p, $h)['http'] === 200);
+$ck = ($ultima())['cuerpo'] ?? [];
+$t('kit: venta registrada con entrega por descarga, 0 días, sin semana ni alerta', ($ck['producto'] ?? '') === 'kit_asesorias' && ($ck['entrega'] ?? '') === 'descarga' && ($ck['dias_bloqueo'] ?? -1) === 0 && ($ck['semana_lunes'] ?? 'x') === '' && ($ck['alerta_facturacion'] ?? 'x') === '' && ($ck['descarga_token'] ?? '') === ($retK['token_descarga'] ?? '-'));
+$ek = contrata_descarga_estado($sidK);
+$t('kit: pagado y registrado → descarga lista (sin consultar Stripe)', $ek['http'] === 200 && $ek['restantes'] === 10);
+$t('kit: también por el token de la factura', contrata_descarga_estado('', (string)$retK['token_descarga'])['http'] === 200);
+// Stripe devuelve otro importe en la sesión: no se da la URL de pago y se expira la sesión.
+@touch($mdir . '/importe-sesion-distinto');
+$antes = count($leerPeticiones());
+$rk2 = $abrir(['csrf' => contrata_csrf_emitir()] + $entradaKit);
+@unlink($mdir . '/importe-sesion-distinto');
+$nuevas = array_slice($leerPeticiones(), $antes);
+$t('kit: si la sesión de Stripe no cobra 4719 EUR, no abre el pago (502) y la expira', ($rk2['http'] ?? 0) === 502 && !isset($rk2['body']['url']) && count(array_filter($nuevas, fn($q) => preg_match('#^/v1/checkout/sessions/[^/]+/expire$#', $q['ruta']) === 1)) === 1);
+
 if ($caso === 'normal' && !$live) {
     // Stripe rechaza el NIF como tax_id: el cliente se crea sin él y el NIF viaja como campo de la factura.
     @touch($mdir . '/rechaza-tax-id');

@@ -46,7 +46,7 @@ if ($accion !== '' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     } elseif ($accion === 'rechazar' || $accion === 'pagar') {
         $pan = preg_replace('/\s+/', '', (string)($_POST['numero'] ?? '')) ?? '';
         if ($accion === 'rechazar' || $pan === '4000000000000002' || $pan === '4000000000009995') {
-            $error = 'Tarjeta rechazada en la simulación. No se ha cobrado nada. La reserva de la plaza caduca a los 30 minutos.';
+            $error = 'Tarjeta rechazada en la simulación. No se ha cobrado nada. La sesión de pago caduca a los 30 minutos.';
         } elseif ($pan === '4000000000003220') {
             $guardar(['esperando_3ds' => true]);
             $ses['esperando_3ds'] = true;
@@ -71,8 +71,9 @@ if ($accion !== '' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $ses = contrata_leer_sesion_sim($id) ?: $ses;
 }
 
-$imp = contrata_importes();
 $meta = $ses['params']['metadata'] ?? [];
+$svSim = contrata_servicio((string)($meta['producto'] ?? '')) ?? contrata_servicio(CONTRATA_PRODUCTO_DEFECTO);
+$imp = contrata_importes((string)$svSim['id']);
 $total = contrata_euros((int)($ses['amount_total'] ?? 0));
 $semana = (string)($meta['semana_lunes'] ?? '');
 header('Content-Type: text/html; charset=utf-8');
@@ -103,7 +104,7 @@ header('Cache-Control: no-store');
 <body>
 <main>
   <p class="aviso">Pago simulado de Sobtree. No se cobra nada y no se guarda el número. No escribas una tarjeta real.</p>
-  <h1>Diagnóstico IA exprés</h1>
+  <h1><?= htmlspecialchars((string)$svSim['nombre'], ENT_QUOTES, 'UTF-8') ?></h1>
   <dl>
     <dt>Base</dt><dd><?= htmlspecialchars($imp['base_texto'], ENT_QUOTES, 'UTF-8') ?></dd>
     <dt>IVA <?= (int)CONTRATA_IVA_PORCIENTO ?> %</dt><dd><?= htmlspecialchars($imp['iva_texto'], ENT_QUOTES, 'UTF-8') ?></dd>

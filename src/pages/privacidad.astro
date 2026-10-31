@@ -2,6 +2,8 @@
 import Base from "../layouts/Base.astro";
 import { POLITICA_FECHA, POLITICA_VERSION } from "../data/site";
 // Stripe y el pago del diagnóstico solo se describen cuando Contrata está publicado (PUBLIC_CONTRATA_ACTIVO=1).
+// PENDIENTE NEXUS (D-119, kit_asesorias): al integrar los textos de PULSE, describir aquí la compra del Kit IA (datos de compra, Stripe,
+// factura y enlace de descarga en el registro local, máximo 10 descargas) y cambiar entonces POLITICA_VERSION (site.ts y PHP).
 const contrata = import.meta.env.PUBLIC_CONTRATA_ACTIVO === "1";
 ---
 <Base title="Privacidad y aviso legal | Sobtree" description="Política de privacidad y aviso legal de Sobtree." bare>

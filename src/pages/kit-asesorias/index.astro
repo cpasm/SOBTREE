@@ -1,0 +1,151 @@
+---
+// Página de venta del Kit IA para asesorías y gestorías (D-119). Textos: PULSE (2026-10-31, parte 7), integrados por FORGE.
+// Solo existe con PUBLIC_CONTRATA_ACTIVO=1 (como /contratar/). El pago usa los mismos endpoints que el diagnóstico,
+// con producto kit_asesorias y sin semana. El precio lo manda el PHP; la página comprueba que cuadra antes de mostrar el formulario.
+import Base from "../../layouts/Base.astro";
+import { CONTRATA, KIT_ASESORIAS, kitAsesoriasImportes } from "../../data/contrata";
+import { POLITICA_VERSION } from "../../data/site";
+import { graph, organization, website } from "../../data/schema";
+import { euros } from "../../data/contrata-logica.mjs";
+
+const activo = CONTRATA.activo;
+const imp = kitAsesoriasImportes;
+const FAQ = [
+  { q: "¿Necesito saber de IA?", a: "No. Basta con tener acceso a una herramienta de IA en la empresa. Cada prompt indica qué rellenar y trae un ejemplo de resultado." },
+  { q: "¿Qué herramienta necesito?", a: "Sirve ChatGPT, Claude, Gemini, Copilot o una similar. Recomendamos el plan de empresa de cada proveedor. El kit no incluye la herramienta." },
+  { q: "¿Puedo usar datos de mis clientes?", a: "Los prompts están pensados para funcionar sin datos identificables: usan roles, códigos y marcadores. La guía incluida explica qué no pegar nunca y cómo anonimizar." }
+];
+---
+{activo ? (
+<Base title="Kit IA para asesorías y gestorías | Sobtree" description={`Prompts, plantillas y una hoja de medición para probar la IA en tres tareas que se repiten cada mes en una asesoría. ${KIT_ASESORIAS.baseEur} € + IVA, descarga inmediata.`} jsonld={graph(organization(), website())}>
+<main id="main" class="section kit-page">
+  <div class="wrap kit-wrap">
+    <p class="eyebrow">Para asesorías y gestorías</p>
+    <h1>Kit IA para asesorías y gestorías</h1>
+    <p class="section-sub">Prompts, plantillas y una hoja de medición para probar la IA en tres tareas que se repiten cada mes: pedir documentación, avisar de plazos y responder dudas. Empiezas en 30 minutos.</p>
+
+    <section class="kit-precio" aria-label="Precio">
+      <p class="kit-total" id="kit-total">{euros(imp.totalCentimos)}</p>
+      <p class="fine">{KIT_ASESORIAS.baseEur} € + IVA ({euros(imp.baseCentimos)} + {euros(imp.ivaCentimos)} de IVA {CONTRATA.ivaPorciento} %). Descarga inmediata. Factura con IVA.</p>
+    </section>
+
+    <h2>Qué incluye</h2>
+    <ul>
+      <li><strong>15 prompts</strong> en tres bloques: recogida de documentación, avisos de plazos y dudas repetidas. Cada uno explica para qué sirve e incluye un ejemplo de resultado. Funcionan en ChatGPT, Claude, Gemini o Copilot.</li>
+      <li><strong>6 emails y 6 mensajes de WhatsApp</strong> editables, para adaptarlos a tu despacho.</li>
+      <li><strong>Hoja de medición</strong>: anota cuánto tiempo os lleva hoy cada tarea y calcula el coste con tu propio coste por hora. Después mides con IA y comparas tus propios datos.</li>
+      <li><strong>Guía «Qué datos no pegar en una IA»</strong>: dos páginas para usar la IA sin poner en riesgo los datos de tus clientes.</li>
+      <li><strong>Léeme</strong> con un plan para los primeros 30 minutos.</li>
+    </ul>
+
+    <div class="kit-cols">
+      <section>
+        <h2>Para quién es</h2>
+        <ul>
+          <li>Asesorías y gestorías que quieren empezar con la IA sin un proyecto grande.</li>
+          <li>Equipos en los que cada uno prueba la IA a su manera y queréis un criterio común.</li>
+          <li>Responsables que quieren medir antes de decidir.</li>
+        </ul>
+      </section>
+      <section>
+        <h2>Para quién no es</h2>
+        <ul>
+          <li>Si buscas un programa que haga el trabajo solo: esto son prompts y plantillas, y el criterio lo pone tu equipo.</li>
+          <li>Si esperas un ahorro garantizado: no lo prometemos. La hoja te ayuda a medir el tuyo.</li>
+          <li>Si compras como particular o sin NIF español: solo vendemos a empresas y autónomos con NIF español.</li>
+          <li>Si buscas una subvención: este kit no tiene relación con el programa público Kit Digital.</li>
+        </ul>
+      </section>
+    </div>
+
+    <h2>Preguntas frecuentes</h2>
+    {FAQ.map((f) => (<><h3>{f.q}</h3><p>{f.a}</p></>))}
+    <h3>¿Cómo recibo el kit y la factura? ¿Y si algo falla?</h3>
+    <p>Al confirmarse el pago vuelves a esta web y descargas el kit (hasta {KIT_ASESORIAS.descargasMax} descargas). Stripe emite la factura con IVA y te la envía por email; el enlace de descarga también figura en la factura. Si el kit no se descarga o tiene un defecto, te lo reponemos o te devolvemos el importe. <a href="/kit-asesorias/condiciones/">Condiciones del kit</a>.</p>
+
+    <h2 id="comprar">Comprar el kit</h2>
+    <div id="kit-estado" role="status" class="form-status kit-status" aria-live="polite">Preparando el pago…</div>
+    <noscript><p>Para comprar hace falta JavaScript. Si no puedes usarlo, escríbenos a <a href="mailto:info@sobtree.com">info@sobtree.com</a>.</p></noscript>
+    <form class="contact" id="kit-form" data-producto={KIT_ASESORIAS.id} hidden>
+      <div class="row-2">
+        <label>Empresa<input name="empresa" id="kit-empresa" autocomplete="organization" maxlength="200" required></label>
+        <label>Email de la empresa<input name="email" id="kit-email" type="email" autocomplete="email" maxlength="254" required></label>
+      </div>
+      <label>NIF o CIF
+        <input name="nif" id="kit-nif" autocomplete="off" maxlength="20" required inputmode="text" spellcheck="false" aria-describedby="kit-ayuda-nif">
+      </label>
+      <p id="kit-ayuda-nif" class="fine" style="text-align:left">Solo empresas y autónomos con NIF o CIF español. Lo usamos para tu factura. Stripe te pedirá la dirección de facturación.</p>
+      <label class="hp" aria-hidden="true">No rellenar<input name="web" tabindex="-1" autocomplete="off"></label>
+      <label class="consent"><input type="checkbox" name="condiciones" id="kit-condiciones" value="si" required><span>Acepto las <a href="/kit-asesorias/condiciones/">condiciones del kit</a> y la <a href="/privacidad/">política de privacidad</a> (versión {POLITICA_VERSION}). El pago lo procesa Stripe en su página.</span></label>
+      <button class="btn btn-primary" type="submit" id="kit-pagar">Comprar y descargar · {euros(imp.totalCentimos)}</button>
+      <p class="fine" style="text-align:left">{KIT_ASESORIAS.baseEur} € + IVA. Solo empresas y autónomos con NIF español.</p>
+    </form>
+  </div>
+</main>
+<script is:inline define:vars={{ endpointDisp: CONTRATA.endpoints.disponibilidad, endpointPago: CONTRATA.endpoints.crearSesion, producto: KIT_ASESORIAS.id, totalEsperado: imp.totalCentimos, baseEsperada: imp.baseCentimos }}>
+(function () {
+  var estado = document.getElementById("kit-estado");
+  var form = document.getElementById("kit-form");
+  var datos = null;
+  var MSG = "No hemos podido abrir el pago; inténtalo en un minuto o escríbenos a info@sobtree.com.";
+  function cerrado() {
+    if (form) form.hidden = true;
+    if (estado) estado.textContent = "Ahora mismo no podemos cobrar online. Escríbenos a info@sobtree.com y te lo enviamos.";
+  }
+  if (new URLSearchParams(location.search).get("cancelado") === "1" && estado) estado.textContent = "Has vuelto sin pagar. No se ha cobrado nada.";
+  fetch(endpointDisp + "?producto=" + encodeURIComponent(producto), { headers: { Accept: "application/json" } })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      // El importe que cobra el servidor tiene que ser el que muestra la página.
+      if (!d || d.ok !== true || !d.producto || d.producto.id !== producto || d.producto.total_centimos !== totalEsperado || d.producto.base_centimos !== baseEsperada || !d.csrf) { cerrado(); return; }
+      datos = d;
+      if (estado && !/sin pagar/.test(estado.textContent)) estado.textContent = "";
+      if (form) form.hidden = false;
+    })
+    .catch(cerrado);
+  if (form) form.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    if (!datos) { cerrado(); return; }
+    var body = {
+      producto: producto,
+      csrf: datos.csrf,
+      empresa: document.getElementById("kit-empresa").value,
+      email: document.getElementById("kit-email").value,
+      nif: document.getElementById("kit-nif").value,
+      condiciones: document.getElementById("kit-condiciones").checked ? "si" : "",
+      web: (form.querySelector("input[name=web]") || {}).value || ""
+    };
+    try {
+      var o = JSON.parse(sessionStorage.getItem("sobtree_origen") || "null");
+      if (o && o.utm) Object.keys(o.utm).forEach(function (k) { body[k] = o.utm[k]; });
+    } catch (e) {}
+    var boton = document.getElementById("kit-pagar");
+    if (boton) boton.disabled = true;
+    fetch(endpointPago, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j && j.ok && j.url) { location.href = j.url; return; }
+        if (estado) estado.textContent = (j && j.error) || MSG;
+        if (boton) boton.disabled = false;
+      })
+      .catch(function () { if (estado) estado.textContent = MSG; if (boton) boton.disabled = false; });
+  });
+})();
+</script>
+<style>
+  .kit-wrap { max-width: 860px; }
+  .kit-precio { margin: 1.25rem 0; padding: 1rem 1.25rem; border: 1px solid var(--line-strong, rgba(255,255,255,.24)); border-radius: 16px; background: var(--panel, #0C1F4F); color: var(--white, #fff); }
+  .kit-precio p { margin: 0; }
+  .kit-precio .fine { color: var(--text-2, #D4DEF4); text-align: left; }
+  .kit-total { font-size: clamp(1.8rem, 4vw, 2.25rem); font-weight: 750; letter-spacing: -0.03em; }
+  .kit-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .kit-status:empty { display: none; }
+  #kit-form { margin-top: 0.75rem; }
+  @media (max-width: 640px) { .kit-cols { grid-template-columns: 1fr; } }
+</style>
+</Base>
+) : (
+<Base title="Sobtree" noindex={true}>
+<main id="main" class="section"><div class="wrap"><p>Esta página no está publicada.</p></div></main>
+</Base>
+)}
