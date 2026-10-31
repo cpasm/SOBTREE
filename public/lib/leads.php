@@ -18,7 +18,7 @@ declare(strict_types=1);
 
 const LEADS_SCHEMA_VERSION = 1;
 // Versión publicada en /privacidad/ (POLITICA_VERSION en src/data/site.ts). Va con el lead.
-const LEADS_POLITICA_VERSION = '2026-10-27';
+const LEADS_POLITICA_VERSION = '2026-10-31';
 // Texto exacto de la casilla opcional (COMERCIAL_CONSENT_TEXT en src/data/site.ts). Sin el enlace.
 const LEADS_COMERCIAL_TEXTO = 'Quiero recibir comunicaciones comerciales de Sobtree (novedades, análisis y ofertas) por email. Puedes darte de baja cuando quieras.';
 // Asunto estable del aviso a info@ (la rutina de NEXUS lo busca en Gmail): «[Sobtree] Nuevo contacto <id>».

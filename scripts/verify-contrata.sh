@@ -23,7 +23,7 @@ check "/contratar/ muestra el servicio y el total 592,90 €" 'grep -q "id=\"con
 C=$(getf condiciones /condiciones/); check "/condiciones/ responde 200" '[ "$C" = 200 ]' "HTTP $C"
 check "/condiciones/ es indexable, está firmada por Sobtree Holding, S.L. y sin marcas de borrador" 'grep -q "Sobtree Holding, S.L." "$T/condiciones" && ! grep -q "name=\"robots\" content=\"noindex\"" "$T/condiciones" && ! grep -qE "PENDIENTE|PROPUESTA|BORRADOR" "$T/condiciones"'
 C=$(getf home /); check "la portada responde 200 y tiene el botón Contrata" '[ "$C" = 200 ] && grep -q "id=\"contrata-boton\"" "$T/home"' "HTTP $C"
-C=$(getf priv /privacidad/); check "/privacidad/ sin HubSpot y con la versión 2026-10-27" '[ "$C" = 200 ] && ! grep -qi hubspot "$T/priv" && grep -q "2026-10-27" "$T/priv"'
+C=$(getf priv /privacidad/); check "/privacidad/ sin HubSpot y con la versión 2026-10-31" '[ "$C" = 200 ] && ! grep -qi hubspot "$T/priv" && grep -q "2026-10-31" "$T/priv"'
 C=$(getf sm /sitemap-0.xml); check "el sitemap incluye /contratar/ y /condiciones/ y no la confirmación de pago" '[ "$C" = 200 ] && grep -q "<loc>https://sobtree.com/contratar/</loc>" "$T/sm" && grep -q "<loc>https://sobtree.com/condiciones/</loc>" "$T/sm" && ! grep -q "contratar/gracias" "$T/sm"'
 
 echo "2. API"
