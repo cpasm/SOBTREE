@@ -16,7 +16,7 @@ concurrency:
 jobs:
   publicar:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -66,16 +66,43 @@ jobs:
             gh run watch "$ID" -R "$REPO" --exit-status
             sleep 150   # Hostinger publica la rama hostinger
           }
+          # El antibots de Hostinger devuelve 403 al User-Agent por defecto de curl desde IP de centros de
+          # datos: se pide como un navegador normal, con identificador propio, y se reintenta.
+          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 SobtreeDeployCheck/1.0'
+          CHK=$(mktemp -d)
+          # pedir URL → deja el cuerpo en $CHK/cuerpo y las cabeceras en $CHK/cab; imprime el código HTTP.
+          # Hasta 3 intentos con 20 s de espera mientras no sea 200; si acaba en 403, vuelca el diagnóstico.
+          pedir() {
+            local u="$1" c=000 i
+            for i in 1 2 3; do
+              rm -f "$CHK/cab" "$CHK/cuerpo"   # nunca validar el cuerpo de una petición anterior
+              c=$(curl -s --max-time 20 -A "$UA" \
+                    -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,application/json;q=0.8,*/*;q=0.7' \
+                    -H 'Accept-Language: es-ES,es;q=0.9,en;q=0.8' \
+                    -D "$CHK/cab" -o "$CHK/cuerpo" -w '%{http_code}' "$u" || true)
+              [ "$c" = "200" ] && break
+              echo "$u → $c (intento $i/3)" >&2
+              if [ "$i" -lt 3 ]; then sleep 20; fi
+            done
+            if [ "$c" = "403" ]; then
+              { echo "--- cabeceras de respuesta de $u (Set-Cookie ocultas) ---"
+                sed -E 's/^(set-cookie:).*/\1 [oculto]/I' "$CHK/cab" 2>/dev/null || true
+                echo "--- primeros 300 bytes del cuerpo ---"
+                head -c 300 "$CHK/cuerpo" 2>/dev/null || true
+                echo; echo "---"; } >&2
+            fi
+            echo "$c"
+          }
           comprobar() {
             ok=1
             for u in https://sobtree.com/ https://sobtree.com/contratar/ https://sobtree.com/condiciones/; do
-              c=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$u"); echo "$u → $c"; [ "$c" = "200" ] || ok=0
+              c=$(pedir "$u"); echo "$u → $c"; [ "$c" = "200" ] || ok=0
             done
-            # Se guarda en variable: con pipefail, «curl | grep -q» da falso fallo (curl recibe SIGPIPE).
-            home=$(curl -s --max-time 20 https://sobtree.com/ || true)
-            grep -qi 'sobtree' <<<"$home" || { echo "portada sin 'sobtree'"; ok=0; }
-            disp=$(curl -s --max-time 20 https://sobtree.com/api/contrata/disponibilidad.php || true)
-            grep -q '"ok":true' <<<"$disp" || { echo "disponibilidad sin ok:true"; ok=0; }
+            # El cuerpo se lee de archivo: con pipefail, «curl | grep -q» da falso fallo (curl recibe SIGPIPE).
+            pedir https://sobtree.com/ >/dev/null
+            grep -qi 'sobtree' "$CHK/cuerpo" 2>/dev/null || { echo "portada sin 'sobtree'"; ok=0; }
+            pedir https://sobtree.com/api/contrata/disponibilidad.php >/dev/null
+            grep -q '"ok":true' "$CHK/cuerpo" 2>/dev/null || { echo "disponibilidad sin ok:true"; ok=0; }
             [ $ok = 1 ]
           }
           desplegar
