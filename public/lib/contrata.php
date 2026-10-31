@@ -7,6 +7,8 @@
 // Modo por defecto: apagado. «simulacion» no llama a Stripe, Google ni n8n reales.
 declare(strict_types=1);
 
+require_once __DIR__ . '/apps-script.php';
+
 const CONTRATA_PRECIO_BASE_EUR = 490;          // tiene que coincidir con DIAGNOSTICO.precio en src/data/site.ts
 const CONTRATA_IVA_PORCIENTO = 21;
 const CONTRATA_DIAS_DESCUENTO = 30;            // DIAGNOSTICO.dias
@@ -126,6 +128,10 @@ function contrata_config(): array {
         'live' => $modo === 'stripe_live',
         'hmac_secret' => $get('CONTRATA_HMAC_SECRET'),
         'n8n_url' => $n8nOk ? $n8n : '',
+        // Migración a Google Apps Script (opcional; si falta algo se omite en silencio).
+        'apps_url' => apps_script_url_valida($get('APPS_SCRIPT_CONTRATA_URL')),
+        'apps_secret' => $get('APPS_SCRIPT_CONTRATA_HMAC_SECRET'),
+        'apps_modo' => apps_script_modo($get('APPS_SCRIPT_MODO')),
         'public_url' => $public,
         'cal_proyectos' => $get('CONTRATA_CALENDAR_PROYECTOS_ID'),
         'cal_bloqueos' => $get('CONTRATA_CALENDAR_BLOQUEOS_ID'),
@@ -137,6 +143,17 @@ function contrata_config(): array {
 }
 
 function contrata_modo(): string { return contrata_config()['modo']; }
+
+/** Apps Script activo: URL y secreto presentes y modo distinto de «apagado». */
+function contrata_apps_activo(): bool {
+    $c = contrata_config();
+    return $c['apps_url'] !== '' && $c['apps_secret'] !== '' && $c['apps_modo'] !== 'apagado';
+}
+
+/** Apps Script decide la entrega (y n8n pasa a respaldo) solo en modo «principal» con configuración completa. */
+function contrata_apps_principal(): bool {
+    return contrata_apps_activo() && contrata_config()['apps_modo'] === 'principal';
+}
 
 /** Los eventos, sesiones y Prices de Stripe tienen que ser live solo en stripe_live. */
 function contrata_livemode_esperado(): bool { return contrata_config()['live']; }
@@ -1380,6 +1397,43 @@ function contrata_aplicar_reembolso(array $obj, string $eventId): void {
     ]);
 }
 
+/**
+ * Entregas a Apps Script que se ejecutan DESPUÉS de responder a Stripe (nunca bloquean el webhook).
+ * Con $row añade una; con $vaciar devuelve y vacía la lista.
+ */
+function contrata_apps_diferidos(?array $row = null, bool $vaciar = false): array {
+    static $pend = [];
+    static $registrado = false;
+    if ($vaciar) { $r = $pend; $pend = []; return $r; }
+    if ($row !== null) {
+        $pend[] = $row;
+        if (!$registrado) {
+            $registrado = true;
+            register_shutdown_function(function () {
+                // Cierra la respuesta HTTP antes de la llamada lenta (FPM / LiteSpeed); en CLI no hace nada.
+                if (function_exists('fastcgi_finish_request')) @fastcgi_finish_request();
+                elseif (function_exists('litespeed_finish_request')) @litespeed_finish_request();
+                contrata_apps_ejecutar_diferidos();
+            });
+        }
+    }
+    return $pend;
+}
+
+/** Ejecuta (y vacía) las entregas diferidas. Cualquier fallo queda registrado y aislado. */
+function contrata_apps_ejecutar_diferidos(): int {
+    $n = 0;
+    foreach (contrata_apps_diferidos(null, true) as $row) {
+        try {
+            contrata_entregar_diferido($row);
+            $n++;
+        } catch (Throwable $e) {
+            error_log('contrata: apps_script excepción');
+        }
+    }
+    return $n;
+}
+
 function contrata_encolar_y_enviar(array $evento): array {
     $row = [
         'id' => contrata_uuid(),
@@ -1392,7 +1446,15 @@ function contrata_encolar_y_enviar(array $evento): array {
         error_log('contrata: no se pudo encolar ' . $evento['event_id']);
         return ['error', 'cola'];
     }
-    return contrata_entregar($row);
+    if (contrata_apps_principal()) {
+        // Apps Script decide: toda la entrega (Apps Script y, si falla, n8n) va después de responder a Stripe.
+        // Si el proceso muere antes, el cron la reintenta desde la cola.
+        contrata_apps_diferidos($row);
+        return ['pendiente', 'apps_script_diferido'];
+    }
+    $r = contrata_entregar($row);
+    if (contrata_apps_activo()) contrata_apps_diferidos($row);
+    return $r;
 }
 
 function contrata_entregar(array $row): array {
@@ -1402,14 +1464,68 @@ function contrata_entregar(array $row): array {
     return [$estado, $detalle];
 }
 
-function contrata_marcar_cola(string $id, string $estado, string $detalle = ''): void {
-    contrata_append(contrata_file_cola_estado(), [
+/** Estado vigente de una fila de la cola, por canal. Las filas antiguas (sin «canal») son de n8n. */
+function contrata_estado_cola(string $id): array {
+    [, $state] = contrata_cargar_cola();
+    return $state[$id] ?? [];
+}
+
+/**
+ * Entrega diferida de una fila ya encolada. Sombra: solo Apps Script (n8n ya se entregó en línea; el resultado
+ * de Apps Script se registra y no toca nada de n8n). Principal: Apps Script primero y n8n solo como respaldo.
+ */
+function contrata_entregar_diferido(array $row): void {
+    $st = contrata_estado_cola($row['id']);
+    $appsPrevio = $st['apps_ultimo'] ?? null;
+    if (contrata_apps_principal()) {
+        if ($appsPrevio !== 'enviado' && ($st['apps_intentos'] ?? 0) < APPS_SCRIPT_MAX_INTENTOS) contrata_entregar_apps($row);
+        $st = contrata_estado_cola($row['id']);
+        $n8nOk = ($st['ultimo'] ?? null) === 'enviado';
+        if (($st['apps_ultimo'] ?? null) !== 'enviado' && !$n8nOk && ($st['intentos'] ?? 0) < CONTRATA_MAX_INTENTOS) {
+            contrata_entregar($row);
+        }
+        return;
+    }
+    if ($appsPrevio !== 'enviado' && ($st['apps_intentos'] ?? 0) < APPS_SCRIPT_MAX_INTENTOS) contrata_entregar_apps($row);
+}
+
+/** Un intento contra Apps Script. Solo REGISTRA (canal apps_script); no decide nada en modo sombra. */
+function contrata_entregar_apps(array $row): array {
+    $c = contrata_config();
+    $body = json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($body === false) { $r = ['error', 'json', null]; }
+    else $r = apps_script_enviar('contrata', $body, $c['apps_url'], $c['apps_secret']);
+    [$estado, $detalle] = $r;
+    contrata_marcar_cola($row['id'], $estado, $detalle, 'apps_script');
+    if ($estado === 'error') error_log('contrata: apps_script falló para ' . $row['id'] . ': ' . $detalle);
+    return [$estado, $detalle];
+}
+
+function contrata_marcar_cola(string $id, string $estado, string $detalle = '', string $canal = 'n8n'): void {
+    $fila = [
         'id' => $id,
         'estado' => $estado,
         'detalle' => mb_substr($detalle, 0, 300),
         'fecha' => gmdate('c'),
-    ]);
-    if ($estado === 'enviado') contrata_purgar_nif_cola($id);
+    ];
+    // Las filas de n8n no llevan «canal» (formato histórico); las de Apps Script sí.
+    if ($canal !== 'n8n') $fila['canal'] = $canal;
+    contrata_append(contrata_file_cola_estado(), $fila);
+    if ($estado === 'enviado') contrata_purgar_nif_si_listo($id);
+    elseif ($canal === 'apps_script') contrata_purgar_nif_si_listo($id); // por si se agotó el último canal pendiente
+}
+
+/**
+ * El NIF se purga de la cola cuando ya no queda ningún canal que lo necesite: n8n entregado (o no necesario
+ * porque Apps Script, principal, entregó) y Apps Script entregado, agotado o no activo.
+ */
+function contrata_purgar_nif_si_listo(string $id): void {
+    $st = contrata_estado_cola($id);
+    $appsActivo = contrata_apps_activo();
+    $appsOk = !$appsActivo || ($st['apps_ultimo'] ?? null) === 'enviado' || ($st['apps_intentos'] ?? 0) >= APPS_SCRIPT_MAX_INTENTOS;
+    $n8nNecesario = !(contrata_apps_principal() && ($st['apps_ultimo'] ?? null) === 'enviado');
+    $n8nOk = !$n8nNecesario || ($st['ultimo'] ?? null) === 'enviado';
+    if ($appsOk && $n8nOk) contrata_purgar_nif_cola($id);
 }
 
 /** Entregado el aviso, el NIF deja de guardarse en la cola. */
@@ -1481,8 +1597,10 @@ function contrata_cargar_cola(): array {
         foreach (file($s, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
             $row = json_decode($line, true);
             if (!is_array($row) || !isset($row['id'])) continue;
-            $state[$row['id']]['ultimo'] = $row['estado'];
-            if (($row['estado'] ?? '') === 'error') $state[$row['id']]['intentos'] = ($state[$row['id']]['intentos'] ?? 0) + 1;
+            // Filas sin «canal» = n8n (formato histórico). Apps Script lleva su propio estado y contador.
+            $pre = ($row['canal'] ?? 'n8n') === 'apps_script' ? 'apps_' : '';
+            $state[$row['id']][$pre . 'ultimo'] = $row['estado'];
+            if (($row['estado'] ?? '') === 'error') $state[$row['id']][$pre . 'intentos'] = ($state[$row['id']][$pre . 'intentos'] ?? 0) + 1;
         }
     }
     return [$items, $state];
@@ -1493,19 +1611,39 @@ function contrata_reintentar_cola(bool $dry = false): array {
     if (!is_file(contrata_file_cola())) return $stats;
     [$items, $state] = contrata_cargar_cola();
     $ready = contrata_config()['n8n_url'] !== '' && contrata_config()['hmac_secret'] !== '';
+    $appsActivo = contrata_apps_activo();
+    $principal = contrata_apps_principal();
+    if ($appsActivo) $stats += ['apps_enviados' => 0, 'apps_errores' => 0, 'apps_agotados' => 0];
     foreach ($items as $id => $row) {
         $prev = $state[$id]['ultimo'] ?? null;
-        if ($prev === 'enviado') continue;
-        $stats['revisados']++;
+        $appsPrev = $state[$id]['apps_ultimo'] ?? null;
+        $appsAgotado = ($state[$id]['apps_intentos'] ?? 0) >= APPS_SCRIPT_MAX_INTENTOS;
+        $appsPendiente = $appsActivo && $appsPrev !== 'enviado' && !$appsAgotado;
+        if ($appsActivo && $appsAgotado && $appsPrev !== 'enviado') $stats['apps_agotados']++;
+        // En principal, n8n solo hace falta si Apps Script no ha entregado.
+        $n8nNecesario = !($principal && $appsPrev === 'enviado');
+        if (($prev === 'enviado' || !$n8nNecesario) && !$appsPendiente) continue;
+        if ($prev !== 'enviado' && $n8nNecesario) $stats['revisados']++;
         $intentos = $state[$id]['intentos'] ?? 0;
-        if ($intentos >= CONTRATA_MAX_INTENTOS) {
-            $stats['agotados']++;
-            continue;
+        $n8nAgotado = $intentos >= CONTRATA_MAX_INTENTOS;
+        if ($prev !== 'enviado' && $n8nNecesario && $n8nAgotado) $stats['agotados']++;
+        if ($dry) continue;
+        // Principal: primero Apps Script; n8n solo si sigue sin entregarse. Sombra: n8n como siempre y Apps Script aparte.
+        if ($principal && $appsPendiente) {
+            [$e] = contrata_entregar_apps($row);
+            if ($e === 'enviado') { $stats['apps_enviados']++; continue; }
+            if ($e === 'error') $stats['apps_errores']++;
         }
-        if (!$ready || $dry) continue;
-        [$estado] = contrata_entregar($row);
-        if ($estado === 'enviado') $stats['enviados']++;
-        elseif ($estado === 'error') $stats['errores']++;
+        if ($prev !== 'enviado' && $n8nNecesario && !$n8nAgotado && $ready) {
+            [$estado] = contrata_entregar($row);
+            if ($estado === 'enviado') $stats['enviados']++;
+            elseif ($estado === 'error') $stats['errores']++;
+        }
+        if (!$principal && $appsPendiente) {
+            [$e] = contrata_entregar_apps($row);
+            if ($e === 'enviado') $stats['apps_enviados']++;
+            elseif ($e === 'error') $stats['apps_errores']++;
+        }
     }
     return $stats;
 }

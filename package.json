@@ -11,8 +11,9 @@
     "test:contrata": "bash tests/contrata/run-tests.sh",
     "test:leads": "bash tests/leads/run-tests.sh",
     "test:leads-hoja": "node tests/leads-hoja/test-lead-hoja.mjs",
+    "test:apps-script": "bash tests/apps-script/run-tests.sh",
     "test:privacidad": "bash tests/privacidad/run-tests.sh",
-    "test:todo": "npm run test:leads && npm run test:leads-hoja && npm run test:privacidad && npm run test:contrata"
+    "test:todo": "npm run test:leads && npm run test:leads-hoja && npm run test:privacidad && npm run test:contrata && npm run test:apps-script"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.14",

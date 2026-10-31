@@ -38,4 +38,11 @@ return [
     // 'CONTRATA_PUBLIC_URL' => 'https://sobtree.com',
     // 'CONTRATA_DIR' => '/home/<usuario>/domains/sobtree.com/sobtree-contrata',
     // Los IDs de calendario NO van aquí: los lee n8n (build-contrata.mjs, CONTRATA_CAL_ID = info@sobtree.com).
+    // Migración de n8n a Google Apps Script (opcional; si faltan, se omite en silencio). Solo los nombres.
+    // Ver docs/migracion-apps-script.md. Los valores reales van en sobtree-secrets.php, nunca aquí.
+    // 'APPS_SCRIPT_MODO' => 'sombra',                 // sombra (defecto: n8n principal) | principal | apagado
+    // 'APPS_SCRIPT_LEADS_URL' => '',                  // URL https del web app (…/exec)
+    // 'APPS_SCRIPT_LEADS_HMAC_SECRET' => '',          // = propiedad LEADS_HMAC_SECRET del proyecto Apps Script
+    // 'APPS_SCRIPT_CONTRATA_URL' => '',
+    // 'APPS_SCRIPT_CONTRATA_HMAC_SECRET' => '',       // = propiedad CONTRATA_HMAC_SECRET del proyecto Apps Script
 ];

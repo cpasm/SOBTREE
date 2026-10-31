@@ -12,7 +12,11 @@
 //   LEADS_DIR                 carpeta del registro (por defecto domains/sobtree.com/sobtree-leads)
 //   LEADS_NOTIFY_TO           destinatario del aviso por correo (por defecto info@sobtree.com)
 //   LEADS_NOTIFY_FROM         remitente del aviso (por defecto info@sobtree.com, buzón real de Google Workspace)
+//   APPS_SCRIPT_LEADS_URL / APPS_SCRIPT_LEADS_HMAC_SECRET / APPS_SCRIPT_MODO  migración a Google Apps Script
+//   (opcionales; si faltan se omite en silencio; ver docs/migracion-apps-script.md)
 declare(strict_types=1);
+
+require_once __DIR__ . '/apps-script.php';
 
 const LEADS_SCHEMA_VERSION = 1;
 // Versión publicada en /privacidad/ (POLITICA_VERSION en src/data/site.ts). Va firmada con el lead.
@@ -64,8 +68,22 @@ function leads_config(): array {
         'webhook_secret' => $get('N8N_LEADS_WEBHOOK_SECRET'),
         'notify_to' => $get('LEADS_NOTIFY_TO', 'info@sobtree.com'),
         'notify_from' => $get('LEADS_NOTIFY_FROM', 'info@sobtree.com'),
+        'apps_url' => apps_script_url_valida($get('APPS_SCRIPT_LEADS_URL')),
+        'apps_secret' => $get('APPS_SCRIPT_LEADS_HMAC_SECRET'),
+        'apps_modo' => apps_script_modo($get('APPS_SCRIPT_MODO')),
     ];
     return $cfg;
+}
+
+/** Apps Script está activo si hay URL y secreto y el modo no es «apagado». */
+function leads_apps_activo(): bool {
+    $c = leads_config();
+    return $c['apps_url'] !== '' && $c['apps_secret'] !== '' && $c['apps_modo'] !== 'apagado';
+}
+
+/** Apps Script decide la entrega solo en modo «principal» y con configuración completa. */
+function leads_apps_principal(): bool {
+    return leads_apps_activo() && leads_config()['apps_modo'] === 'principal';
 }
 
 function leads_webhook_ready(): bool {
@@ -196,6 +214,19 @@ function leads_send_webhook(array $lead, bool $respaldoEnviado = false): array {
 }
 
 /**
+ * Reenvía el MISMO evento a Apps Script (sobre firmado, ver apps-script.php).
+ * Devuelve [estado, detalle, aviso]; sin excepciones. Sin configuración: ['omitido', ...].
+ */
+function leads_send_apps_script(array $lead, bool $respaldoEnviado = false): array {
+    if (!leads_apps_activo()) return ['omitido', 'no_configurado', null];
+    $c = leads_config();
+    $lead['envio'] = ['respaldo_enviado' => $respaldoEnviado];
+    $body = json_encode($lead, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($body === false) return ['error', 'json', null];
+    return apps_script_enviar('lead', $body, $c['apps_url'], $c['apps_secret']);
+}
+
+/**
  * Entrega de un lead YA GUARDADO: primero n8n (aviso principal a info@ + HubSpot) y, solo si n8n falla,
  * da timeout, no está configurado o no pudo enviar su aviso, el correo de RESPALDO desde la web.
  * Nunca envía dos respaldos: usa el último estado del canal «correo» en estado.jsonl.
@@ -203,10 +234,40 @@ function leads_send_webhook(array $lead, bool $respaldoEnviado = false): array {
  *   $intentarN8n: false cuando el cron ya agotó los intentos.
  * Devuelve ['n8n' => estado, 'correo' => estado|null].
  */
-function leads_deliver(array $lead, ?string $n8nPrevio = null, ?string $correoPrevio = null, bool $intentarN8n = true): array {
+function leads_deliver(array $lead, ?string $n8nPrevio = null, ?string $correoPrevio = null, bool $intentarN8n = true, ?string $appsPrevio = null, bool $intentarApps = true): array {
     $id = $lead['id'];
     $respaldoHecho = $correoPrevio === 'correo_ok';
+    $principal = leads_apps_principal();
     $estado = $n8nPrevio; $aviso = null; $detalle = '';
+    $appsEstado = $appsPrevio; $appsAviso = null;
+
+    if ($principal) {
+        // Apps Script decide la entrega; n8n solo entra como respaldo si Apps Script no entregó.
+        if ($appsPrevio !== 'enviado' && $intentarApps) {
+            [$appsEstado, $d, $appsAviso] = leads_send_apps_script($lead, $respaldoHecho);
+            leads_mark($id, 'apps_script', $appsEstado, $d);
+            if ($appsEstado === 'error') error_log("leads: apps_script falló para $id: $d (se reintentará)");
+        }
+        if ($appsEstado !== 'enviado' && $n8nPrevio !== 'enviado' && $intentarN8n) {
+            [$estado, $detalle, $aviso] = leads_send_webhook($lead, $respaldoHecho);
+            leads_mark($id, 'n8n', $estado, $detalle);
+            if ($estado === 'error') error_log("leads: n8n falló para $id: $detalle (se reintentará)");
+        }
+        $entregado = $appsEstado === 'enviado' || $estado === 'enviado';
+        $avisoOk = $appsEstado === 'enviado' ? $appsAviso : ($estado === 'enviado' ? $aviso : null);
+        $necesita = !$entregado || $avisoOk === false;
+        if ($appsPrevio === 'enviado' || ($appsEstado !== 'enviado' && $n8nPrevio === 'enviado')) $necesita = $correoPrevio === 'correo_error';
+        $correo = $correoPrevio;
+        if ($necesita && !$respaldoHecho) {
+            $motivo = $entregado ? 'apps_script_sin_aviso' : (leads_apps_activo() ? 'apps_script_fallo' : 'webhook_no_configurado');
+            $ok = leads_send_mail($lead, $motivo);
+            $correo = $ok ? 'correo_ok' : 'correo_error';
+            leads_mark($id, 'correo', $correo, "respaldo: $motivo");
+        }
+        return ['n8n' => $estado, 'correo' => $correo, 'apps_script' => $appsEstado];
+    }
+
+    // n8n principal (modos «sombra» y «apagado»): comportamiento histórico, sin cambios.
     if ($n8nPrevio !== 'enviado' && $intentarN8n) {
         [$estado, $detalle, $aviso] = leads_send_webhook($lead, $respaldoHecho);
         leads_mark($id, 'n8n', $estado, $detalle);
@@ -222,7 +283,19 @@ function leads_deliver(array $lead, ?string $n8nPrevio = null, ?string $correoPr
         $correo = $ok ? 'correo_ok' : 'correo_error';
         leads_mark($id, 'correo', $correo, "respaldo: $motivo");
     }
-    return ['n8n' => $estado, 'correo' => $correo];
+
+    // Sombra: mismo evento a Apps Script DESPUÉS de todo lo anterior. Solo se registra; no cambia
+    // ningún estado de n8n ni del correo de respaldo. Nunca puede romper el formulario.
+    if (leads_apps_activo() && $appsPrevio !== 'enviado' && $intentarApps) {
+        try {
+            [$appsEstado, $d] = leads_send_apps_script($lead, $correo === 'correo_ok');
+            leads_mark($id, 'apps_script', $appsEstado, $d);
+            if ($appsEstado === 'error') error_log("leads: apps_script falló para $id: $d (se reintentará)");
+        } catch (Throwable $e) {
+            error_log("leads: apps_script excepción para $id");
+        }
+    }
+    return ['n8n' => $estado, 'correo' => $correo, 'apps_script' => $appsEstado];
 }
 
 /**
@@ -301,7 +374,8 @@ function leads_load_all(): array {
             if (!is_array($row) || !isset($row['id'], $row['canal'])) continue;
             $k = $row['id'] . '|' . $row['canal'];
             $state[$k]['ultimo'] = $row['estado'];
-            if ($row['canal'] === 'n8n' && $row['estado'] === 'error') $state[$k]['intentos'] = ($state[$k]['intentos'] ?? 0) + 1;
+            // Contador de intentos fallidos por canal (n8n y apps_script llevan cada uno el suyo).
+            if (in_array($row['canal'], ['n8n', 'apps_script'], true) && $row['estado'] === 'error') $state[$k]['intentos'] = ($state[$k]['intentos'] ?? 0) + 1;
         }
     }
     return [$leads, $state];
