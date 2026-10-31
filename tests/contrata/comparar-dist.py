@@ -37,6 +37,8 @@ fa, fb = ficheros(a), ficheros(b)
 # llms: el CTA de contacto cambia con el flag.
 permitidos = lambda r: r.startswith(("contratar/", "condiciones/", "kit-asesorias/", "privacidad/", "sitemap")) or r in (
     "index.html", "llms.txt", "llms-full.txt",
+    # /asesorias/: tarjeta del Kit IA solo con el flag (D-119).
+    "asesorias/index.html",
 )
 ignorar = lambda r: r.startswith(("collections/", "data-store.json", "content-", "settings.json")) or r == "content-assets.mjs"
 for r in sorted(set(fa) | set(fb)):

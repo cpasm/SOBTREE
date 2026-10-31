@@ -2,6 +2,10 @@
 import Base from "../../layouts/Base.astro";
 import { PLAZO_DIAGNOSTICO, TEXTOS } from "../../data/site";
 import { graph, organization, website } from "../../data/schema";
+import { CONTRATA, KIT_ASESORIAS, kitAsesoriasImportes } from "../../data/contrata";
+import { euros } from "../../data/contrata-logica.mjs";
+// La tarjeta del kit solo se pinta con Contrata publicado (la página /kit-asesorias/ solo existe entonces).
+const kitActivo = CONTRATA.activo;
 
 const TAREAS = [
   { t: "Conciliaciones", d: "Cruzar extractos, facturas y apuntes a mano, línea a línea, cada mes." },
@@ -55,6 +59,19 @@ const ENTREGABLES = [
       <p style="margin-top:12px">Precio cerrado, sin extras. Plazo de entrega del informe: {PLAZO_DIAGNOSTICO}.</p>
       <p style="margin-top:12px">Las cifras de ahorro son estimaciones, no una garantía.</p>
     </div>
+
+    {kitActivo && (
+    <div class="card kit-tarjeta" style="margin-top:56px">
+      <h2 style="font-size:clamp(22px,2.6vw,28px);margin:0">{KIT_ASESORIAS.nombre}</h2>
+      <p style="margin-top:12px;color:var(--text-2)">Prompts, plantillas y una hoja de medición para probar la IA en tres tareas que se repiten cada mes: pedir documentación, avisar de plazos y responder dudas. Empiezas en 30 minutos.</p>
+      <ul>
+        <li style="margin-top:10px;color:var(--text-2)"><strong>15 prompts</strong> en tres bloques: recogida de documentación, avisos de plazos y dudas repetidas.</li>
+        <li style="margin-top:10px;color:var(--text-2)"><strong>6 emails y 6 mensajes de WhatsApp</strong> editables, para adaptarlos a tu despacho.</li>
+        <li style="margin-top:10px;color:var(--text-2)"><strong>Hoja de medición</strong> y guía «Qué datos no pegar en una IA».</li>
+      </ul>
+      <p style="margin-top:20px"><a class="btn btn-primary" href={KIT_ASESORIAS.ruta}>Ver el kit · {euros(kitAsesoriasImportes.totalCentimos)}</a></p>
+    </div>
+    )}
 
     <h2 class="page-title" style="font-size:clamp(24px,3vw,32px);margin-top:56px">Empieza por una conversación</h2>
     <p class="section-sub">Cuéntanos cómo trabaja tu despacho. Te diremos con sinceridad si un diagnóstico tiene sentido en tu caso.</p>

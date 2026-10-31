@@ -2,8 +2,8 @@
 export const BUILD_VERSION = Date.now().toString(36);
 
 // Política de privacidad. Tiene que coincidir con LEADS_POLITICA_VERSION en public/lib/leads.php.
-export const POLITICA_VERSION = "2026-10-31";
-export const POLITICA_FECHA = "31 de octubre de 2026";
+export const POLITICA_VERSION = "2026-11-01";
+export const POLITICA_FECHA = "1 de noviembre de 2026";
 // Texto exacto de la casilla opcional del formulario de contacto. El mismo literal va firmado
 // en el lead (LEADS_COMERCIAL_TEXTO). El enlace a /privacidad/ es aparte y no forma parte del texto.
 export const COMERCIAL_CONSENT_TEXT =
