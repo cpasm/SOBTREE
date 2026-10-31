@@ -22,7 +22,7 @@ check "build con el flag encendido" '[ -f "$WORK/on/privacidad/index.html" ]'
 for d in off on; do
   check "[$d] /privacidad/ no menciona a HubSpot" '! grep -qi "hubspot" "$WORK/$d/privacidad/index.html"'
   check "[$d] la web publicada no menciona HubSpot (páginas, llms, corpus)" '! grep -RIli --binary-files=without-match "hubspot" "$WORK/$d" --include="*.html" --include="*.txt" --include="*.json" | grep -q .'
-  check "[$d] cita Google (Workspace y Sheets) y n8n, y muestra la versión 2026-10-27" 'grep -q "Google Sheets" "$WORK/$d/privacidad/index.html" && grep -q "Google Workspace" "$WORK/$d/privacidad/index.html" && grep -q "n8n GmbH" "$WORK/$d/privacidad/index.html" && grep -q "Versión 2026-10-27" "$WORK/$d/privacidad/index.html"'
+  check "[$d] cita Google (Workspace y Sheets), ya no nombra a n8n (retirado, D-116) y muestra la versión 2026-10-27" 'grep -q "Google Sheets" "$WORK/$d/privacidad/index.html" && grep -q "Google Workspace" "$WORK/$d/privacidad/index.html" && ! grep -qi "n8n" "$WORK/$d/privacidad/index.html" && grep -q "Versión 2026-10-27" "$WORK/$d/privacidad/index.html"'
 done
 check "[off] sin Contrata no se describe Stripe ni el pago, ni se enlaza /condiciones/ (la página no existe)" '! grep -q "Stripe" "$WORK/off/privacidad/index.html" && ! grep -q "/condiciones/" "$WORK/off/privacidad/index.html"'
 check "[on] con Contrata aparece Stripe como proveedor de pago, la base legal y el enlace a /condiciones/" 'grep -q "Stripe Payments Europe, Limited" "$WORK/on/privacidad/index.html" && grep -q "art. 6.1.b del RGPD" "$WORK/on/privacidad/index.html" && grep -q "href=\"/condiciones/\"" "$WORK/on/privacidad/index.html"'

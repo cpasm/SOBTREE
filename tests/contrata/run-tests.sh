@@ -1,18 +1,16 @@
 #!/usr/bin/env bash
-# Las 15 pruebas del diseño de Contrata, con simulación local.
-# No llama a Stripe, Google ni n8n reales. No cobra y no envía correo.
+# Las pruebas del diseño de Contrata, con simulación local (sin integraciones externas desde D-116).
+# No llama a Stripe ni a Google reales. No cobra y no envía correo: cada aviso se escribe en un log local.
 # Uso: npm run test:contrata
 set -u
 # Las pruebas y la demo nunca usan claves reales: se descartan las del entorno antes de empezar.
-unset STRIPE_RESTRICTED_KEY STRIPE_PREP_KEY STRIPE_WEBHOOK_SECRET STRIPE_KEY STRIPE_PRICE_DIAGNOSTICO STRIPE_TAX_RATE_IVA21 CONTRATA_HMAC_SECRET CONTRATA_N8N_WEBHOOK_URL
+unset STRIPE_RESTRICTED_KEY STRIPE_PREP_KEY STRIPE_WEBHOOK_SECRET STRIPE_KEY STRIPE_PRICE_DIAGNOSTICO STRIPE_TAX_RATE_IVA21 CONTRATA_HMAC_SECRET
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 WORK="$(mktemp -d)"
 BASE="$WORK/base"
-MOCK="$WORK/mock"
 DIR="$BASE/sobtree-contrata"
-mkdir -p "$BASE" "$MOCK"
+mkdir -p "$BASE"
 SITE="${CONTRATA_TEST_PHP_PORT:-18083}"
-MOCKP="${CONTRATA_TEST_N8N_PORT:-18084}"
 ASTRO="${CONTRATA_TEST_ASTRO_PORT:-4322}"
 HOY="2026-10-27"
 SEMANA_A="2026-11-02"
@@ -24,8 +22,11 @@ PASS=0
 FAIL=0
 RESULTADOS="$WORK/resultados.tsv"
 : > "$RESULTADOS"
-: > "$MOCK/received.jsonl"
-echo 200 > "$MOCK/mode"
+CORREOS="$WORK/correos.jsonl"
+FALLO_CORREO="$WORK/correo-falla"
+BLOQ="$WORK/bloqueos.json"
+: > "$CORREOS"
+echo '{"bloqueos":[]}' > "$BLOQ"
 
 cat > "$BASE/sobtree-secrets.php" <<PHP
 <?php return [
@@ -33,17 +34,13 @@ cat > "$BASE/sobtree-secrets.php" <<PHP
   'CONTRATA_HMAC_SECRET' => '$HMAC',
   'STRIPE_WEBHOOK_SECRET' => '$WHSEC',
   'STRIPE_PRICE_DIAGNOSTICO' => 'price_test_diagnostico',
-  'CONTRATA_N8N_WEBHOOK_URL' => 'http://127.0.0.1:$MOCKP/',
   'CONTRATA_PUBLIC_URL' => 'http://127.0.0.1:$ASTRO',
-  'CONTRATA_CALENDAR_PROYECTOS_ID' => 'CONFIGURAR_ID_CALENDARIO_PROYECTOS',
-  'CONTRATA_CALENDAR_BLOQUEOS_ID' => 'CONFIGURAR_ID_CALENDARIO_BLOQUEOS',
-  'CONTRATA_CALENDAR_CUENTA' => 'info@sobtree.com',
 ];
 PHP
 
 export SOBTREE_BASE_DIR="$BASE" CONTRATA_MODO=simulacion CONTRATA_HOY="$HOY"
-export CONTRATA_DISABLE_MAIL=1 CONTRATA_ALLOW_HTTP_WEBHOOK=1 CONTRATA_SIN_LIMITE=1
-export MOCK_SECRET="$HMAC" MOCK_DIR="$MOCK"
+export CONTRATA_DISABLE_MAIL=1 CONTRATA_TEST_MAIL_LOG="$CORREOS" CONTRATA_TEST_MAIL_FAIL_FILE="$FALLO_CORREO" CONTRATA_SIN_LIMITE=1
+export CONTRATA_BLOQUEOS_FILE="$BLOQ"
 unset CONTRATA_AHORA || true
 
 ok() { PASS=$((PASS + 1)); echo "    ✔ $1"; }
@@ -66,9 +63,7 @@ WH="$API/api/contrata/stripe-webhook.php"
 reset_estado() {
   rm -f "$DIR/retenciones.json" "$DIR/sesiones.json" "$DIR/eventos.jsonl" "$DIR/cola.jsonl" "$DIR/cola-estado.jsonl"
 }
-sembrar() {
-  if [ -n "${1:-}" ]; then php_s "$ROOT/scripts/sembrar-disponibilidad.php" "$1"; else php_s "$ROOT/scripts/sembrar-disponibilidad.php"; fi
-}
+bloquear() { echo "$1" > "$BLOQ"; }
 disp() { curl -s "$DISP"; }
 csrf() { disp | json csrf; }
 crear() {
@@ -119,19 +114,20 @@ webhook() {
   curl -s -D "$WORK/whhdr" -o "$WORK/whbody" -w '%{http_code}' -X POST "$WH" \
     -H "Stripe-Signature: $(cat "$WORK/stripe.sig")" --data-binary @"$WORK/payload.json"
 }
-recibidos() { [ -f "$MOCK/received.jsonl" ] && wc -l < "$MOCK/received.jsonl" | tr -d ' ' || echo 0; }
-lineas_evento() { grep -c "\"event_id\":\"$1\"" "$MOCK/received.jsonl" 2>/dev/null || true; }
-cola_enviada() {
-  php -r '$evento=$argv[1]; $id=""; foreach (file($argv[2], FILE_IGNORE_NEW_LINES) as $l) { $j=json_decode($l, true); if (($j["event_id"] ?? "")===$evento) $id=$j["id"] ?? ""; } $u=""; foreach (file($argv[3], FILE_IGNORE_NEW_LINES) as $l) { $j=json_decode($l, true); if (($j["id"] ?? "")===$id) $u=$j["estado"] ?? ""; } exit($id!=="" && $u==="enviado" ? 0 : 1);' "$1" "$2" "$3"
+# Correos simulados: una línea JSON {tipo, to, subject, body} por correo.
+correos() { php -r '$n=0; foreach (file($argv[1], FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES) as $l) { $j=json_decode($l, true); if (($argv[2]==="" || $j["tipo"]===$argv[2]) && ($argv[3]==="" || str_contains($j["subject"], $argv[3]))) $n++; } echo $n;' "$CORREOS" "${1:-}" "${2:-}"; }
+ultimo_correo() { php -r '$v=""; foreach (file($argv[1], FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES) as $l) { $j=json_decode($l, true); if ($argv[2]==="" || $j["tipo"]===$argv[2]) $v=$j[$argv[3]]; } echo $v;' "$CORREOS" "${1:-}" "${2:-body}"; }
+filas_evento() { grep -c "\"event_id\":\"$1\"" "$DIR/cola.jsonl" 2>/dev/null || true; }
+ultima_fila() { tail -1 "$DIR/cola.jsonl"; }
+cola_estado() {
+  php -r '$evento=$argv[1]; $id=""; foreach (file($argv[2], FILE_IGNORE_NEW_LINES) as $l) { $j=json_decode($l, true); if (($j["event_id"] ?? "")===$evento) $id=$j["id"] ?? ""; } $u=""; foreach (@file($argv[3], FILE_IGNORE_NEW_LINES) ?: [] as $l) { $j=json_decode($l, true); if (($j["id"] ?? "")===$id) $u=$j["estado"] ?? ""; } echo $u;' "$1" "$DIR/cola.jsonl" "$DIR/cola-estado.jsonl"
 }
 
-php -S "127.0.0.1:$MOCKP" "$ROOT/tests/contrata/mock-n8n.php" >"$WORK/n8n.log" 2>&1 &
-P_N8N=$!
 php -S "127.0.0.1:$SITE" -t "$ROOT/public" >"$WORK/php.log" 2>&1 &
 P_PHP=$!
 P_ASTRO=""
 limpiar() {
-  kill $P_N8N $P_PHP 2>/dev/null || true
+  kill $P_PHP 2>/dev/null || true
   if [ -n "${P_ASTRO:-}" ]; then kill "$P_ASTRO" 2>/dev/null || true; fi
   if [ -f "${RESULTADOS:-}" ]; then cp "$RESULTADOS" /tmp/contrata-resultados.tsv || true; fi
   rm -rf "$WORK"
@@ -141,14 +137,14 @@ sleep 0.4
 
 cd "$ROOT"
 echo "0. Sintaxis, unidad y lógica"
-for f in public/lib/contrata.php public/lib/reintentar-contrata.php public/api/contrata/disponibilidad.php public/api/contrata/crear-sesion.php public/api/contrata/stripe-webhook.php public/api/contrata/sim/checkout.php scripts/sembrar-disponibilidad.php tests/contrata/unit.php tests/contrata/abrir.php tests/contrata/firmar-evento.php tests/contrata/clave-live.php tests/contrata/stripe-mock.php tests/contrata/mock-stripe.php scripts/stripe-preparar.php; do
+for f in public/lib/contrata.php public/lib/reintentar-contrata.php public/api/contrata/disponibilidad.php public/api/contrata/crear-sesion.php public/api/contrata/stripe-webhook.php public/api/contrata/sim/checkout.php tests/contrata/unit.php tests/contrata/abrir.php tests/contrata/firmar-evento.php tests/contrata/clave-live.php tests/contrata/stripe-mock.php tests/contrata/mock-stripe.php scripts/stripe-preparar.php; do
   check "php -l $(basename "$f")" 'php -l "$ROOT/$f" >/dev/null'
 done
 check "unit.php" 'php_s tests/contrata/unit.php >/dev/null'
 check "lógica JS = PHP" 'node tests/contrata/test-logica.mjs >/dev/null'
 check "botón en cerrado" 'node --input-type=module -e "import { estadoBoton } from \"./src/data/contrata-logica.mjs\"; const e = estadoBoton({ok:false}); if (e.href !== \"/#contacto\" || e.nota !== null || !e.texto.startsWith(\"Reserva\")) process.exit(1);"'
 
-if ! sembrar >/dev/null; then echo "No se ha podido sembrar la disponibilidad" >&2; exit 1; fi
+if [ "$(curl -s "$DISP" | json ok)" != true ]; then echo "La disponibilidad calculada no está abierta" >&2; exit 1; fi
 
 echo "1. Camino feliz (simulado)"
 A=$FAIL
@@ -163,15 +159,15 @@ PAY=$(pagar "$SESION" 4242424242424242 pagar)
 check "pagar redirige a gracias" '[ "$PAY" = 303 ] && grep -qi "^Location:.*gracias" "$WORK/payhdr"'
 check "la plaza baja a 0" '[ "$(libres "$SEMANA_A")" = 0 ]'
 check "la siguiente semana sigue libre" '[ "$(libres "$SEMANA_B")" = 1 ]'
-check "un aviso de pago firmado" '[ "$(grep -c checkout.session.completed "$MOCK/received.jsonl")" = 1 ]'
-ULT=$(tail -1 "$MOCK/received.jsonl")
-check "el aviso lleva firma válida" 'echo "$ULT" | grep -q "\"ok\":true"'
-cerrar 1 "Camino feliz" simulada "Sesión, webhook firmado, plaza −1 y cola. No hay recibo, fila en la hoja de Ventas, evento ni correo reales." "$A"
+check "la venta queda en el registro local (cola.jsonl)" '[ "$(grep -c checkout.session.completed "$DIR/cola.jsonl")" = 1 ] && grep -q "$SESION" "$DIR/cola.jsonl"'
+check "un correo a info@ con asunto «[Sobtree] Venta <sesión>»" '[ "$(correos venta "[Sobtree] Venta $SESION")" = 1 ] && [ "$(ultimo_correo venta to)" = info@sobtree.com ] && [ "$(ultimo_correo venta subject)" = "[Sobtree] Venta $SESION" ]'
+check "el correo lleva importe, semana, empresa, NIF y la instrucción para el calendario" 'ultimo_correo venta | grep -q "592,90 €" && ultimo_correo venta | grep -q "Semana de inicio:  $SEMANA_A" && ultimo_correo venta | grep -q "Acme SL" && ultimo_correo venta | grep -q "B12345674" && ultimo_correo venta | grep -q "evento «CONTRATA Acme SL" && ultimo_correo venta | grep -q -- "- ninguna"'
+check "aviso marcado correo_ok" '[ "$(cola_estado "$(grep checkout.session.completed "$DIR/cola.jsonl" | tail -1 | sed -E "s/.*\"event_id\":\"([^\"]+)\".*/\1/")")" = correo_ok ]'
+cerrar 1 "Camino feliz" simulada "Sesión, webhook firmado, plaza −1, registro local y correo simulado. No hay recibo ni correo reales." "$A"
 
 echo "2. 3D Secure simulado"
 A=$FAIL
 reset_estado
-: > "$MOCK/received.jsonl"
 CODE=$(crear "$SEMANA_B")
 S3=$(campo sesion)
 R3=$(pagar "$S3" 4000000000003220 pagar)
@@ -189,7 +185,7 @@ cerrar 2 "3D Secure" simulada "Éxito y fallo con eventos firmados. No es un ret
 echo "3. Tarjeta rechazada"
 A=$FAIL
 reset_estado
-: > "$MOCK/received.jsonl"
+: > "$CORREOS"
 CODE=$(crear "$SEMANA_A")
 SR=$(campo sesion)
 EXPIRA=$(campo expira)
@@ -202,7 +198,7 @@ check "9995 tampoco cobra" '[ "$D2" = 200 ] && [ "$(estado_ret "$SR2")" = reteni
 CONTRATA_AHORA=$(( $(date +%s) + 2000 )) php_s "$ROOT/public/lib/reintentar-contrata.php" >"$WORK/cron-rechazo.txt"
 unset CONTRATA_AHORA || true
 check "el barrido suelta las dos" '[ "$(estado_ret "$SR")" = liberada ] && [ "$(estado_ret "$SR2")" = liberada ]'
-check "no hubo aviso de pago" '[ "$(grep -c checkout.session.completed "$MOCK/received.jsonl" || true)" = 0 ]'
+check "no hubo venta ni correo" '[ ! -f "$DIR/cola.jsonl" ] && [ "$(correos venta)" = 0 ]'
 cerrar 3 "Tarjeta rechazada" pasa "Rechazo simulado y barrido por reloj del cron. No es una tarjeta real." "$A"
 
 echo "4. Expiración"
@@ -235,17 +231,16 @@ cerrar 5 "Última plaza en concurrencia" pasa "Dos procesos CLI y flock. php -S 
 echo "6. Webhook duplicado"
 A=$FAIL
 reset_estado
-: > "$MOCK/received.jsonl"
+: > "$CORREOS"
 CODE=$(crear "$SEMANA_B")
 SD=$(campo sesion)
 firmar "$SD" checkout.session.completed evt_test_duplicado_fijo
 W1=$(webhook)
 W2=$(webhook)
 check "el primero entra y el segundo es duplicado" '[ "$W1" = 200 ] && [ "$W2" = 200 ] && grep -q "\"duplicado\":true" "$WORK/whbody"'
-check "un solo aviso a n8n" '[ "$(lineas_evento evt_test_duplicado_fijo)" = 1 ]'
-NCOLA=$(grep -c evt_test_duplicado_fijo "$DIR/cola.jsonl" || true)
-check "una sola fila en la cola" '[ "$NCOLA" = 1 ]'
-cerrar 6 "Webhook duplicado" simulada "El PHP deduplica por event.id. No se ha escrito en la hoja de Ventas." "$A"
+check "un solo correo de venta" '[ "$(correos venta "$SD")" = 1 ]'
+check "una sola fila en el registro" '[ "$(filas_evento evt_test_duplicado_fijo)" = 1 ]'
+cerrar 6 "Webhook duplicado" pasa "El PHP deduplica por event.id: una fila y un correo." "$A"
 
 echo "7. Firma no válida"
 A=$FAIL
@@ -258,82 +253,94 @@ check "firma mala → 400" '[ "$WM" = 400 ]'
 check "no procesa nada" '[ "$(wc -l < "$DIR/eventos.jsonl" | tr -d " ")" = "$EV_ANTES" ] && [ "$(wc -l < "$DIR/cola.jsonl" | tr -d " ")" = "$COLA_ANTES" ]'
 cerrar 7 "Firma no válida" pasa "400 y sin cambios en eventos ni en la cola." "$A"
 
-echo "8. n8n caído"
+echo "8. Falla el correo"
 A=$FAIL
 reset_estado
-: > "$MOCK/received.jsonl"
-echo 500 > "$MOCK/mode"
+: > "$CORREOS"
+touch "$FALLO_CORREO"
 CODE=$(crear "$SEMANA_A")
 SN=$(campo sesion)
-firmar "$SN" checkout.session.completed evt_test_n8n_caido
+firmar "$SN" checkout.session.completed evt_test_correo_caido
 WN=$(webhook)
-check "el pago se guarda aunque n8n falle" '[ "$WN" = 200 ] && [ "$(estado_ret "$SN")" = pagada ]'
-check "la cola marca error" 'grep -q "\"estado\":\"error\"" "$DIR/cola-estado.jsonl"'
-echo 200 > "$MOCK/mode"
-php_s "$ROOT/public/lib/reintentar-contrata.php" >"$WORK/cron-n8n.txt"
-check "el cron reenvía" 'cola_enviada evt_test_n8n_caido "$DIR/cola.jsonl" "$DIR/cola-estado.jsonl"'
-check "dos entregas del mismo id, no un alta nueva" '[ "$(lineas_evento evt_test_n8n_caido)" = 2 ] && [ "$(grep -c evt_test_n8n_caido "$DIR/cola.jsonl")" = 1 ]'
-cerrar 8 "n8n caído" pasa "El mock responde 500 y luego 200. El cron reintenta el mismo aviso." "$A"
+check "el pago se guarda aunque falle el correo (200 a Stripe)" '[ "$WN" = 200 ] && [ "$(estado_ret "$SN")" = pagada ] && [ "$(filas_evento evt_test_correo_caido)" = 1 ]'
+check "el registro marca correo_error y conserva el NIF hasta avisar" '[ "$(cola_estado evt_test_correo_caido)" = correo_error ] && grep -q B12345674 "$DIR/cola.jsonl"'
+rm -f "$FALLO_CORREO"
+php_s "$ROOT/public/lib/reintentar-contrata.php" >"$WORK/cron-correo.txt"
+check "el cron envía el aviso pendiente (una vez) y purga el NIF" '[ "$(cola_estado evt_test_correo_caido)" = correo_ok ] && [ "$(correos venta "$SN")" = 1 ] && ! grep -q B12345674 "$DIR/cola.jsonl"'
+php_s "$ROOT/public/lib/reintentar-contrata.php" >/dev/null
+check "un segundo cron no repite el correo ni crea filas" '[ "$(correos venta "$SN")" = 1 ] && [ "$(filas_evento evt_test_correo_caido)" = 1 ]'
+cerrar 8 "Falla el correo" pasa "El correo simulado falla y luego funciona. El cron reintenta el mismo aviso." "$A"
 
-echo "9. Fallo en cerrado"
-A=$FAIL
-cp "$DIR/disponibilidad.json" "$WORK/disp-buena.json"
-php -r '$j=json_decode(file_get_contents($argv[1]), true); $j["generado"]=gmdate("c", time()-4*3600); file_put_contents($argv[1], json_encode($j, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));' "$DIR/disponibilidad.json"
-HUELLA=$(sha256sum "$DIR/disponibilidad.json" | awk '{print $1}')
-CERR=$(disp)
-check "datos viejos: fallo en cerrado" 'echo "$CERR" | json fallo | grep -qx cerrado'
-check "sin fechas ni escasez" '! echo "$CERR" | grep -q "2026-11" && ! echo "$CERR" | grep -q Quedan && ! echo "$CERR" | grep -q "Queda "'
-check "hay texto de reserva" 'echo "$CERR" | grep -q "Reserva tu diagnóstico"'
-curl -s -o "$WORK/mala.txt" -w '%{http_code}' -X POST "$DISP" -H 'X-Sobtree-Timestamp: 1' -H 'X-Sobtree-Signature: sha256=00' --data '{"generado":"x"}' > "$WORK/mala.code"
-check "firma mala no sustituye" '[ "$(cat "$WORK/mala.code")" = 401 ] && [ "$(sha256sum "$DIR/disponibilidad.json" | cut -d" " -f1)" = "$HUELLA" ]'
-rm -f "$DIR/alerta-frescura"
-: > "$WORK/alerta.txt"
-CONTRATA_TEST_MAIL_LOG="$WORK/alerta.txt" php_s "$ROOT/public/lib/reintentar-contrata.php" >/dev/null
-check "el cron deja constancia, sin correo real" 'grep -q "más de 3 horas" "$WORK/alerta.txt" && ! grep -q "@" "$WORK/alerta.txt"'
-cp "$WORK/disp-buena.json" "$DIR/disponibilidad.json"
-check "al restaurar vuelve la disponibilidad" '[ "$(disp | json ok)" = true ]'
-cerrar 9 "Fallo en cerrado" pasa "JSON de más de 3 h y firma mala. El botón, en la lógica compartida, va al formulario. La alerta no se ha enviado por correo." "$A"
-
-echo "10. Bloqueo"
+echo "8b. Falla el registro local: ningún cobro sin registro"
 A=$FAIL
 reset_estado
-cat > "$WORK/fixture.json" <<'JSON'
-{"proyectos":[],"bloqueos":[{"inicio":"2026-11-16","fin":"2026-11-21"}]}
-JSON
-sembrar "$WORK/fixture.json" >/dev/null
-BLOQ=$(disp)
-check "la semana bloqueada tiene 0 y sin escasez" 'echo "$BLOQ" | semana_bloqueada'
-check "otra semana sigue en 1" '[ "$(libres "$SEMANA_B")" = 1 ]'
-sembrar >/dev/null
-cerrar 10 "Bloqueo" pasa "Publicación firmada con un bloqueo de calendario. Google no se ha llamado." "$A"
+: > "$CORREOS"
+CODE=$(crear "$SEMANA_B")
+SNR=$(campo sesion)
+mkdir "$DIR/cola.jsonl"   # un directorio en lugar del fichero: escribir falla incluso con root
+firmar "$SNR" checkout.session.completed evt_test_registro_caido
+WR1=$(webhook)
+check "sin registro, el webhook responde 500 para que Stripe reintente" '[ "$WR1" = 500 ]'
+check "no marca el evento como procesado ni la retención como pagada ni manda correo" '! grep -q evt_test_registro_caido "$DIR/eventos.jsonl" 2>/dev/null && [ "$(estado_ret "$SNR")" = retenida ] && [ "$(correos venta)" = 0 ]'
+rmdir "$DIR/cola.jsonl"
+WR2=$(webhook)
+check "el reintento de Stripe (mismo evento) entra: 200, venta registrada, pagada y un correo" '[ "$WR2" = 200 ] && [ "$(filas_evento evt_test_registro_caido)" = 1 ] && [ "$(estado_ret "$SNR")" = pagada ] && [ "$(correos venta "$SNR")" = 1 ]'
+WR3=$(webhook)
+check "un tercer envío ya es duplicado" '[ "$WR3" = 200 ] && grep -q "\"duplicado\":true" "$WORK/whbody" && [ "$(filas_evento evt_test_registro_caido)" = 1 ]'
+cerrar 8b "Registro caído" pasa "Escritura del registro forzada a fallar: 500, sin marcar el evento; el reintento lo registra una vez." "$A"
 
-echo "10b. Proyecto con sesión live en el calendario (publicación y retención)"
+echo "9. Fallo en cerrado (archivo de bloqueos no válido)"
+A=$FAIL
+reset_estado
+: > "$CORREOS"
+bloquear '{no es json'
+CERR=$(disp)
+check "bloqueos ilegibles: fallo en cerrado" 'echo "$CERR" | json fallo | grep -qx cerrado && echo "$CERR" | json motivo | grep -qx bloqueos'
+check "sin fechas ni escasez" '! echo "$CERR" | grep -q "2026-11" && ! echo "$CERR" | grep -q Quedan && ! echo "$CERR" | grep -q "Queda "'
+check "hay texto de reserva" 'echo "$CERR" | grep -q "Reserva tu diagnóstico"'
+CODE=$(crear "$SEMANA_A")
+check "y no se abre ningún pago (cerrado: sin token CSRF no hay formulario; 4xx y ninguna plaza retenida)" '[ "$CODE" -ge 400 ] && [ "$CODE" -lt 500 ] && [ ! -f "$DIR/retenciones.json" ]'
+bloquear '{"bloqueos":[{"desde":"2026-11-16","hasta":"2026-11-20","cliente":"x"}]}'
+check "una clave desconocida también cierra" '[ "$(disp | json ok)" = false ]'
+check "la publicación por POST ya no existe (405)" '[ "$(curl -s -o /dev/null -w %{http_code} -X POST "$DISP" --data "{}")" = 405 ]'
+rm -f "$DIR/alerta-bloqueos"
+php_s "$ROOT/public/lib/reintentar-contrata.php" >/dev/null
+check "el cron avisa a info@ una vez (correo simulado)" '[ "$(correos alerta "bloqueos no válido")" = 1 ]'
+php_s "$ROOT/public/lib/reintentar-contrata.php" >/dev/null
+check "y no repite la alerta en el mismo día" '[ "$(correos alerta)" = 1 ]'
+bloquear '{"bloqueos":[]}'
+check "al corregir el archivo vuelve la disponibilidad" '[ "$(disp | json ok)" = true ]'
+cerrar 9 "Fallo en cerrado" pasa "Archivo de bloqueos roto: sin fechas, sin pago y alerta diaria simulada." "$A"
+
+echo "10. Bloqueo (public/datos/bloqueos.json)"
+A=$FAIL
+reset_estado
+bloquear '{"bloqueos":[{"desde":"2026-11-18","hasta":"2026-11-18","nota":"formación"}]}'
+BLQ=$(disp)
+check "un miércoles bloqueado deja la semana a 0 y sin escasez" 'echo "$BLQ" | semana_bloqueada'
+check "otra semana sigue en 1" '[ "$(libres "$SEMANA_B")" = 1 ]'
+CODE=$(crear "$SEMANA_C")
+check "no se puede retener la semana bloqueada" '[ "$CODE" = 409 ] && [ "$(campo motivo)" = semana_completa ]'
+bloquear '{"bloqueos":[{"desde":"2026-11-21","hasta":"2026-11-22"}]}'
+check "un bloqueo solo de fin de semana no cierra la semana" '[ "$(libres "$SEMANA_C")" = 1 ]'
+bloquear '{"bloqueos":[]}'
+cerrar 10 "Bloqueo" pasa "Archivo local de bloqueos (lo mantiene la rutina con los eventos BLOQUEO). Google no se ha llamado." "$A"
+
+echo "10b. Una venta pagada ocupa su semana sin depender del calendario"
 A=$FAIL
 reset_estado
 CODE=$(crear "$SEMANA_A")
-SLV=$(campo sesion)
-check "retención de la semana A abierta (la plaza está ocupada)" '[ "$CODE" = 200 ] && [ "$(libres "$SEMANA_A")" = 0 ]'
-cat > "$WORK/fixture-live.json" <<'JSON'
-{"proyectos":[{"inicio":"2026-11-02","fin":"2026-11-07","sesion":"cs_live_Ab12Cd34Ef56Gh78Ij90"}],"bloqueos":[]}
-JSON
-SEM_LIVE=$(sembrar "$WORK/fixture-live.json"); SEM_LIVE_RC=$?
-check "la publicación con un proyecto cs_live_ se acepta" '[ "$SEM_LIVE_RC" = 0 ] && echo "$SEM_LIVE" | json ok | grep -qx true'
-check "la semana A sigue en 0 y el resto no se ve afectado" '[ "$(libres "$SEMANA_A")" = 0 ] && [ "$(libres "$SEMANA_B")" = 1 ]'
-php -r '$f=$argv[1]; $j=json_decode(file_get_contents($f), true); foreach ($j["retenciones"] as &$r) $r["sesion"]="cs_live_Ab12Cd34Ef56Gh78Ij90"; file_put_contents($f, json_encode($j));' "$DIR/retenciones.json"
-check "con la retención casada por la misma sesión cs_live_ no se cuenta doble (0, no negativo; sigue siendo 0 y no cierra)" '[ "$(libres "$SEMANA_A")" = 0 ] && [ "$(disp | json ok)" = true ]'
-php -r '$f=$argv[1]; $j=json_decode(file_get_contents($f), true); foreach ($j["retenciones"] as &$r) $r["sesion"]="cs_live_OtraSesion"; file_put_contents($f, json_encode($j));' "$DIR/retenciones.json"
-cat > "$WORK/fixture-live2.json" <<'JSON'
-{"proyectos":[],"bloqueos":[]}
-JSON
-sembrar "$WORK/fixture-live2.json" >/dev/null
-check "sin el proyecto en el calendario, la retención sigue ocupando la plaza" '[ "$(libres "$SEMANA_A")" = 0 ]'
-sembrar >/dev/null
-cerrar "10b" "Sesión live en el calendario" pasa "Se siembra una publicación firmada con un proyecto cs_live_. Antes de este cambio el PHP la rechazaba (400) y la disponibilidad se quedaba vieja." "$A"
+SPG=$(campo sesion)
+pagar "$SPG" 4242424242424242 pagar >/dev/null
+check "pagada → semana A a 0" '[ "$(estado_ret "$SPG")" = pagada ] && [ "$(libres "$SEMANA_A")" = 0 ]'
+CONTRATA_AHORA=$(( $(date +%s) + 7200 )) php_s "$ROOT/public/lib/reintentar-contrata.php" >/dev/null
+check "el barrido de retenciones caducadas no libera una venta pagada" '[ "$(estado_ret "$SPG")" = pagada ] && [ "$(libres "$SEMANA_A")" = 0 ]'
+cerrar "10b" "Venta pagada" pasa "La plaza la ocupa el registro local de ventas, no un evento de calendario." "$A"
 
 echo "11. Reembolso"
 A=$FAIL
 reset_estado
-: > "$MOCK/received.jsonl"
+: > "$CORREOS"
 CODE=$(crear "$SEMANA_A")
 SREF=$(campo sesion)
 firmar "$SREF" checkout.session.completed evt_test_antes_reembolso
@@ -342,8 +349,9 @@ check "ocupa la plaza" '[ "$(libres "$SEMANA_A")" = 0 ]'
 firmar "$SREF" charge.refunded evt_test_reembolso
 WR=$(webhook)
 check "queda reembolsada y la plaza vuelve" '[ "$WR" = 200 ] && [ "$(estado_ret "$SREF")" = reembolsada ] && [ "$(libres "$SEMANA_A")" = 1 ]'
-check "n8n simulado recibe el reembolso" 'grep -q charge.refunded "$MOCK/received.jsonl"'
-cerrar 11 "Reembolso" simulada "charge.refunded firmado actualiza el PHP. No se ha reembolsado en el Dashboard ni borrado un evento." "$A"
+check "el reembolso queda en el registro local" 'grep -q charge.refunded "$DIR/cola.jsonl"'
+check "un correo «[Sobtree] Reembolso <sesión>» con estado, importe y la instrucción para el calendario" '[ "$(correos reembolso "[Sobtree] Reembolso $SREF")" = 1 ] && ultimo_correo reembolso | grep -q "Reembolso TOTAL" && ultimo_correo reembolso | grep -q "592,90 €" && ultimo_correo reembolso | grep -q "cancelar en Google Calendar"'
+cerrar 11 "Reembolso" simulada "charge.refunded firmado actualiza el PHP, el registro y el correo simulado. No se ha reembolsado en el Dashboard." "$A"
 
 echo "12. Solo España: NIF/CIF español, NIF-IVA UE rechazado"
 A=$FAIL
@@ -362,36 +370,31 @@ cerrar 12 "Solo España" pasa "El NIF-IVA UE se rechaza con mensaje de contacto:
 echo "12b. NIF hasta la fila de Ventas, sin logs"
 A=$FAIL
 reset_estado
-: > "$MOCK/received.jsonl"
+: > "$CORREOS"
 CODE=$(crear "$SEMANA_A" "B12345674")
 SNI=$(campo sesion)
 check "la retención guarda el NIF solo hasta el pago" 'grep -q "B12345674" "$DIR/retenciones.json"'
 pagar "$SNI" 4242424242424242 pagar >/dev/null
-ULT=$(tail -1 "$MOCK/received.jsonl")
-check "el aviso a n8n lleva el NIF, coincide con Stripe y no hay alerta" 'echo "$ULT" | php -r '"'"'$j=json_decode(stream_get_contents(STDIN), true); exit(($j["nif"]==="B12345674" && $j["nif_coincide"]===true && $j["alerta"]==="") ? 0 : 1);'"'"''
-check "entregado el aviso, el NIF desaparece de la retención y de la cola" '! grep -q "B12345674" "$DIR/retenciones.json" && ! grep -q "B12345674" "$DIR/cola.jsonl"'
+check "el correo de la venta lleva el NIF, coincide con Stripe y no hay alertas" 'ultimo_correo venta | grep -q "NIF/CIF:           B12345674" && ultimo_correo venta | grep -q "NIF igual a Stripe: sí" && ultimo_correo venta | grep -q -- "- ninguna"'
+check "enviado el aviso, el NIF desaparece de la retención y del registro" '! grep -q "B12345674" "$DIR/retenciones.json" && ! grep -q "B12345674" "$DIR/cola.jsonl"'
 check "ni en la auditoría, ni en el estado de la cola, ni en el log de PHP" '! grep -rq "B12345674" "$DIR/auditoria.jsonl" "$DIR/cola-estado.jsonl" "$DIR/eventos.jsonl" "$WORK/php.log" 2>/dev/null'
 CODE=$(crear "$SEMANA_B" "B12345674")
 SDIS=$(campo sesion)
-: > "$MOCK/received.jsonl"
 firmar "$SDIS" checkout.session.completed evt_test_nif_distinto '{"customer_details":{"email":"facturas@example.com","address":{"country":"ES","postal_code":"28001"},"tax_ids":[{"type":"es_cif","value":"A58818501"}]}}'
 webhook >/dev/null
-ULT=$(tail -1 "$MOCK/received.jsonl")
-check "si Stripe guarda otro NIF, el aviso lo marca nif_distinto y la fila irá a revisar" 'echo "$ULT" | php -r '"'"'$j=json_decode(stream_get_contents(STDIN), true); exit(($j["nif_coincide"]===false && $j["alerta"]==="nif_distinto") ? 0 : 1);'"'"''
+check "si Stripe guarda otro NIF, el correo lo marca nif_distinto (alerta) y el registro también" 'ultimo_correo venta | grep -q "NIF igual a Stripe: NO" && ultimo_correo venta | grep -q -- "- nif_distinto:" && ultima_fila | grep -q "\"alerta_facturacion\":\"nif_distinto\""'
 CODE=$(crear "$SEMANA_C" "B12345674")
 SCAN=$(campo sesion)
-: > "$MOCK/received.jsonl"
 firmar "$SCAN" checkout.session.completed evt_test_canarias '{"customer_details":{"email":"facturas@example.com","address":{"country":"ES","postal_code":"35001"},"tax_ids":[]}}'
 webhook >/dev/null
-ULT=$(tail -1 "$MOCK/received.jsonl")
-check "dirección de Canarias: alerta territorio_sin_iva" 'echo "$ULT" | grep -q "\"alerta\":\"territorio_sin_iva\""'
+check "dirección de Canarias: alerta territorio_sin_iva en el correo" 'ultimo_correo venta | grep -q -- "- territorio_sin_iva:"'
 CODE=$(crear "$SEMANA_A" "B12345674")
 SNP=$(campo sesion)
-: > "$MOCK/received.jsonl"
+NV=$(correos venta)
 firmar "$SNP" checkout.session.completed evt_test_no_pagado '{"payment_status":"unpaid"}'
 webhook >/dev/null
-check "un checkout.session.completed sin pago (unpaid) no crea venta ni aviso" '[ "$(lineas_evento evt_test_no_pagado)" = 0 ]'
-cerrar 12b "NIF a Ventas" simulada "El NIF viaja en el aviso firmado y se cruza con el tax_id de Stripe. No se escribe en logs ni se guarda tras entregarlo." "$A"
+check "un checkout.session.completed sin pago (unpaid) no crea venta ni aviso" '[ "$(filas_evento evt_test_no_pagado)" = 0 ] && [ "$(correos venta)" = "$NV" ]'
+cerrar 12b "NIF en el aviso de venta" simulada "El NIF va en el correo a info@ y se cruza con el tax_id de Stripe. No se escribe en logs ni se guarda tras avisar." "$A"
 
 echo "19. Selector de servicio: solo valen los ids de la lista"
 A=$FAIL
@@ -406,19 +409,15 @@ check "un producto que no es texto → 422" '[ "$CODE" = 422 ]'
 CODE=$(crear "$SEMANA_A" B12345674)
 SSV=$(campo sesion)
 check "diagnóstico: sesión abierta, servicio en la respuesta, en la retención y en los metadatos de Stripe" '[ "$CODE" = 200 ] && [ "$(campo servicio)" = diagnostico ] && grep -qE "\"servicio\": ?\"diagnostico\"" "$DIR/retenciones.json" && php -r '"'"'$j=json_decode(file_get_contents($argv[1]), true); $p=$j["sesiones"][$argv[2]]["params"]; exit((($p["metadata"]["producto"] ?? "")==="diagnostico" && ($p["metadata"]["importe_total_centimos"] ?? "")==="59290") ? 0 : 1);'"'"' "$DIR/sesiones.json" "$SSV"'
-: > "$MOCK/received.jsonl"
 pagar "$SSV" 4242424242424242 pagar >/dev/null
-ULT=$(tail -1 "$MOCK/received.jsonl")
-check "el aviso a n8n (Ventas y calendario) lleva el servicio, su nombre y los días de bloqueo" 'echo "$ULT" | php -r '"'"'$j=json_decode(stream_get_contents(STDIN), true); exit(($j["producto"]==="diagnostico" && $j["servicio_nombre"]==="Diagnóstico de implantación de IA" && $j["dias_bloqueo"]===5 && $j["alerta"]==="") ? 0 : 1);'"'"''
+check "el registro y el correo llevan el servicio, su nombre y los días de bloqueo" 'ultima_fila | php -r '"'"'$j=json_decode(stream_get_contents(STDIN), true)["cuerpo"]; exit(($j["producto"]==="diagnostico" && $j["servicio_nombre"]==="Diagnóstico de implantación de IA" && $j["dias_bloqueo"]===5 && $j["alerta_facturacion"]==="") ? 0 : 1);'"'"' && ultimo_correo venta | grep -q "Diagnóstico de implantación de IA (diagnostico)" && ultimo_correo venta | grep -q "bloquea 5 días laborables"'
 CODE=$(crear "$SEMANA_B" B12345674)
 SSD=$(campo sesion)
 RETD=$(php -r '$j=json_decode(file_get_contents($argv[1]), true); foreach ($j["retenciones"] as $r) if (($r["sesion"]??"")===$argv[2]) echo $r["id"];' "$DIR/retenciones.json" "$SSD")
-: > "$MOCK/received.jsonl"
 firmar "$SSD" checkout.session.completed evt_test_servicio_raro "$(php -r 'echo json_encode(["metadata"=>["producto"=>"proyecto","retencion_id"=>$argv[1],"semana_lunes"=>$argv[2]]]);' "$RETD" "$SEMANA_B")"
 webhook >/dev/null
-ULT=$(tail -1 "$MOCK/received.jsonl")
-check "un pago de Stripe con un servicio que no está en la lista no se da por bueno: alerta servicio_desconocido y fila a revisar" 'echo "$ULT" | php -r '"'"'$j=json_decode(stream_get_contents(STDIN), true); exit(($j["alerta"]==="servicio_desconocido" && $j["producto"]==="") ? 0 : 1);'"'"''
-cerrar 19 "Selector de servicio" simulada "Lista de servicios cerrada en el PHP; el id viaja en la retención, los metadatos de Stripe, el aviso y la fila de Ventas. Hoy solo hay diagnóstico." "$A"
+check "un pago de Stripe con un servicio que no está en la lista no se da por bueno: alerta servicio_desconocido" 'ultima_fila | php -r '"'"'$j=json_decode(stream_get_contents(STDIN), true)["cuerpo"]; exit(($j["alerta_facturacion"]==="servicio_desconocido" && $j["producto"]==="") ? 0 : 1);'"'"' && ultimo_correo venta | grep -q -- "- servicio_desconocido:"'
+cerrar 19 "Selector de servicio" simulada "Lista de servicios cerrada en el PHP; el id viaja en la retención, los metadatos de Stripe, el registro y el correo. Hoy solo hay diagnóstico." "$A"
 
 echo "16. Stripe de pruebas (simulado): factura, IVA, NIF y modo test"
 A=$FAIL
@@ -428,6 +427,7 @@ mkdir -p "$MSD"
 LIVE_K="rk_$(echo live)_mockclave1234abcd"
 TEST_K="rk_test_mockclave1234abcd"
 export CONTRATA_STRIPE_API_BASE="http://127.0.0.1:$MS_PORT"
+export CONTRATA_STRIPE_API_LOCAL=1   # sin esto contrata.php se niega a usar una base distinta de api.stripe.com
 MOCK_STRIPE_DIR="$MSD" php -S "127.0.0.1:$MS_PORT" "$ROOT/tests/contrata/mock-stripe.php" >"$WORK/mock-stripe.log" 2>&1 &
 P_MS=$!
 sleep 0.4
@@ -442,7 +442,6 @@ caso() { # nombre modo clave [extra secrets] -> base propia, secretos por ficher
   'STRIPE_PRICE_DIAGNOSTICO' => 'price_mock_1',
   'STRIPE_TAX_RATE_IVA21' => 'txr_mock_1',
   'CONTRATA_HMAC_SECRET' => '$HMAC',
-  'CONTRATA_N8N_WEBHOOK_URL' => 'https://127.0.0.1:9/webhook/sobtree-contrata',
   'CONTRATA_PUBLIC_URL' => 'https://sobtree.com',
   $extra
 ];
@@ -510,13 +509,15 @@ php -r 'echo json_encode(["prices"=>["price_1UV8OoB7dFxWyrJoJrOXjEy2"=>["id"=>"p
 check "un Price sin lookup_key se reconoce con --price-id y no se duplica" 'prep "$LIVE_K" --live --dry-run --price-id=price_1UV8OoB7dFxWyrJoJrOXjEy2 > "$WORK/prep5.txt" && grep -q "Price ya existe: price_1UV8OoB7dFxWyrJoJrOXjEy2" "$WORK/prep5.txt" && ! grep -q "crearía un Price" "$WORK/prep5.txt"'
 cerrar 18 "Script de preparación" simulada "Probado contra Stripe simulado en test y live. Con la cuenta real lo ejecuta el fundador." "$A3"
 kill $P_MS 2>/dev/null || true
-unset CONTRATA_STRIPE_API_BASE STRIPE_PREP_ALLOW_LOCAL STRIPE_PREP_BASE STRIPE_WEBHOOK_URL
+unset CONTRATA_STRIPE_API_BASE CONTRATA_STRIPE_API_LOCAL STRIPE_PREP_ALLOW_LOCAL STRIPE_PREP_BASE STRIPE_WEBHOOK_URL
 cerrar 16 "Stripe de pruebas (factura, IVA, NIF)" simulada "Stripe simulado: se comprueba la forma de las peticiones (cliente es_cif, invoice_creation, tax rate inclusive, dirección). La primera factura real se verifica en el Dashboard." "$A"
 
-echo "13. Separación de calendarios"
+echo "13. Sin n8n: la web solo guarda, envía correo y llama a Stripe"
 A=$FAIL
-check "JSON y nodos Code" 'node tests/contrata/test-n8n.mjs'
-cerrar 13 "Separación de calendarios" simulada "Revisión estática y ejecución local de los nodos Code: un solo ID de calendario (marcador), clasificación CONTRATA/BLOQUEO, workflows inactivos. La ejecución real en n8n queda pendiente de cuenta." "$A"
+check "contrata.php solo abre conexiones con Stripe (una única llamada curl_init, en contrata_stripe_request)" '[ "$(grep -c "curl_init(" "$ROOT/public/lib/contrata.php")" = 1 ] && php -r '"'"'$s=file_get_contents($argv[1]); $i=strpos($s,"curl_init("); $f=strrpos(substr($s,0,$i),"function "); exit(str_starts_with(substr($s,$f,40),"function contrata_stripe_request") ? 0 : 1);'"'"' "$ROOT/public/lib/contrata.php"'
+check "ni la web, ni la configuración, ni las pruebas de Contrata nombran n8n (salvo esta comprobación)" '! grep -rIil n8n "$ROOT/public" "$ROOT/src" "$ROOT/config" "$ROOT/scripts" "$ROOT/tests/contrata/stripe-mock.php" "$ROOT/tests/contrata/unit.php"'
+check "no quedan workflows exportados" '[ ! -e "$ROOT/integraciones/n8n" ]'
+cerrar 13 "Sin n8n" pasa "Revisión estática: sin reenvíos externos; la parte de Google la hace la rutina de NEXUS leyendo los correos." "$A"
 
 echo "14. Accesibilidad y móvil"
 A=$FAIL
@@ -533,6 +534,9 @@ for _ in $(seq 1 60); do
   sleep 0.5
 done
 check "Astro en marcha" '[ "$listo" = 1 ]'
+# Precalienta /contratar/ y /contratar/gracias/: la primera compilación del dev server puede pasar de los 10 s de espera de a11y.mjs.
+curl -s -o /dev/null --max-time 60 "http://127.0.0.1:$ASTRO/contratar/" || true
+curl -s -o /dev/null --max-time 60 "http://127.0.0.1:$ASTRO/contratar/gracias/" || true
 if [ "$listo" = 1 ]; then
   check "teclado a 360 px" 'PPTR_ROOT=/tmp/contrata-pptr node tests/contrata/a11y.mjs "http://127.0.0.1:$ASTRO"'
 fi

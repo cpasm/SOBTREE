@@ -10,7 +10,7 @@
     "demo:contrata": "bash scripts/demo-contrata.sh",
     "test:contrata": "bash tests/contrata/run-tests.sh",
     "test:leads": "bash tests/leads/run-tests.sh",
-    "test:leads-hoja": "node tests/leads-hoja/test-lead-hoja.mjs",
+    "test:leads-hoja": "php tests/leads/test-avisos.php",
     "test:privacidad": "bash tests/privacidad/run-tests.sh",
     "test:todo": "npm run test:leads && npm run test:leads-hoja && npm run test:privacidad && npm run test:contrata"
   },

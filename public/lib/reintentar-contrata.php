@@ -1,5 +1,5 @@
 <?php
-// Barrido de retenciones caducadas y reintento de la cola de Contrata hacia n8n.
+// Barrido de retenciones caducadas y reintento de los avisos por correo de ventas y reembolsos pendientes.
 // Solo por línea de comandos. El cron de leads también llama a contrata_mantenimiento().
 //
 // Uso: php reintentar-contrata.php [--dry-run]

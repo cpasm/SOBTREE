@@ -1,6 +1,7 @@
 <?php
-// Webhook de Stripe. Verifica la firma, deduplica por event.id y confirma o
-// libera la retención. Después reenvía a n8n con cola y reintentos.
+// Webhook de Stripe. Verifica la firma, deduplica por event.id, guarda la venta o el reembolso en el
+// registro local y confirma o libera la retención. Después avisa por correo a info@ (el cron reintenta).
+// Ningún cobro sin registro: si no se puede guardar, responde 500 y Stripe vuelve a enviar el evento.
 // Solo acepta el secreto configurado. Rechaza cualquier clave live.
 declare(strict_types=1);
 ini_set('display_errors', '0');
@@ -19,8 +20,8 @@ $header = (string)($_SERVER['HTTP_STRIPE_SIGNATURE'] ?? '');
 try {
     $r = contrata_recibir_webhook($raw, $header);
 } catch (Throwable $e) {
-    error_log('contrata webhook: fallo');
-    $r = ['http' => 400, 'body' => ['ok' => false, 'error' => 'No se ha procesado.']];
+    error_log('contrata webhook: no se pudo registrar el evento (Stripe lo reintentará)');
+    $r = ['http' => 500, 'body' => ['ok' => false, 'error' => 'No se ha procesado.']];
 }
 http_response_code($r['http']);
 echo json_encode($r['body'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

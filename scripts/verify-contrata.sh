@@ -28,14 +28,14 @@ C=$(getf sm /sitemap-0.xml); check "el sitemap incluye /contratar/ y /condicione
 
 echo "2. API"
 C=$(getf disp /api/contrata/disponibilidad.php); check "la disponibilidad responde 200 con JSON" '[ "$C" = 200 ] && php -r "exit(is_array(json_decode(file_get_contents(\$argv[1]), true)) ? 0 : 1);" "$T/disp"' "HTTP $C"
-check "o bien aún no hay semanas publicadas (cerrado: el botón lleva al formulario de contacto), o publica 59290 y el servicio diagnóstico" 'php -r "\$j=json_decode(file_get_contents(\$argv[1]), true); if ((\$j[\"ok\"] ?? null)===false) exit(0); exit((\$j[\"precio\"][\"total_centimos\"] ?? 0)===59290 && ((\$j[\"servicios\"][0][\"id\"] ?? \"\")===\"diagnostico\") ? 0 : 1);" "$T/disp"' 
+check "o bien está cerrada (bloqueos no válidos: el botón lleva al formulario de contacto), o publica 59290 y el servicio diagnóstico" 'php -r "\$j=json_decode(file_get_contents(\$argv[1]), true); if ((\$j[\"ok\"] ?? null)===false) exit(0); exit((\$j[\"precio\"][\"total_centimos\"] ?? 0)===59290 && ((\$j[\"servicios\"][0][\"id\"] ?? \"\")===\"diagnostico\") ? 0 : 1);" "$T/disp"' 
 C=$(code -o "$T/wh" -w '%{http_code}' --max-time 20 -X POST -H 'Content-Type: application/json' -H 'Stripe-Signature: t=1,v1=00' --data '{}' "$BASE/api/contrata/stripe-webhook.php")
 check "el webhook rechaza una firma falsa con 400" '[ "$C" = 400 ]' "HTTP $C"
 C=$(code -o /dev/null -w '%{http_code}' --max-time 20 -X POST -H 'Content-Type: application/json' --data '{}' "$BASE/api/contrata/crear-sesion.php")
 check "crear-sesion sin token ni origen no abre ningún pago (4xx)" '[ "$C" -ge 400 ] 2>/dev/null && [ "$C" -lt 500 ]' "HTTP $C"
 
 echo "3. Cosas que no deben estar"
-for r in /api/contrata/sim/checkout.php /api/contrata/sim/ /lib/contrata.php /lib/reintentar-contrata.php; do
+for r in /api/contrata/sim/checkout.php /api/contrata/sim/ /lib/contrata.php /lib/reintentar-contrata.php /datos/bloqueos.json; do
   C=$(get x "$r"); check "$r denegado ($C)" '[ "$C" = 403 ] || [ "$C" = 404 ]'
 done
 C=$(get env /sobtree-secrets.php); check "sobtree-secrets.php no se sirve ($C)" '[ "$C" = 403 ] || [ "$C" = 404 ]'

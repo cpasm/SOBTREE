@@ -52,7 +52,7 @@ Mientras no haya Radar ni análisis publicados, la home muestra en su lugar el a
 
 Al final de cada análisis y Radar hay un formulario de suscripción (email + consentimiento). Envía las altas a `/api/newsletter.php`, que actualmente depende de un webhook externo configurado en el fichero de secretos de Hostinger. El formulario solo se muestra cuando el endpoint confirma que la integración está configurada. Límites: 5 altas por IP y hora, 300 al día.
 
-La arquitectura objetivo utiliza n8n, Google Sheets y Gmail. La migración del endpoint actual al flujo objetivo está pendiente y debe hacerse con pruebas de consentimiento, bajas, duplicados y envío antes de retirar la integración vigente.
+La migración de la newsletter fuera de ese webhook está pendiente y debe hacerse con pruebas de consentimiento, bajas, duplicados y envío antes de retirar la integración vigente.
 
 ## Radar y artículo semanal
 
@@ -90,28 +90,28 @@ La caja de la home envía la pregunta a `/api/asistente.php`, que llama a Claude
 
 ## Antes de publicar
 
-- Formulario: ver «Captura de leads» más abajo. El correo de respaldo sale con remitente `info@sobtree.com` (buzón real en Google Workspace); se puede cambiar con `LEADS_NOTIFY_FROM` si se crea otro buzón o alias.
+- Formulario: ver «Captura de leads» más abajo. El aviso a info@ y la respuesta automática E-02 salen con remitente `info@sobtree.com` (buzón real en Google Workspace); se puede cambiar con `LEADS_NOTIFY_FROM` si se crea otro buzón o alias.
 - `privacidad`: texto base de privacidad y aviso legal. Revísalo con tu asesor antes de publicar.
 - Revisa la compatibilidad con tu contrato laboral actual antes de hacer pública la web.
 
-## Captura de leads (formulario → registro local → n8n → HubSpot)
+## Captura de leads (formulario → registro local → correo a info@)
 
 `public/contact.php` recibe el formulario de la portada (también cuando llega desde la calculadora o el asistente) y, en este orden:
 
 1. Valida y filtra spam (honeypot `web`, envíos en menos de 3 s, 1 envío cada 30 s por IP).
 2. **Guarda el lead** en `domains/sobtree.com/sobtree-leads/leads.jsonl` (fuera de `public_html`, con bloqueo de escritura y permisos 600) **antes de cualquier envío**.
 3. Responde al visitante.
-4. Reenvía el lead al webhook de n8n firmado con HMAC-SHA256. **n8n envía el aviso principal a `info@sobtree.com`** y lo da de alta en HubSpot.
-5. **Correo de respaldo** desde la web a `info@sobtree.com` solo si n8n falla, da timeout, no está configurado o responde que no pudo enviar su aviso (`aviso: false`). Cada resultado queda en `estado.jsonl` y la marca del canal `correo` evita respaldos duplicados.
+4. **Aviso a `info@sobtree.com`** con todos los campos (contacto, mensaje, consentimientos, página, entrada, referrer y cada `utm_*`) y asunto estable `[Sobtree] Nuevo contacto <id>` (lo busca la rutina de NEXUS en Gmail).
+5. **Respuesta automática E-02** (texto aprobado, D-115) al visitante, desde info@, en texto plano y firmada «El equipo de Sobtree». Reglas: solo `tipo_formulario = contacto`; solo de lunes a viernes de 9:00 a 19:00 (Europe/Madrid, sin los festivos nacionales de la lista); fuera de horario queda en cola y la manda el cron en la siguiente ventana; una sola respuesta por lead y por email en 7 días; sin seguimientos; como mucho 5 por ejecución del cron y 20 por hora en total; no se responde a leads de prueba ni a spam evidente (heurística en `leads_e02_filtro()` de `public/lib/leads.php`: dominios reservados, palabra «prueba»/«test», dominios desechables conocidos, enlaces en nombre/empresa, 2+ enlaces en el mensaje, campos idénticos, nombre sin vocales, alfabeto cirílico/CJK, palabras de 30+ caracteres). Se apaga con `LEADS_AUTORESPUESTA = '0'` en `sobtree-secrets.php`.
 
-Lo que falle lo reenvía `public/lib/reintentar-leads.php` (y envía el respaldo pendiente si aún no salió) (cron cada 15 min en hPanel → Avanzado → Cron Jobs):
+El registro canónico de contactos es el registro local del servidor + el correo de aviso a info@. La hoja «Sobtree · Contactos» ya no se escribe sola (queda como histórico). Cada envío queda en `estado.jsonl` (canal `correo` para el aviso y `e02` para la respuesta: `pendiente`, `enviando`, `enviado`, `error`, `descartado` con su motivo). Una marca `enviando` sin confirmar cuenta como enviada: ante la duda no se repite.
+
+Lo que falle lo reintenta `public/lib/reintentar-leads.php` (cron cada 15 min en hPanel → Avanzado → Cron Jobs): reenvía solo los avisos que fallaron y manda las E-02 pendientes en horario.
 `/usr/bin/php /home/<usuario>/domains/sobtree.com/public_html/lib/reintentar-leads.php`
 
-- **Configuración:** en `sobtree-secrets.php` (ver `config/sobtree-secrets.example.php`): `N8N_LEADS_WEBHOOK_URL`, `N8N_LEADS_WEBHOOK_SECRET` y opcionales `LEADS_DIR`, `LEADS_NOTIFY_TO`, `LEADS_NOTIFY_FROM`. Sin webhook, el reenvío se omite y los leads quedan guardados y avisados por correo.
-- **Firma:** cabeceras `X-Sobtree-Timestamp`, `X-Sobtree-Signature: sha256=hex(HMAC_SHA256(secreto, "<timestamp>.<cuerpo>"))` y `X-Sobtree-Lead-Id`.
+- **Configuración:** opcional, en `sobtree-secrets.php` (ver `config/sobtree-secrets.example.php`): `LEADS_DIR`, `LEADS_NOTIFY_TO`, `LEADS_NOTIFY_FROM`, `LEADS_AUTORESPUESTA`. La web no llama a ningún servicio externo para los leads; solo guarda en disco y envía correo con `mail()`.
 - **Origen:** `assets/origen.js` guarda en `sessionStorage` (sin cookies) la página de entrada, el referrer externo y las UTM; `main.js` las copia en campos ocultos al enviar.
-- **Workflow de n8n:** `integraciones/n8n/` (sin credenciales).
-- **Pruebas locales:** `bash tests/leads/run-tests.sh` (servidor PHP local + webhook simulado; no toca nada externo).
+- **Pruebas locales:** `npm run test:leads` (servidor PHP local; ningún correo sale de la máquina) y `npm run test:leads-hoja` (pruebas sin red del aviso y de E-02: horario, cola, idempotencia, frenos y filtros).
 
 ## Publicación automática de agentes
 Las ramas `claude/auto-*` se compilan, prueban, publican y comprueban solas (`.github/workflows/auto-claude.yml`). Si la web falla tras publicar, se revierte sola. Resultado en la rama `claude/auto-resultados`.

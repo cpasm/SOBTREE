@@ -88,7 +88,7 @@
   calc();
 
   // El formulario de contacto está en la portada: dejamos el cálculo escrito para que llegue con el lead.
-  // Además del texto, viajan los datos estructurados para guardarlos con el lead (contact.php → n8n → HubSpot).
+  // Además del texto, viajan los datos estructurados para guardarlos con el lead (contact.php → registro local y aviso a info@).
   $("#calc-cta").addEventListener("click", () => {
     if (!last) return;
     try {

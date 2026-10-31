@@ -48,7 +48,7 @@ export const CONTRATA = {
   retencionMinutos: RETENCION_MINUTOS,
   precioSinIva: DIAGNOSTICO.precio,
   importes: importes(DIAGNOSTICO.precio, IVA_PORCIENTO),
-  // IDs de ejemplo. Los reales viven solo en sobtree-secrets.php / n8n.
+  // Nombres de referencia del calendario de info@ (lo mantiene la rutina de NEXUS; la web no lo lee).
   calendario: {
     cuenta: "info@sobtree.com",
     proyectos: "CONFIGURAR_ID_CALENDARIO_PROYECTOS",

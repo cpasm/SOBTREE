@@ -82,4 +82,4 @@ Con `draft: false` la URL sale en el sitemap, en `/llms.txt` y en el listado, co
 
 El JSON-LD lo escribe la plantilla (`src/data/schema.ts`, tipo `Article` dentro de `@graph`). `publisher` apunta a la organización Sobtree del mismo bloque. `author` es una `Organization` con el `autor` del frontmatter («El equipo de Sobtree») y `parentOrganization` hacia Sobtree. `image` solo se añade si `imagen` tiene valor. Esa misma URL absoluta es `og:image` y `twitter:image` (la tarjeta pasa a `summary_large_image`). Sin `imagen`, la página no lleva imagen social y la tarjeta sigue siendo `summary`.
 
-El flujo de n8n exportado hay que reimportarlo a mano si se quieren los importes desglosados en la nota del lead. La firma HMAC y la cola de reintentos no cambian.
+Los importes desglosados de la calculadora llegan en el aviso a info@ («[Sobtree] Nuevo contacto <id>», línea «Calculadora:»); no hay ningún flujo externo que reimportar. El registro local y la cola de reintentos no cambian.

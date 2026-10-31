@@ -15,10 +15,14 @@ $entrada = fn(string $semana, string $nif = 'B12345674') => [
     'email' => 'facturas@example.com', 'nif' => $nif, 'condiciones' => 'si', 'semana' => $semana,
 ];
 $abrir = fn(array $in) => contrata_abrir_sesion($in, ['cli' => true, 'ip' => 'stripe-mock-' . bin2hex(random_bytes(3))]);
+// Semanas visibles calculadas desde hoy (antes eran fechas fijas y la prueba caducaba con el calendario).
+$L1 = contrata_primer_lunes(contrata_hoy());
+$L2 = contrata_sumar_dias($L1, 7);
+$L3 = contrata_sumar_dias($L1, 14);
 
 if ($caso === 'desajuste' || $caso === 'incompleto') {
     $t('no se puede usar', contrata_stripe_utilizable() === false);
-    $r = $abrir($entrada('2026-11-02'));
+    $r = $abrir($entrada($L1));
     $t('no abre el pago (503)', ($r['http'] ?? 0) === 503);
     $t('no se ha llamado a Stripe', !is_file($mdir . '/requests.jsonl'));
     if ($fail > 0) exit(1);
@@ -26,21 +30,15 @@ if ($caso === 'desajuste' || $caso === 'incompleto') {
     exit(0);
 }
 
-$t('utilizable', contrata_stripe_utilizable() === true);
-// Publicación de disponibilidad firmada (lo que haría n8n), para poder abrir pagos.
-$cuerpo = ['generado' => gmdate('c', contrata_ahora()), 'max_proyectos_simultaneos' => CONTRATA_MAX_PROYECTOS,
-    'semanas' => contrata_calcular_semanas(contrata_hoy(), [], [])];
-$rawDisp = (string)json_encode($cuerpo, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-$tsDisp = (string)contrata_ahora();
-$pub = contrata_post_disponibilidad($rawDisp, ['HTTP_X_SOBTREE_TIMESTAMP' => $tsDisp, 'HTTP_X_SOBTREE_SIGNATURE' => 'sha256=' . contrata_sign(contrata_config()['hmac_secret'], $tsDisp, $rawDisp)]);
-$t('disponibilidad publicada', $pub['http'] === 200);
+$t('utilizable (también en live, sin ninguna URL de reenvío configurada)', contrata_stripe_utilizable() === true);
+$t('la disponibilidad se calcula en local y está abierta', (contrata_estado_publico()['ok'] ?? false) === true);
 $t('modo coherente', contrata_config()['live'] === (contrata_modo() === 'stripe_live'));
 $leerPeticiones = function () use ($mdir): array {
     $o = [];
     foreach (file($mdir . '/requests.jsonl', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $l) $o[] = json_decode($l, true);
     return $o;
 };
-$r = $abrir($entrada('2026-11-02'));
+$r = $abrir($entrada($L1));
 $t('abre sesión (200)', ($r['http'] ?? 0) === 200 && ($r['body']['ok'] ?? false) === true);
 if (($r['http'] ?? 0) !== 200) fwrite(STDERR, json_encode($r) . "\n");
 $sid = (string)($r['body']['sesion'] ?? '');
@@ -64,7 +62,7 @@ $t('la factura lleva la descripción del diagnóstico sin plazo de una semana', 
 $t('el NIF no va en metadata', !str_contains(json_encode($f['metadata'] ?? []), 'B12345674'));
 $t('se validó el tax rate y el price antes', count(array_filter($reqs, fn($q) => str_starts_with($q['ruta'], '/v1/tax_rates/'))) === 1 && count(array_filter($reqs, fn($q) => str_starts_with($q['ruta'], '/v1/prices/'))) === 1);
 
-// Pago confirmado → aviso con NIF.
+// Pago confirmado → registro local con NIF y aviso por correo.
 $ret = array_values(array_filter(contrata_leer_retenciones()['retenciones'], fn($x) => ($x['sesion'] ?? '') === $sid))[0] ?? [];
 $meta = $f['metadata'] ?? [];
 $evento = function (string $tipo, array $obj, ?bool $livemode = null, ?string $id = null) use ($live) {
@@ -92,7 +90,7 @@ $n = count($cola());
 $w = contrata_recibir_webhook($p, $h);
 $t('evento del otro modo (test/live) ignorado', $w['http'] === 200 && ($w['body']['ignorado'] ?? '') === 'livemode' && count($cola()) === $n);
 // Importe distinto: alerta.
-$r2 = $abrir($entrada('2026-11-09'));
+$r2 = $abrir($entrada($L2));
 $sid2 = (string)($r2['body']['sesion'] ?? '');
 $ult = array_values(array_filter($leerPeticiones(), fn($q) => $q['ruta'] === '/v1/checkout/sessions'));
 $pago2 = $pago; $pago2['metadata'] = $ult[count($ult) - 1]['form']['metadata'] ?? []; $pago2['id'] = $sid2; $pago2['payment_intent'] = 'pi_x_2'; $pago2['amount_total'] = 49000;
@@ -117,7 +115,7 @@ $t('reembolso total: estado reembolsada y plaza liberada', ($c4['estado'] ?? '')
 if ($caso === 'normal' && !$live) {
     // Stripe rechaza el NIF como tax_id: el cliente se crea sin él y el NIF viaja como campo de la factura.
     @touch($mdir . '/rechaza-tax-id');
-    $r3 = $abrir($entrada('2026-11-16', 'ESB12345674'));
+    $r3 = $abrir($entrada($L3, 'ESB12345674'));
     $t('con tax_id rechazado la compra sigue abierta', ($r3['http'] ?? 0) === 200);
     $reqs = $leerPeticiones();
     $ses3 = array_values(array_filter($reqs, fn($q) => $q['metodo'] === 'POST' && $q['ruta'] === '/v1/checkout/sessions'));

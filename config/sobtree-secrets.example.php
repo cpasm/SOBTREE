@@ -9,17 +9,13 @@ return [
     // Newsletter (api/newsletter.php)
     'ZAPIER_NEWSLETTER_WEBHOOK' => 'https://hooks.zapier.com/hooks/catch/...',
 
-    // Captura de leads (contact.php + lib/reintentar-leads.php)
-    // URL "Production" del nodo Webhook de n8n. Si se deja vacía, el reenvío se omite y los leads
-    // quedan guardados en el registro local y avisados por correo; el cron los reenvía al configurarla.
-    'N8N_LEADS_WEBHOOK_URL' => '',
-    // Secreto compartido para la firma HMAC-SHA256 (genera uno con: openssl rand -hex 32).
-    // Debe ser el mismo valor que la variable/credencial del workflow en n8n.
-    'N8N_LEADS_WEBHOOK_SECRET' => '',
+    // Captura de leads (contact.php + lib/reintentar-leads.php). Sin claves obligatorias: el lead se guarda
+    // en el registro local y se avisa por correo a info@ («[Sobtree] Nuevo contacto <id>»).
     // Opcionales:
     // 'LEADS_DIR' => '/home/<usuario>/domains/sobtree.com/sobtree-leads',
     // 'LEADS_NOTIFY_TO' => 'info@sobtree.com',
     // 'LEADS_NOTIFY_FROM' => 'info@sobtree.com',   // por defecto; usa solo un buzón o alias que exista
+    // 'LEADS_AUTORESPUESTA' => '0',                 // apaga la respuesta automática E-02 (por defecto encendida)
 
     // Botón Contrata (api/contrata + lib/contrata.php). Solo los nombres: los valores reales van en
     // sobtree-secrets.php (fuera de public_html), nunca en el repositorio. Mira docs/contrata.md.
@@ -30,12 +26,12 @@ return [
     // ---- SECRETOS (no se muestran ni se suben a ningún sitio)
     'STRIPE_RESTRICTED_KEY' => '',   // rk_live_… (clave restringida: Checkout Sessions, Customers y Prices en lectura/escritura mínima)
     'STRIPE_WEBHOOK_SECRET' => '',   // whsec_… del endpoint del webhook
-    'CONTRATA_HMAC_SECRET' => '',    // openssl rand -hex 32; el mismo valor se pega en los dos flujos de n8n (constante SECRET)
+    'CONTRATA_HMAC_SECRET' => '',    // openssl rand -hex 32; firma el token CSRF del formulario de pago (solo vive aquí)
     // ---- IDs y URLs (no son secretos, pero tampoco se suben con valores reales)
     'STRIPE_PRICE_DIAGNOSTICO' => '', // price_… (592,90 € EUR, IVA incluido). Un Price por servicio: STRIPE_PRICE_<ID EN MAYÚSCULAS>
     'STRIPE_TAX_RATE_IVA21' => '',    // txr_… (IVA 21 % incluido, ES). Lo crea scripts/stripe-preparar.php
-    'CONTRATA_N8N_WEBHOOK_URL' => '', // URL de producción del webhook de «Sobtree · Contrata» (https). Vacía = no se abre el pago en live
     // 'CONTRATA_PUBLIC_URL' => 'https://sobtree.com',
     // 'CONTRATA_DIR' => '/home/<usuario>/domains/sobtree.com/sobtree-contrata',
-    // Los IDs de calendario NO van aquí: los lee n8n (build-contrata.mjs, CONTRATA_CAL_ID = info@sobtree.com).
+    // 'CONTRATA_NOTIFY_TO' => 'info@sobtree.com',   // destinatario de los avisos de venta y reembolso
+    // Las semanas bloqueadas NO van aquí: están en public/datos/bloqueos.json (repositorio).
 ];
