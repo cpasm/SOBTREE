@@ -1,0 +1,5 @@
+tarea;bloque;rol;veces_mes;minutos_vez;datos_personales;prompt;minutos_ia;notas
+EJEMPLO – Redactar emails de petición de documentación;Documentación;Administrativo;40;6;No;A2;;Ficticio
+EJEMPLO – Recordatorios a clientes sin respuesta;Documentación;Administrativo;25;4;No;A3;;Ficticio
+EJEMPLO – Avisos de vencimiento;Plazos;Técnico fiscal;1;90;No;B1, B2;;Ficticio
+EJEMPLO – Responder dudas habituales por email;Dudas;Técnico fiscal;30;8;Sí;C2;;Ficticio: anonimizar antes de usar la IA

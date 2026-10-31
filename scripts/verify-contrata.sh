@@ -23,19 +23,26 @@ check "/contratar/ muestra el servicio y el total 592,90 €" 'grep -q "id=\"con
 C=$(getf condiciones /condiciones/); check "/condiciones/ responde 200" '[ "$C" = 200 ]' "HTTP $C"
 check "/condiciones/ es indexable, está firmada por Sobtree Holding, S.L. y sin marcas de borrador" 'grep -q "Sobtree Holding, S.L." "$T/condiciones" && ! grep -q "name=\"robots\" content=\"noindex\"" "$T/condiciones" && ! grep -qE "PENDIENTE|PROPUESTA|BORRADOR" "$T/condiciones"'
 C=$(getf home /); check "la portada responde 200 y tiene el botón Contrata" '[ "$C" = 200 ] && grep -q "id=\"contrata-boton\"" "$T/home"' "HTTP $C"
-C=$(getf priv /privacidad/); check "/privacidad/ sin HubSpot y con la versión 2026-10-31" '[ "$C" = 200 ] && ! grep -qi hubspot "$T/priv" && grep -q "2026-10-31" "$T/priv"'
+C=$(getf priv /privacidad/); check "/privacidad/ sin HubSpot y con la versión 2026-11-01" '[ "$C" = 200 ] && ! grep -qi hubspot "$T/priv" && grep -q "2026-11-01" "$T/priv"'
 C=$(getf sm /sitemap-0.xml); check "el sitemap incluye /contratar/ y /condiciones/ y no la confirmación de pago" '[ "$C" = 200 ] && grep -q "<loc>https://sobtree.com/contratar/</loc>" "$T/sm" && grep -q "<loc>https://sobtree.com/condiciones/</loc>" "$T/sm" && ! grep -q "contratar/gracias" "$T/sm"'
+
+C=$(getf kit /kit-asesorias/); check "/kit-asesorias/ responde 200 con el formulario y 47,19 €" '[ "$C" = 200 ] && grep -q "id=\"kit-form\"" "$T/kit" && grep -q "47,19" "$T/kit"' "HTTP $C"
+C=$(getf kitc /kit-asesorias/condiciones/); check "/kit-asesorias/condiciones/ responde 200 sin marcas de borrador" '[ "$C" = 200 ] && ! grep -qE "REVISAR|PENDIENTE|BORRADOR" "$T/kitc"' "HTTP $C"
+check "el sitemap incluye /kit-asesorias/ y no su página de gracias" 'grep -q "<loc>https://sobtree.com/kit-asesorias/</loc>" "$T/sm" && ! grep -q "kit-asesorias/gracias" "$T/sm"'
 
 echo "2. API"
 C=$(getf disp /api/contrata/disponibilidad.php); check "la disponibilidad responde 200 con JSON" '[ "$C" = 200 ] && php -r "exit(is_array(json_decode(file_get_contents(\$argv[1]), true)) ? 0 : 1);" "$T/disp"' "HTTP $C"
 check "o bien está cerrada (bloqueos no válidos: el botón lleva al formulario de contacto), o publica 59290 y el servicio diagnóstico" 'php -r "\$j=json_decode(file_get_contents(\$argv[1]), true); if ((\$j[\"ok\"] ?? null)===false) exit(0); exit((\$j[\"precio\"][\"total_centimos\"] ?? 0)===59290 && ((\$j[\"servicios\"][0][\"id\"] ?? \"\")===\"diagnostico\") ? 0 : 1);" "$T/disp"' 
+C=$(getf kitd "/api/contrata/disponibilidad.php?producto=kit_asesorias"); check "el estado del kit responde JSON: cerrado o 4719 céntimos" '[ "$C" = 200 ] && php -r "\$j=json_decode(file_get_contents(\$argv[1]), true); if ((\$j[\"ok\"] ?? null)===false) exit(0); exit((\$j[\"producto\"][\"total_centimos\"] ?? 0)===4719 ? 0 : 1);" "$T/kitd"' "HTTP $C"
+C=$(code -o /dev/null -w '%{http_code}' --max-time 20 "$BASE/api/contrata/descargar.php?sesion=cs_live_inventada0000&comprobar=1")
+check "la descarga con una sesión inventada responde 404" '[ "$C" = 404 ]' "HTTP $C"
 C=$(code -o "$T/wh" -w '%{http_code}' --max-time 20 -X POST -H 'Content-Type: application/json' -H 'Stripe-Signature: t=1,v1=00' --data '{}' "$BASE/api/contrata/stripe-webhook.php")
 check "el webhook rechaza una firma falsa con 400" '[ "$C" = 400 ]' "HTTP $C"
 C=$(code -o /dev/null -w '%{http_code}' --max-time 20 -X POST -H 'Content-Type: application/json' --data '{}' "$BASE/api/contrata/crear-sesion.php")
 check "crear-sesion sin token ni origen no abre ningún pago (4xx)" '[ "$C" -ge 400 ] 2>/dev/null && [ "$C" -lt 500 ]' "HTTP $C"
 
 echo "3. Cosas que no deben estar"
-for r in /api/contrata/sim/checkout.php /api/contrata/sim/ /lib/contrata.php /lib/reintentar-contrata.php /datos/bloqueos.json; do
+for r in /api/contrata/sim/checkout.php /api/contrata/sim/ /lib/contrata.php /lib/reintentar-contrata.php /datos/bloqueos.json /lib/kits/kit-asesorias.zip /lib/kits/; do
   C=$(get x "$r"); check "$r denegado ($C)" '[ "$C" = 403 ] || [ "$C" = 404 ]'
 done
 C=$(get env /sobtree-secrets.php); check "sobtree-secrets.php no se sirve ($C)" '[ "$C" = 403 ] || [ "$C" = 404 ]'

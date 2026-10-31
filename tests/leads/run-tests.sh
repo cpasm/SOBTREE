@@ -130,7 +130,7 @@ check "marcada: booleano true, texto, fecha ISO y versión en el registro" 'tail
 \$j=json_decode(stream_get_contents(STDIN), true); \$c=\$j[\"consentimiento_comercial\"] ?? null;
 \$ok=is_array(\$c) && \$c[\"acepta\"]===true && \$c[\"texto\"]===getenv(\"TEXTO_CC\")
   && preg_match(\"/^[0-9]{4}-[0-9]{2}-[0-9]{2}T/\", (string)(\$c[\"fecha\"] ?? \"\"))
-  && \$c[\"version_politica\"]===\"2026-10-31\";
+  && \$c[\"version_politica\"]===\"2026-11-01\";
 exit(\$ok ? 0 : 1);"'
 check "marcada: el aviso a info@ lo dice con el texto aceptado" 'mail_field "$IDCC" aviso body | grep -q "Comunicaciones comerciales: sí" && mail_field "$IDCC" aviso body | grep -Fq "Texto aceptado: $TEXTO_CC"'
 CODE=$(post "${VALID[@]}" -d email=nocc@talleres-sinteticos.es); sleep 0.3; IDNC=$(last_id)

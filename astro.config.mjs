@@ -33,13 +33,13 @@ const indexable = (page) => {
   // Con el flag encendido /contratar/ y /condiciones/ son públicas e indexables; la confirmación de pago, no.
   // Con el flag apagado no existen: ni en el sitemap ni en el build.
   const contrataOn = process.env.PUBLIC_CONTRATA_ACTIVO === "1";
-  if ((path.startsWith("/contratar/") || path.startsWith("/condiciones/")) && !contrataOn) return false;
+  if ((path.startsWith("/contratar/") || path.startsWith("/condiciones/") || path.startsWith("/kit-asesorias/")) && !contrataOn) return false;
   if (path.startsWith("/contratar/") && path !== "/contratar/") return false;
   if (/\/(gracias|thanks|thank-you|error)(\/|$)/i.test(path)) return false;
   return true;
 };
 
-// Con el flag apagado el build no publica /contratar/ ni /condiciones/. El botón tampoco se pinta.
+// Con el flag apagado el build no publica /contratar/, /condiciones/ ni /kit-asesorias/ (venta del kit, D-119). El botón tampoco se pinta.
 // En ningún caso se publica api/contrata/sim/ (simulador de pago).
 function quitarContrataSiApagado() {
   return {
@@ -51,6 +51,7 @@ function quitarContrataSiApagado() {
         if (process.env.PUBLIC_CONTRATA_ACTIVO === "1") return;
         rmSync(path.join(fileURLToPath(dir), "contratar"), { recursive: true, force: true });
         rmSync(path.join(fileURLToPath(dir), "condiciones"), { recursive: true, force: true });
+        rmSync(path.join(fileURLToPath(dir), "kit-asesorias"), { recursive: true, force: true });
       }
     }
   };

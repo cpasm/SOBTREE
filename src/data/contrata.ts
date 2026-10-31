@@ -35,6 +35,25 @@ export const SERVICIOS: ServicioContrata[] = [
   }
 ];
 export const SERVICIO_DEFECTO = SERVICIOS[0];
+
+// Productos digitales (D-119): sin semana ni disponibilidad, precio inline en Stripe (sin Price) y descarga protegida.
+// El PHP (CONTRATA_SERVICIOS con tipo precio_inline) manda; una prueba comprueba que id, nombre, base y días coinciden.
+export type ProductoDigital = ServicioContrata & { ruta: string; condicionesVersion: string; descargasMax: number };
+export const PRODUCTOS_DIGITALES: ProductoDigital[] = [
+  {
+    id: "kit_asesorias",
+    nombre: "Kit IA para asesorías y gestorías",
+    baseEur: 39,
+    diasBloqueo: 0,
+    resumen: "Prompts, plantillas y una hoja de medición para probar la IA en tres tareas que se repiten cada mes.",
+    ruta: "/kit-asesorias/",
+    // Condiciones propias del kit (/kit-asesorias/condiciones/). Igual que condiciones_version del kit en el PHP.
+    condicionesVersion: "2026-10-31",
+    descargasMax: 10
+  }
+];
+export const KIT_ASESORIAS = PRODUCTOS_DIGITALES[0];
+export const kitAsesoriasImportes = importes(KIT_ASESORIAS.baseEur, IVA_PORCIENTO);
 export const serviciosConImportes = SERVICIOS.map((s) => ({ ...s, importes: importes(s.baseEur, IVA_PORCIENTO) }));
 
 export const CONTRATA = {
@@ -57,7 +76,8 @@ export const CONTRATA = {
   },
   endpoints: {
     disponibilidad: "/api/contrata/disponibilidad.php",
-    crearSesion: "/api/contrata/crear-sesion.php"
+    crearSesion: "/api/contrata/crear-sesion.php",
+    descargar: "/api/contrata/descargar.php"
   },
   contacto: "/#contacto"
 };

@@ -1,0 +1,68 @@
+---
+// Vuelta de Stripe tras pagar el kit (?sesion={CHECKOUT_SESSION_ID}) o enlace de la factura (?k=<token>).
+// La página no decide nada: pregunta a api/contrata/descargar.php (comprobar=1), que solo da el ZIP si el webhook
+// firmado de Stripe ya registró la venta. Si aún no ha llegado, reintenta unos segundos. Textos: PULSE (parte 7).
+import Base from "../../layouts/Base.astro";
+import { CONTRATA, KIT_ASESORIAS } from "../../data/contrata";
+
+const activo = CONTRATA.activo;
+---
+{activo ? (
+<Base title="Gracias por tu compra | Sobtree" description="Descarga del Kit IA para asesorías y gestorías." noindex={true}>
+<main id="main" class="section">
+  <div class="wrap" style="max-width: 720px;">
+    <p class="eyebrow">{KIT_ASESORIAS.nombre}</p>
+    <h1 id="kit-titulo">Gracias por tu compra</h1>
+    <p id="kit-descarga-estado" role="status" aria-live="polite">Comprobando el pago…</p>
+    <p><a class="btn btn-primary" id="kit-descargar" href="#" hidden>Descargar el kit</a>
+      <button class="btn btn-ghost" type="button" id="kit-reintentar" hidden>Volver a comprobar</button></p>
+    <p class="fine" id="kit-restantes" style="text-align:left"></p>
+    <p>Stripe te envía la factura al email que indicaste; el enlace de descarga también figura en ella. Si no la ves en unos minutos, revisa la carpeta de spam. Guarda la dirección de esta página: con ella puedes volver a descargar el kit (hasta {KIT_ASESORIAS.descargasMax} descargas).</p>
+    <p><strong>Por dónde empezar:</strong> abre el archivo «Léeme». En 30 minutos tendrás tu primera tarea medida y un prompt probado. Lee primero la guía «Qué datos no pegar en una IA».</p>
+    <p>¿Problemas con la descarga? Escríbenos a <a href="mailto:info@sobtree.com">info@sobtree.com</a> y te ayudamos.</p>
+    <p>El equipo de Sobtree</p>
+  </div>
+</main>
+<script is:inline define:vars={{ endpoint: CONTRATA.endpoints.descargar }}>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var sesion = q.get("sesion") || "", k = q.get("k") || "";
+  var estado = document.getElementById("kit-descarga-estado");
+  var boton = document.getElementById("kit-descargar");
+  var otra = document.getElementById("kit-reintentar");
+  var resto = document.getElementById("kit-restantes");
+  var titulo = document.getElementById("kit-titulo");
+  var param = sesion ? "sesion=" + encodeURIComponent(sesion) : (k ? "k=" + encodeURIComponent(k) : "");
+  var intentos = 0, MAX = 10;
+  if (!param) { estado.textContent = "Falta el identificador de la compra. Usa el enlace de la factura o escríbenos a info@sobtree.com."; return; }
+  function pintar(j) {
+    if (j && j.ok) {
+      titulo.textContent = "Gracias, tu kit ya está listo";
+      estado.textContent = "El pago se ha completado.";
+      boton.href = endpoint + "?" + param;
+      boton.hidden = false;
+      otra.hidden = true;
+      if (typeof j.restantes === "number") resto.textContent = "Te quedan " + j.restantes + " de " + j.descargas_max + " descargas.";
+      return;
+    }
+    estado.textContent = (j && j.mensaje) || "No hemos podido comprobar la compra. Inténtalo en un minuto o escríbenos a info@sobtree.com.";
+    if (j && j.reintentar && intentos < MAX) { setTimeout(comprobar, 3000); return; }
+    otra.hidden = !(j && j.reintentar) && !!j;
+  }
+  function comprobar() {
+    intentos += 1;
+    fetch(endpoint + "?" + param + "&comprobar=1", { headers: { Accept: "application/json" }, cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(pintar)
+      .catch(function () { pintar(null); });
+  }
+  otra.addEventListener("click", function () { intentos = 0; otra.hidden = true; estado.textContent = "Comprobando el pago…"; comprobar(); });
+  comprobar();
+})();
+</script>
+</Base>
+) : (
+<Base title="Sobtree" noindex={true}>
+<main id="main" class="section"><div class="wrap"><p>Esta página no está publicada.</p></div></main>
+</Base>
+)}

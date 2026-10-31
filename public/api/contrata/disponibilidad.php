@@ -11,7 +11,11 @@ require dirname(__DIR__, 2) . '/lib/contrata.php';
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 try {
-    if ($method === 'GET') {
+    if ($method === 'GET' && isset($_GET['producto'])) {
+        // Página de venta de un producto digital (sin semanas): importes y token CSRF.
+        $body = contrata_estado_producto(is_string($_GET['producto']) ? $_GET['producto'] : '');
+        http_response_code(200);
+    } elseif ($method === 'GET') {
         $body = contrata_estado_publico();
         http_response_code(200);
     } else {

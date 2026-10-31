@@ -1,6 +1,14 @@
 <?php
 // Pruebas puras de Contrata (sin red). Salida: una línea por fallo, o «ok».
 declare(strict_types=1);
+// Sin entorno de pruebas (ejecución suelta): simulación y una carpeta temporal, para no escribir nunca en el repositorio.
+if (getenv('SOBTREE_BASE_DIR') === false) {
+    $tmpBase = sys_get_temp_dir() . '/contrata-unit-' . bin2hex(random_bytes(4));
+    @mkdir($tmpBase, 0700, true);
+    putenv('SOBTREE_BASE_DIR=' . $tmpBase);
+    putenv('CONTRATA_DIR=' . $tmpBase . '/sobtree-contrata');
+}
+if (getenv('CONTRATA_MODO') === false) putenv('CONTRATA_MODO=simulacion');
 require dirname(__DIR__, 2) . '/public/lib/contrata.php';
 $fail = 0;
 $t = function (string $nombre, bool $ok) use (&$fail) {
@@ -54,16 +62,17 @@ $t('territorio con otro IVA', contrata_alerta_territorio(['address' => ['country
 // ---- Servicios: la lista del PHP y la del front (src/data/contrata.ts) coinciden, y solo valen los ids de la lista
 $ts = file_get_contents(dirname(__DIR__, 2) . '/src/data/contrata.ts');
 preg_match_all('/id:\s*"([a-z0-9_]+)",\s*nombre:\s*"([^"]+)",\s*baseEur:\s*([A-Za-z_.0-9]+),\s*diasBloqueo:\s*(\d+)/', $ts, $m, PREG_SET_ORDER);
-$t('hay un servicio en el front y uno en el PHP', count($m) === 1 && count(contrata_servicios()) === 1);
+$t('dos servicios en el front y en el PHP (diagnóstico y kit)', count($m) === 2 && count(contrata_servicios()) === 2);
 $ids_ts = array_map(fn($x) => $x[1], $m);
 $t('mismos ids en PHP y front', $ids_ts === array_keys(contrata_servicios()));
 foreach ($m as $x) {
     $sv = contrata_servicio($x[1]);
     $t('servicio ' . $x[1] . ': nombre y días de bloqueo iguales', $sv !== null && $sv['nombre'] === $x[2] && (int)$sv['dias_bloqueo'] === (int)$x[4]);
-    $t('servicio ' . $x[1] . ': la base sale de DIAGNOSTICO.precio', $x[3] === 'DIAGNOSTICO.precio' && $sv !== null && $sv['base_eur'] === CONTRATA_PRECIO_BASE_EUR);
 }
-$t('solo diagnóstico', array_keys(contrata_servicios()) === ['diagnostico']);
-$t('un id fuera de la lista no existe', contrata_servicio('Diagnostico') === null && contrata_servicio('diagnostico ') === null && contrata_servicio('proyecto') === null && contrata_servicio('') === null);
+$t('la base del diagnóstico sale de DIAGNOSTICO.precio', ($m[0][1] ?? '') === 'diagnostico' && $m[0][3] === 'DIAGNOSTICO.precio' && contrata_servicio('diagnostico')['base_eur'] === CONTRATA_PRECIO_BASE_EUR);
+$t('la base del kit es la misma en el front y en el PHP (39)', ($m[1][1] ?? '') === 'kit_asesorias' && $m[1][3] === (string)CONTRATA_KIT_ASESORIAS_BASE_EUR && CONTRATA_KIT_ASESORIAS_BASE_EUR === 39);
+$t('la disponibilidad solo publica el diagnóstico (servicios con semana)', array_keys(contrata_servicios_semana()) === ['diagnostico']);
+$t('un id fuera de la lista no existe', contrata_servicio('Diagnostico') === null && contrata_servicio('diagnostico ') === null && contrata_servicio('proyecto') === null && contrata_servicio('') === null && contrata_servicio('kit_asesorias ') === null);
 $lanzo = false;
 try { contrata_importes('proyecto'); } catch (InvalidArgumentException $e) { $lanzo = true; }
 $t('importes de un servicio desconocido falla', $lanzo);
@@ -71,7 +80,33 @@ $t('el Price se valida contra el importe de ese servicio', contrata_price_coinci
 $lanzo = false;
 try { contrata_price_coincide(59290, 'eur', false, 'otro'); } catch (InvalidArgumentException $e) { $lanzo = true; }
 $t('un Price para un servicio que no existe no se compara', $lanzo);
-$t('días de bloqueo entre 1 y 5', array_reduce(contrata_servicios(), fn($ok, $s) => $ok && $s['dias_bloqueo'] >= 1 && $s['dias_bloqueo'] <= CONTRATA_DIAS_BLOQUEO_MAX, true));
+$t('días de bloqueo entre 1 y 5 en los servicios con semana', array_reduce(contrata_servicios_semana(), fn($ok, $s) => $ok && $s['dias_bloqueo'] >= 1 && $s['dias_bloqueo'] <= CONTRATA_DIAS_BLOQUEO_MAX, true));
+// ---- Kit (precio inline, D-119)
+$kit = contrata_servicio('kit_asesorias');
+$ik = contrata_importes('kit_asesorias');
+$t('kit: 39 € + IVA 21 % = 47,19 € (3900 + 819 = 4719 céntimos)', $ik['base_centimos'] === 3900 && $ik['iva_centimos'] === 819 && $ik['total_centimos'] === 4719 && $ik['total_texto'] === '47,19 €');
+$t('kit: precio inline, sin semana (0 días), sin Price y con archivo de descarga', contrata_es_inline($kit) && $kit['dias_bloqueo'] === 0 && !isset($kit['env_price']) && $kit['archivo'] === 'kit-asesorias.zip');
+$t('el diagnóstico no es inline y sigue exigiendo su Price', !contrata_es_inline(contrata_servicio('diagnostico')) && CONTRATA_SERVICIOS['diagnostico']['env_price'] === 'STRIPE_PRICE_DIAGNOSTICO');
+preg_match('/condicionesVersion:\s*"([^"]+)"/', $ts, $kcv);
+preg_match('/descargasMax:\s*(\d+)/', $ts, $kdm);
+$t('versión de las condiciones del kit igual en front y PHP', ($kcv[1] ?? '') === $kit['condiciones_version']);
+$t('máximo de descargas igual en front y PHP (10)', ($kdm[1] ?? '') === (string)CONTRATA_DESCARGAS_MAX && CONTRATA_DESCARGAS_MAX === 10);
+$t('las condiciones del diagnóstico no cambian de versión', CONTRATA_CONDICIONES_VERSION === '2026-10-27');
+$cliK = ['email' => 'a@example.com', 'empresa' => 'Acme SL', 'nif' => contrata_validar_identificacion('B12345674'), 'utm' => [], 'lead_id' => ''];
+$retK = ['id' => 'ret_x', 'semana' => '', 'expira' => 1800000000, 'servicio' => 'kit_asesorias', 'token_descarga' => str_repeat('a', 32)];
+$pk = contrata_parametros_sesion($retK, $cliK, 'cus_x', false);
+$li = $pk['line_items'][0];
+$t('kit: price_data con 4719 EUR, sin price, cantidad 1 e IVA por tax rate', !isset($li['price']) && $li['price_data']['unit_amount'] === 4719 && $li['price_data']['currency'] === 'eur' && $li['quantity'] === 1 && count($li['tax_rates']) === 1);
+$t('kit: vuelve a /kit-asesorias/gracias/ con el session_id y cancela a /kit-asesorias/', str_ends_with($pk['success_url'], '/kit-asesorias/gracias/?sesion={CHECKOUT_SESSION_ID}') && str_ends_with($pk['cancel_url'], '/kit-asesorias/?cancelado=1'));
+$t('kit: sin semana ni texto del descuento del diagnóstico', !isset($pk['metadata']['semana_lunes']) && !str_contains($pk['custom_text']['submit']['message'], 'Semana') && !str_contains($pk['custom_text']['submit']['message'], 'descontamos'));
+$t('kit: la casilla de Stripe enlaza las condiciones del kit con su versión', str_contains($pk['custom_text']['terms_of_service_acceptance']['message'], '/kit-asesorias/condiciones/') && ($pk['metadata']['condiciones_version'] ?? '') === '2026-10-31');
+$t('kit: el enlace de descarga con token va en el pie de la factura', str_contains($pk['invoice_creation']['invoice_data']['footer'] ?? '', '/kit-asesorias/gracias/?k=' . str_repeat('a', 32)));
+$lanzo = false;
+try { contrata_parametros_sesion(['token_descarga' => 'corto'] + $retK, $cliK, 'cus_x', false); } catch (RuntimeException $e) { $lanzo = true; }
+$t('kit: sin token de descarga válido no se abre la sesión', $lanzo);
+$pd = contrata_parametros_sesion(['id' => 'ret_y', 'semana' => contrata_primer_lunes(contrata_hoy()), 'expira' => 1800000000, 'servicio' => 'diagnostico'], $cliK, 'cus_x', false);
+$t('diagnóstico sin cambios: Price, semana, descuento y /contratar/gracias/', ($pd['line_items'][0]['price'] ?? '') === CONTRATA_PRICE_TEST && !isset($pd['line_items'][0]['price_data']) && isset($pd['metadata']['semana_lunes']) && str_contains($pd['custom_text']['submit']['message'], 'descontamos') && str_contains($pd['success_url'], '/' . 'contratar/gracias/') && !isset($pd['invoice_creation']['invoice_data']['footer']));
+$t('descarga: sesión con formato no válido → 404', contrata_descarga_estado('../../etc/passwd')['http'] === 404 && contrata_descarga_estado('')['http'] === 404 && contrata_descarga_estado('', 'zz')['http'] === 404);
 $t('el Price del diagnóstico sale de STRIPE_PRICE_DIAGNOSTICO', CONTRATA_SERVICIOS['diagnostico']['env_price'] === 'STRIPE_PRICE_DIAGNOSTICO');
 // ---- Disponibilidad calculada en el PHP (D-116): bloqueos del archivo + ventas y retenciones locales
 $t('archivo de bloqueos del repositorio válido', contrata_validar_bloqueos(json_decode((string)file_get_contents(dirname(__DIR__, 2) . '/public/datos/bloqueos.json'), true)) !== null);

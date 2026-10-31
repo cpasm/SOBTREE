@@ -79,9 +79,33 @@ if ($ruta === '/v1/checkout/sessions' && $metodo === 'POST') {
     $c = $st['customers'][$cus] ?? null;
     if (!$c) $err(400, 'customer');
     foreach (['invoice_creation', 'billing_address_collection', 'success_url', 'line_items'] as $k) if (!isset($form[$k])) $err(400, "falta $k");
-    $o = ['id' => $id('cs'), 'object' => 'checkout.session', 'livemode' => $live, 'customer' => $cus, 'status' => 'open'];
+    // Importe de la sesión: price_data (precio inline) o el Price guardado, por la cantidad.
+    $li = $form['line_items'][0] ?? [];
+    if (isset($li['price_data'])) {
+        if (($li['price_data']['currency'] ?? '') !== 'eur' || !isset($li['price_data']['unit_amount'], $li['price_data']['product_data']['name'])) $err(400, 'price_data inválido');
+        if (isset($li['price'])) $err(400, 'price y price_data a la vez');
+        $unit = (int)$li['price_data']['unit_amount'];
+        $cur = 'eur';
+    } else {
+        $pr = $st['prices'][(string)($li['price'] ?? '')] ?? null;
+        if (!$pr || ($pr['livemode'] ?? false) !== $live) $err(400, 'price');
+        $unit = (int)$pr['unit_amount'];
+        $cur = (string)$pr['currency'];
+    }
+    $total = $unit * (int)($li['quantity'] ?? 1);
+    if (is_file($dir . '/importe-sesion-distinto')) $total += 100;
+    $o = ['id' => $id('cs'), 'object' => 'checkout.session', 'livemode' => $live, 'customer' => $cus, 'status' => 'open',
+        'amount_total' => $total, 'currency' => $cur];
     $o['url'] = 'https://checkout.stripe.com/c/pay/' . $o['id'];
     $st['sessions'][$o['id']] = $o;
+    $guardar();
+    $sal($o);
+}
+if (preg_match('#^/v1/checkout/sessions/([^/]+)/expire$#', $ruta, $m) && $metodo === 'POST') {
+    $o = $st['sessions'][$m[1]] ?? null;
+    if (!$o || ($o['livemode'] ?? false) !== $live) $err(404, 'No such checkout.session');
+    $o['status'] = 'expired';
+    $st['sessions'][$m[1]] = $o;
     $guardar();
     $sal($o);
 }
